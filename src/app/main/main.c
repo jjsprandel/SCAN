@@ -1,203 +1,61 @@
 
 #include "main.h"
 
-// void blink_led_task(void *pvParameter)
-// {
-//     while (1)
-//     {
-//         s_led_state = !s_led_state;
-
-//         if (current_kiosk_state == STATE_WIFI_INIT)
-//         {
-//             vTaskDelay(200 / portTICK_PERIOD_MS);
-//         }
-//         else
-//         {
-//             vTaskDelay(1200 / portTICK_PERIOD_MS);
-//         }
-
-//         /* If the addressable LED is enabled */
-// if (s_led_state)
-// {
-//     /* Set the LED pixel using RGB from 0 (0%) to 255 (100%) for each color */
-//     if (current_kiosk_state == STATE_WIFI_INIT)
-//     {
-//         led_strip_set_pixel(led_strip, 0, 100, 0, 0);
-//     }
-//     else
-//     {
-//         led_strip_set_pixel(led_strip, 0, 0, 0, 50);
-//     }
-//     /* Refresh the strip to send data */
-//     led_strip_refresh(led_strip);
-// }
-// else
-// {
-//     /* Set all LED off to clear all pixels */
-//     led_strip_clear(led_strip);
-// }
-// }
-// }
-
-// static void configure_led(void)
-// {
-//     ESP_LOGI(TAG, "Configured to blink addressable LED!");
-//     /* LED strip initialization with the GPIO and pixels number*/
-//     led_strip_config_t strip_config = {
-//         .strip_gpio_num = BLINK_GPIO,
-//         .max_leds = 1, // at least one LED on board
-//     };
-
-//     led_strip_rmt_config_t rmt_config = {
-//         .resolution_hz = 10 * 1000 * 1000, // 10MHz
-//         .flags.with_dma = false,
-//     };
-//     ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
-
-//     /* Set all LED off to clear all pixels */
-//     led_strip_clear(led_strip);
-// }
-
-// Task to handle proximity sensor
-void proximity_task(void *param)
+void blink_led_task(void *pvParameter)
 {
     while (1)
     {
-        xEventGroupWaitBits(event_group, IDLE_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-        if (gpio_get_level(PIR_GPIO))
+        s_led_state = !s_led_state;
+
+        if (current_kiosk_state == STATE_WIFI_INIT)
         {
-            xEventGroupSetBits(event_group, ENTERING_ID_BIT);
-            xEventGroupClearBits(event_group, IDLE_BIT);
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "Proximity Detected");
-#endif
-        }
-        vTaskDelay(pdMS_TO_TICKS(500)); // Check every 500 ms
-    }
-}
-
-// // Task to handle NFC reading
-void nfc_scan_id_task(void *param)
-{
-    while (1)
-    {
-        xEventGroupWaitBits(event_group, ENTERING_ID_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-        bool readIdSuccess = read_user_id(nfcUserID);
-
-        if (readIdSuccess)
-        {
-            xEventGroupClearBits(event_group, ENTERING_ID_BIT);
-            xEventGroupSetBits(event_group, ID_ENTERED_SUCCESS_BIT);
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "NFC Read Success. ID is: %s", nfcUserID);
-#endif
-            nfcReadFlag = true;
-        }
-    }
-}
-
-void keypad_enter_id_task(void *param)
-{
-    while (1)
-    {
-        xEventGroupWaitBits(event_group, ENTERING_ID_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-        if (keypad_task_handle == NULL)
-        {
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "Starting Keypad Task");
-#endif
-            xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 1, &keypad_task_handle);
-        }
-
-        xEventGroupClearBits(event_group, ENTERING_ID_BIT);
-        xEventGroupWaitBits(event_group, ID_ENTERED_SUCCESS_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-
-#ifdef MAIN_DEBUG
-        if (!nfcReadFlag)
-            ESP_LOGI(TAG, "Keypad Read Success. ID is: %s", keypad_buffer.elements);
-#endif
-
-        if (keypad_task_handle != NULL)
-        {
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "Deleting Keypad Task");
-#endif
-            vTaskDelete(keypad_task_handle);
-            keypad_task_handle = NULL;
-        }
-    }
-}
-
-// Task to validate NFC data online
-void validation_task(void *param)
-{
-    while (1)
-    {
-        xEventGroupWaitBits(event_group, ID_ENTERED_SUCCESS_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
-
-        // bool idIsValid = database_validate_nfc(userID);
-        if (idIsValid)
-        {
-            xEventGroupSetBits(event_group, ID_AUTHENTICATED_BIT);
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "ID %s found in database. ID accepted.", !nfcReadFlag ? keypad_buffer.elements : nfcUserID);
-#endif
+            vTaskDelay(200 / portTICK_PERIOD_MS);
         }
         else
         {
-            keypadEnteredFlag = false;
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "ID %s not found in database. ID denied.", !nfcReadFlag ? keypad_buffer.elements : nfcUserID);
-#endif
+            vTaskDelay(1200 / portTICK_PERIOD_MS);
         }
-        nfcReadFlag = false;
-        clear_buffer();
+
+        /* If the addressable LED is enabled */
+if (s_led_state)
+{
+    /* Set the LED pixel using RGB from 0 (0%) to 255 (100%) for each color */
+    if (current_kiosk_state == STATE_WIFI_INIT)
+    {
+        led_strip_set_pixel(led_strip, 0, 100, 0, 0);
     }
+    else
+    {
+        led_strip_set_pixel(led_strip, 0, 0, 0, 50);
+    }
+    /* Refresh the strip to send data */
+    led_strip_refresh(led_strip);
+}
+else
+{
+    /* Set all LED off to clear all pixels */
+    led_strip_clear(led_strip);
+}
+}
 }
 
-// Task to update the display
-void display_task(void *param)
+static void configure_led(void)
 {
-    while (1)
-    {
-        if (current_state != prev_state)
-        {
-            lv_obj_delete(disp_obj);
-            switch (current_state)
-            {
-            case STATE_IDLE:
-                _lock_acquire(&lvgl_api_lock);
-                disp_obj = display_idle(display);
-                _lock_release(&lvgl_api_lock);
-                break;
-            case STATE_USER_DETECTED:
-                _lock_acquire(&lvgl_api_lock);
-                disp_obj = display_idle(display);
-                _lock_release(&lvgl_api_lock);
-                break;
-            case STATE_VALIDATING:
-                _lock_acquire(&lvgl_api_lock);
-                disp_obj = display_transmitting(display);
-                _lock_release(&lvgl_api_lock);
-                break;
-            case STATE_DISPLAY_RESULT:
-#ifdef MAIN_DEBUG
-                ESP_LOGI(TAG, "Displaying validation results: %s", idIsValid ? "Success" : "Failed");
-#endif
-                _lock_acquire(&lvgl_api_lock);
-                disp_obj = display_check_in_success(display);
-                _lock_release(&lvgl_api_lock);
-                break;
-            default:
-                _lock_acquire(&lvgl_api_lock);
-                disp_obj = display_idle(display);
-                _lock_release(&lvgl_api_lock);
-                break;
-            }
-        }
-        prev_state = current_state;
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+    ESP_LOGI(TAG, "Configured to blink addressable LED!");
+    /* LED strip initialization with the GPIO and pixels number*/
+    led_strip_config_t strip_config = {
+        .strip_gpio_num = BLINK_GPIO,
+        .max_leds = 1, // at least one LED on board
+    };
+
+    led_strip_rmt_config_t rmt_config = {
+        .resolution_hz = 10 * 1000 * 1000, // 10MHz
+        .flags.with_dma = false,
+    };
+    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
+
+    /* Set all LED off to clear all pixels */
+    led_strip_clear(led_strip);
 }
 
 // Main State Machine
@@ -349,42 +207,6 @@ void app_main(void)
 // void app_main(void)
 // {
 //     ESP_LOGI(TAG, "App Main Start");
-
-//     lv_display_t *display = gc9a01_init();
-
-//     ESP_LOGI(TAG, "Create LVGL task");
-//     xTaskCreate(example_lvgl_port_task, "LVGL", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL, EXAMPLE_LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
-
-//     ESP_LOGI(TAG, "Display LVGL Meter Widget");
-//     lv_obj_t *disp_obj;
-
-//     _lock_acquire(&lvgl_api_lock);
-//     disp_obj = display_idle(display);
-//     _lock_release(&lvgl_api_lock);
-//     vTaskDelay(5000 / portTICK_PERIOD_MS);
-//     lv_obj_delete(disp_obj);
-
-//     _lock_acquire(&lvgl_api_lock);
-//     disp_obj = display_check_in_failed(display);
-//     _lock_release(&lvgl_api_lock);
-//     vTaskDelay(5000 / portTICK_PERIOD_MS);
-//     lv_obj_delete(disp_obj);
-
-//     _lock_acquire(&lvgl_api_lock);
-//     disp_obj = display_check_in_success(display);
-//     _lock_release(&lvgl_api_lock);
-//     vTaskDelay(5000 / portTICK_PERIOD_MS);
-//     lv_obj_delete(disp_obj);
-
-//     _lock_acquire(&lvgl_api_lock);
-//     disp_obj = display_transmitting(display);
-//     _lock_release(&lvgl_api_lock);
-//     vTaskDelay(5000 / portTICK_PERIOD_MS);
-
-//     vTaskDelete(lvgl_port_task_handle);
-//     lvgl_port_task_handle = NULL;
-
-//     ESP_LOGI(TAG, "App Main End");
 
 // // Initialize NVS
 // esp_err_t ret = nvs_flash_init();
