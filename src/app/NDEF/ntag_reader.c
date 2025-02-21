@@ -1,6 +1,11 @@
 #include "ntag_reader.h"
 
 #define NTAG_DEBUG_EN
+
+// ESP Log Tags
+static const char *CARD_READER_TAG = "ntag_reader";
+static const char *INIT_TAG = "PN532 Initialization";
+
 void nfc_init()
 {
     pn532_spi_init(&nfc, PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);

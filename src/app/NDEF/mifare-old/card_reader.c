@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <esp_log.h>
-#include <esp_log_internal.h>
+#include <esp_log_buffer.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -165,7 +165,7 @@ void ndef_to_classic_task(void *pvParameters)
                         if (idx == 16)
                         {
                             memset(blockBuffer, 0, sizeof(blockBuffer));
-                            if (!(pn532_mifareclassic_WriteDataBlock(&nfc, (BLOCK_NUMBER_OF_SECTOR_TRAILER(idx)) - 3, blockBuffer)))
+                            if (!(pn532_mifareclassic_WriteDataBlock(&nfc, (BLOCK_NUMBER_OF_SECTOR_TRAILER(idx))-3, blockBuffer)))
                             {
                                 ESP_LOGI(REFORMAT_TAG, "Unable to write to sector %d", numOfSector);
                                 // Removed return statement
@@ -174,7 +174,7 @@ void ndef_to_classic_task(void *pvParameters)
                         if ((idx == 0) || (idx == 16))
                         {
                             memset(blockBuffer, 0, sizeof(blockBuffer));
-                            if (!(pn532_mifareclassic_WriteDataBlock(&nfc, (BLOCK_NUMBER_OF_SECTOR_TRAILER(idx)) - 2, blockBuffer)))
+                            if (!(pn532_mifareclassic_WriteDataBlock(&nfc, (BLOCK_NUMBER_OF_SECTOR_TRAILER(idx))-2, blockBuffer)))
                             {
                                 ESP_LOGI(REFORMAT_TAG, "Unable to write to sector %d", numOfSector);
                                 // Removed return statement
@@ -183,19 +183,19 @@ void ndef_to_classic_task(void *pvParameters)
                         else
                         {
                             memset(blockBuffer, 0, sizeof(blockBuffer));
-                            if (!(pn532_mifareclassic_WriteDataBlock(&nfc, (BLOCK_NUMBER_OF_SECTOR_TRAILER(idx)) - 3, blockBuffer)))
+                            if (!(pn532_mifareclassic_WriteDataBlock(&nfc, (BLOCK_NUMBER_OF_SECTOR_TRAILER(idx))-3, blockBuffer)))
                             {
                                 ESP_LOGI(REFORMAT_TAG, "Unable to write to sector %d", numOfSector);
                                 // Removed return statement
                             }
-                            if (!(pn532_mifareclassic_WriteDataBlock(&nfc, (BLOCK_NUMBER_OF_SECTOR_TRAILER(idx)) - 2, blockBuffer)))
+                            if (!(pn532_mifareclassic_WriteDataBlock(&nfc, (BLOCK_NUMBER_OF_SECTOR_TRAILER(idx))-2, blockBuffer)))
                             {
                                 ESP_LOGI(REFORMAT_TAG, "Unable to write to sector %d", numOfSector);
                                 // Removed return statement
                             }
                         }
                         memset(blockBuffer, 0, sizeof(blockBuffer));
-                        if (!(pn532_mifareclassic_WriteDataBlock(&nfc, (BLOCK_NUMBER_OF_SECTOR_TRAILER(idx)) - 1, blockBuffer)))
+                        if (!(pn532_mifareclassic_WriteDataBlock(&nfc, (BLOCK_NUMBER_OF_SECTOR_TRAILER(idx))-1, blockBuffer)))
                         {
                             ESP_LOGI(REFORMAT_TAG, "Unable to write to sector %d", numOfSector);
                             // Removed return statement

@@ -23,6 +23,7 @@
 #include "display_config.h"
 #include "display_frames.h"
 #include "pir.h"
+#include "firebase_utils.h"
 
 #define BLINK_GPIO 8
 #define MAIN_DEBUG 1
@@ -33,38 +34,42 @@
 #define IDLE_BIT BIT4
 #define ENTERING_ID_BIT BIT5
 #define NEW_ID_ENTERED_SUCCESS_BIT BIT6
-#define ID_LEN 7
-#define TASK_TAG "kiosk_tasks"
+#define ID_LEN 8
 
 typedef enum
 {
+    STATE_WIFI_INIT,
+    STATE_WIFI_READY,
     STATE_IDLE,
     STATE_USER_DETECTED,
     STATE_VALIDATING,
-    STATE_DISPLAY_RESULT,
-    STATE_ADMIN
+    STATE_VALIDATION_SUCCESS,
+    STATE_VALIDATION_FAILURE,
+    STATE_ADMIN,
+    STATE_ERROR
 } state_t;
 
-extern EventGroupHandle_t event_group;
-extern TaskHandle_t keypad_task_handle = NULL;
+// extern EventGroupHandle_t event_group;
+extern TaskHandle_t keypad_task_handle;
 
-extern state_t current_state = STATE_IDLE;
-state_t prev_state = STATE_IDLE;
+extern state_t current_state, prev_state;
 
-keypad_buffer_t keypad_buffer; // Defined in keypad_driver.c
-_lock_t lvgl_api_lock;         // Defined in display_config.c
-lv_display_t *display;         // Defined in display_config.c
+extern keypad_buffer_t keypad_buffer; // Defined in keypad_driver.c
+extern _lock_t lvgl_api_lock;         // Defined in display_config.c
+extern lv_display_t *display;         // Defined in display_config.c
 extern lv_obj_t *disp_obj;
+extern bool check_in_successful;
 
-bool idIsValid = true;                // Flag set by database query results
-bool keypadEnteredFlag = false;
-bool nfcReadFlag = false;
+extern bool idIsValid;       // Flag set by database query results
+extern bool isAdministrator; // Flag set by database query results
+extern bool keypadEnteredFlag;
+extern bool nfcReadFlag;
 
-char nfcUserID[MAX_ID_LEN];    // Used to store the ID read from NFC
+extern char nfcUserID[MAX_ID_LEN]; // Used to store the ID read from NFC
 
 void proximity_task(void *param);
 void nfc_scan_id_task(void *param);
-void nfc_enter_id_task(void *param);
+void keypad_enter_id_task(void *param);
 void validation_task(void *param);
 void display_task(void *param);
 

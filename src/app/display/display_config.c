@@ -22,8 +22,6 @@
 static const char *DISPLAY_TAG = "example";
 
 // // LVGL library is not thread-safe, this example will call LVGL APIs from different tasks, so use a mutex to protect it
-extern _lock_t lvgl_api_lock;
-extern lv_display_t *display;
 
 bool example_notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx)
 {

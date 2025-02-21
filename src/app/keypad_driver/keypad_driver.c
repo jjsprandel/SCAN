@@ -7,8 +7,9 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 #include "keypad_driver.h"
-
 #define KEYPAD_DEBUG
+keypad_buffer_t keypad_buffer;
+static const char *KEYPAD_TAG = "keypad_driver";
 
 char keypad_array[4][4] = {
     "123A",

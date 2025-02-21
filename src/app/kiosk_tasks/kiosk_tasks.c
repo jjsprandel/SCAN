@@ -1,5 +1,13 @@
 #include "kiosk_tasks.h"
 
+bool idIsValid = true;        // Flag set by database query results
+bool isAdministrator = false; // Flag set by database query results
+bool keypadEnteredFlag = false;
+bool nfcReadFlag = false;
+state_t prev_state = STATE_WIFI_INIT;
+static TaskHandle_t database_task_handle = NULL;
+static const char *TASK_TAG = "kiosk_tasks";
+
 // Task to handle proximity sensor
 void proximity_task(void *param)
 {
@@ -76,35 +84,44 @@ void validation_task(void *param)
     while (1)
     {
         xEventGroupWaitBits(event_group, ID_ENTERED_SUCCESS_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
-        
+
         // Database will return: valid ID, check In status, and administrator state
+        // idIsValid = check_in_user(nfcUserID);
         idIsValid = true;
-        isAdminstrator = true;
+        isAdministrator = false;
 
-        // bool idIsValid = database_validate_nfc(userID);
+        if (database_task_handle == NULL)
+        {
+            ESP_LOGI(TASK_TAG, "Creating check-in task for ID: %s", nfcUserID);
+            xTaskCreate(check_in_user_task, "CHECK IN TASK", 1024 * 12, (void *)nfcUserID, 8, &database_task_handle);
+            database_task_handle = NULL;
+        }
 
-        if (idIsValid)
-        {
-            if (isAdministrator){
-                xEventGroupSetBits(event_group, ADMIN_MODE_BIT);
-                xEventGroupWaitBits(event_group, NEW_ID_ENTERED_SUCCESS_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-            }
-            else {
-            xEventGroupSetBits(event_group, ID_AUTHENTICATED_BIT);
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TASK_TAG, "ID %s found in database. ID accepted.", !nfcReadFlag ? keypad_buffer.elements : nfcUserID);
-#endif
-            }
-        }
-        else
-        {
-            keypadEnteredFlag = false;
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TASK_TAG, "ID %s not found in database. ID denied.", !nfcReadFlag ? keypad_buffer.elements : nfcUserID);
-#endif
-        }
-        nfcReadFlag = false;
-        clear_buffer();
+        //         if (idIsValid)
+        //         {
+        //             if (isAdministrator)
+        //             {
+        //                 xEventGroupSetBits(event_group, ADMIN_MODE_BIT);
+        //                 xEventGroupWaitBits(event_group, NEW_ID_ENTERED_SUCCESS_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+        //             }
+        //             else
+        //             {
+        //                 // xEventGroupSetBits(event_group, ID_AUTHENTICATED_BIT);
+        // #ifdef MAIN_DEBUG
+        //                 ESP_LOGI(TASK_TAG, "ID %s found in database. ID accepted.", !nfcReadFlag ? keypad_buffer.elements : nfcUserID);
+        // #endif
+        //             }
+        //             nfcReadFlag = false;
+        //         }
+        //         else
+        //         {
+        //             keypadEnteredFlag = false;
+        // #ifdef MAIN_DEBUG
+        //             ESP_LOGI(TASK_TAG, "ID %s not found in database. ID denied.", !nfcReadFlag ? keypad_buffer.elements : nfcUserID);
+        // #endif
+        //         }
+
+        //         clear_buffer();
     }
 }
 
@@ -124,10 +141,11 @@ void keypad_enter_new_id_task(void *param)
         xEventGroupClearBits(event_group, ADMIN_MODE_BIT);
         xEventGroupWaitBits(event_group, NEW_ID_ENTERED_SUCCESS_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
 
-        if (sizeof(keypad_buffer.elements)/sizeof(char) == ID_LEN){
+        if (sizeof(keypad_buffer.elements) / sizeof(char) == ID_LEN)
+        {
             // idIsValid = databaseQuery(); // Transmit to database
-            if (idIsValid){
-
+            if (idIsValid)
+            {
             }
         }
 #ifdef MAIN_DEBUG
@@ -148,11 +166,13 @@ void keypad_enter_new_id_task(void *param)
 // Task to update the display
 void display_task(void *param)
 {
+    // lv_obj_t *new_scr = NULL;
     while (1)
     {
         if (current_state != prev_state)
         {
-            lv_obj_delete(disp_obj);
+            if (disp_obj != NULL)
+                lv_obj_delete(disp_obj);
             switch (current_state)
             {
             case STATE_IDLE:
@@ -170,17 +190,19 @@ void display_task(void *param)
                 disp_obj = display_transmitting(display);
                 _lock_release(&lvgl_api_lock);
                 break;
-            case STATE_DISPLAY_RESULT:
-#ifdef MAIN_DEBUG
-                ESP_LOGI(TASK_TAG, "Displaying validation results: %s", idIsValid ? "Success" : "Failed");
-#endif
+            case STATE_VALIDATION_SUCCESS:
                 _lock_acquire(&lvgl_api_lock);
                 disp_obj = display_check_in_success(display);
                 _lock_release(&lvgl_api_lock);
                 break;
+            case STATE_VALIDATION_FAILURE:
+                _lock_acquire(&lvgl_api_lock);
+                disp_obj = display_check_in_failed(display);
+                _lock_release(&lvgl_api_lock);
+                break;
             case STATE_ADMIN:
 #ifdef MAIN_DEBUG
-            ESP_LOGI(TASK_TAG, "Entering admin mode");
+                ESP_LOGI(TASK_TAG, "Entering admin mode");
 #endif
                 _lock_acquire(&lvgl_api_lock);
                 disp_obj = display_check_in_success(display);

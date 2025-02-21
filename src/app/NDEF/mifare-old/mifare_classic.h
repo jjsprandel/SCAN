@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include "pn532.h"
 #include <esp_log.h>
-#include <esp_log_internal.h>
+#include <esp_log_buffer.h>
 
 extern pn532_t nfc;
 

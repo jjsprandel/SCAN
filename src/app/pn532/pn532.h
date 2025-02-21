@@ -17,7 +17,7 @@ extern "C"
 #include "sdkconfig.h"
 
 #include <esp_log.h>
-#include <esp_log_internal.h>
+#include <esp_log_buffer.h>
 
 #include "driver/gpio.h"
 

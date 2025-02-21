@@ -4,7 +4,7 @@
 #include "stdint.h"
 #include "stdbool.h"
 #include <esp_log.h>
-#include <esp_log_internal.h>
+#include <esp_log_buffer.h>
 #include <stdlib.h>
 #include <string.h>
 

@@ -3,11 +3,7 @@
 
 #include "pn532.h"
 #include <esp_log.h>
-#include <esp_log_internal.h>
-
-// ESP Log Tags
-#define CARD_READER_TAG "ntag_reader"
-#define INIT_TAG "PN532 Initialization"
+#include <esp_log_buffer.h>
 
 // SPI Pin Configuration
 #define PN532_SCK 21  // 10

@@ -4,7 +4,7 @@
 #include "ndef_record.h"
 #include "stdint.h"
 #include <esp_log.h>
-#include <esp_log_internal.h>
+#include <esp_log_buffer.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
