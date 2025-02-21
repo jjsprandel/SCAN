@@ -137,6 +137,12 @@ static void state_control_task(void *pvParameter)
             //     ESP_LOGI(TAG, "Creating OTA update task");
             //     xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 4, NULL, 8, &ota_update_task_handle);
             // }
+
+            const char *user_id = "5387541";
+            ESP_LOGI(TAG, "Creating check-in task");
+            xTaskCreate(check_in_user_task, "CHECK IN TASK", 1024 * 12, (void *)user_id, 8, NULL);
+            vTaskDelete(NULL);
+
             xEventGroupSetBits(event_group, IDLE_BIT);
             current_state = STATE_IDLE;
             break;
