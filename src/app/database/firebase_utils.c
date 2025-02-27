@@ -69,6 +69,9 @@ void check_in_user_task(void *pvParameters) {
     char response_buffer[1024 + 1];
     int http_code;
 
+    ESP_LOGI(TAG, "dre 1");
+    http_code = firebase_https_request_get("https://scan-9ee0b-default-rtdb.firebaseio.com/users/6942069420.json", response_buffer, sizeof(response_buffer));
+
     // Iterate through the fields and map them to struct fields
     for (size_t i = 0; i < sizeof(field_mappings) / sizeof(field_mappings[0]); i++) {
         // Format the URL
