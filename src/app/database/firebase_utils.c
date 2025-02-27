@@ -15,12 +15,21 @@
 
 #include "cJSON_Utils.h"
 
+#include "esp_sntp.h"
+#include <time.h>
+
+#define KIOSK_LOCATION "UCF RWC"
+
 // #define FIREBASE_BASE_URL "https://scan-9ee0b-default-rtdb.firebaseio.com"
 
 static const char *TAG = "FIREBASE_UTILS";
 
 // Global variable to store check-in status
 static bool check_in_successful = false;
+
+// Global variables for timestamps
+static char activityLogIndex[20];
+static char timestamp[21];
 
 // Struct to store user information
 typedef struct {
@@ -43,6 +52,60 @@ typedef struct {
     size_t field_size;
 } UserFieldMapping;
 
+// Function to initialize SNTP
+void initialize_sntp(void) {
+    ESP_LOGI(TAG, "Initializing SNTP");
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_init();
+}
+
+// Function to obtain time from SNTP server
+void obtain_time(void) {
+    // Initialize SNTP once
+    static bool sntp_initialized = false;
+    if (!sntp_initialized) {
+        initialize_sntp();
+        sntp_initialized = true;
+    }
+
+    // Wait for time to be set
+    time_t now = 0;
+    struct tm timeinfo = { 0 };
+    int retry = 0;
+    const int retry_count = 10;
+    while (timeinfo.tm_year < (2016 - 1900) && ++retry < retry_count) {
+        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        time(&now);
+        localtime_r(&now, &timeinfo);
+    }
+
+    if (retry == retry_count) {
+        ESP_LOGE(TAG, "Failed to synchronize time with NTP server");
+    } else {
+        ESP_LOGI(TAG, "Time synchronized with NTP server");
+    }
+}
+
+// Function to get the current timestamp
+void get_current_timestamp(void) {
+    time_t now;
+    struct tm timeinfo;
+
+    // Set timezone to US Eastern
+    setenv("TZ", "EST5EDT", 1);
+    tzset();
+
+    time(&now);
+    localtime_r(&now, &timeinfo);
+
+    // Format activityLogIndex as YYYYMMDDHHMMSS
+    strftime(activityLogIndex, sizeof(activityLogIndex), "%Y%m%d%H%M%S", &timeinfo);
+
+    // Format timestamp as YYYYMMDD_HHMMSS
+    strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &timeinfo);
+}
 
 // Function to retrieve user data and populate the struct
 void check_in_user_task(void *pvParameters) {
@@ -53,6 +116,9 @@ void check_in_user_task(void *pvParameters) {
         ESP_LOGE("Check-In", "Invalid input: user_id is NULL.");
         vTaskDelete(NULL); // Delete task if input is invalid
     }
+
+    // Obtain time from NTP server
+    obtain_time();
 
     char url[256];
     char response_buffer[1024 + 1];
@@ -114,8 +180,6 @@ void check_in_user_task(void *pvParameters) {
     cJSON_Delete(json);
     ESP_LOGI(TAG, "dre 2");
 
-    // Bring this guy back but make him write to activity log
-
     if (user_info->active_student)
     {
         // Create a JSON object for the activity log entry
@@ -127,11 +191,14 @@ void check_in_user_task(void *pvParameters) {
         }
 
         // Come back and format the time for indexing into the activity log correctly
+        get_current_timestamp();
+        ESP_LOGI(TAG, "Timestamp: %s", timestamp);
+        ESP_LOGI(TAG, "ActivityLogIndex: %s", activityLogIndex);
 
         // Add fields to the JSON object
         cJSON_AddStringToObject(activity_log_json, "action", user_info->check_in_status ? "Check-Out" : "Check-In");
-        cJSON_AddStringToObject(activity_log_json, "location", "UCF RWC");  // Replace with actual location
-        cJSON_AddStringToObject(activity_log_json, "timestamp", "20250227_170200"); // Replace with actual timestamp
+        cJSON_AddStringToObject(activity_log_json, "location", KIOSK_LOCATION);  // Replace with actual location
+        cJSON_AddStringToObject(activity_log_json, "timestamp", timestamp); // Replace with actual timestamp
         cJSON_AddStringToObject(activity_log_json, "userId", user_id);
 
         // Convert the JSON object to a string
@@ -143,10 +210,8 @@ void check_in_user_task(void *pvParameters) {
             vTaskDelete(NULL);
         }
 
-        char *activityTimestamp = "20250227170200"; // Replace with actual timestamp
-
         // Format the URL
-        snprintf(url, sizeof(url), "https://scan-9ee0b-default-rtdb.firebaseio.com/activityLog/%s.json", activityTimestamp);
+        snprintf(url, sizeof(url), "https://scan-9ee0b-default-rtdb.firebaseio.com/activityLog/%s.json", activityLogIndex);
         ESP_LOGI(TAG, "ActivityLog URL: %s", url);
         ESP_LOGI(TAG, "Activity Log JSON: %s", activity_log_string);
 
