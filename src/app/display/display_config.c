@@ -81,7 +81,7 @@ void example_increase_lvgl_tick(void *arg)
     lv_tick_inc(EXAMPLE_LVGL_TICK_PERIOD_MS);
 }
 
-void example_lvgl_port_task(void *arg)
+void lvgl_port_task(void *arg)
 {
 #ifdef DISPLAY_CONFIG_DEBUG
     ESP_LOGI(DISPLAY_TAG, "Starting LVGL task");
@@ -244,7 +244,7 @@ void display_test(void *pvParameters)
 #ifdef DISPLAY_CONFIG_DEBUG
     ESP_LOGI(DISPLAY_TAG, "Create LVGL task");
 #endif
-    xTaskCreate(example_lvgl_port_task, "LVGL", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
+    xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
 #ifdef DISPLAY_CONFIG_DEBUG
     ESP_LOGI(DISPLAY_TAG, "Display LVGL Meter Widget");
 #endif

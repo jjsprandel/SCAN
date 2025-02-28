@@ -23,7 +23,6 @@
 #include "display_config.h"
 #include "display_frames.h"
 #include "pir.h"
-#include "firebase_utils.h"
 
 #define BLINK_GPIO 8
 #define MAIN_DEBUG 1
@@ -34,7 +33,7 @@
 #define IDLE_BIT BIT4
 #define ENTERING_ID_BIT BIT5
 #define NEW_ID_ENTERED_SUCCESS_BIT BIT6
-#define ID_LEN 8
+#define ID_LEN 7
 
 typedef enum
 {

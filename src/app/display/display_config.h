@@ -31,8 +31,8 @@
 #define EXAMPLE_LVGL_TICK_PERIOD_MS 2
 #define EXAMPLE_LVGL_TASK_MAX_DELAY_MS 500
 #define EXAMPLE_LVGL_TASK_MIN_DELAY_MS 1
-#define EXAMPLE_LVGL_TASK_STACK_SIZE (4 * 1024)
-#define EXAMPLE_LVGL_TASK_PRIORITY 2
+#define LVGL_TASK_STACK_SIZE (4 * 1024)
+#define LVGL_TASK_PRIORITY 2
 
 #define CONFIG_EXAMPLE_LCD_CONTROLLER_GC9A01 1
 // #define DISPLAY_CONFIG_DEBUG
@@ -177,7 +177,7 @@ bool example_notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd
 void example_lvgl_port_update_callback(lv_display_t *disp);
 void example_lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map);
 void example_increase_lvgl_tick(void *arg);
-void example_lvgl_port_task(void *arg);
+void lvgl_port_task(void *arg);
 void gc9a01_init();
 void display_test(void *pvParameters);
 void display_test_1(void *pvParameters);

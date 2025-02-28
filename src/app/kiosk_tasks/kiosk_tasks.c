@@ -4,6 +4,7 @@ bool idIsValid = true;        // Flag set by database query results
 bool isAdministrator = false; // Flag set by database query results
 bool keypadEnteredFlag = false;
 bool nfcReadFlag = false;
+bool check_in_successful = true; // Set to true prior to integrating RTD
 state_t prev_state = STATE_WIFI_INIT;
 static TaskHandle_t database_task_handle = NULL;
 static const char *TASK_TAG = "kiosk_tasks";
@@ -26,7 +27,7 @@ void proximity_task(void *param)
     }
 }
 
-// // Task to handle NFC reading
+// Task to handle NFC reading
 void nfc_scan_id_task(void *param)
 {
     while (1)
@@ -90,42 +91,35 @@ void validation_task(void *param)
         idIsValid = true;
         isAdministrator = false;
 
-        if (database_task_handle == NULL)
+        if (idIsValid)
         {
-            ESP_LOGI(TASK_TAG, "Creating check-in task for ID: %s", nfcUserID);
-            xTaskCreate(check_in_user_task, "CHECK IN TASK", 1024 * 12, (void *)nfcUserID, 8, &database_task_handle);
-            database_task_handle = NULL;
+            if (isAdministrator)
+            {
+                xEventGroupSetBits(event_group, ADMIN_MODE_BIT);
+                xEventGroupWaitBits(event_group, NEW_ID_ENTERED_SUCCESS_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+            }
+            else
+            {
+                xEventGroupSetBits(event_group, ID_AUTHENTICATED_BIT);
+#ifdef MAIN_DEBUG
+                ESP_LOGI(TASK_TAG, "ID %s found in database. ID accepted.", !nfcReadFlag ? keypad_buffer.elements : nfcUserID);
+#endif
+            }
+            nfcReadFlag = false;
+        }
+        else
+        {
+            keypadEnteredFlag = false;
+#ifdef MAIN_DEBUG
+            ESP_LOGI(TASK_TAG, "ID %s not found in database. ID denied.", !nfcReadFlag ? keypad_buffer.elements : nfcUserID);
+#endif
         }
 
-        //         if (idIsValid)
-        //         {
-        //             if (isAdministrator)
-        //             {
-        //                 xEventGroupSetBits(event_group, ADMIN_MODE_BIT);
-        //                 xEventGroupWaitBits(event_group, NEW_ID_ENTERED_SUCCESS_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-        //             }
-        //             else
-        //             {
-        //                 // xEventGroupSetBits(event_group, ID_AUTHENTICATED_BIT);
-        // #ifdef MAIN_DEBUG
-        //                 ESP_LOGI(TASK_TAG, "ID %s found in database. ID accepted.", !nfcReadFlag ? keypad_buffer.elements : nfcUserID);
-        // #endif
-        //             }
-        //             nfcReadFlag = false;
-        //         }
-        //         else
-        //         {
-        //             keypadEnteredFlag = false;
-        // #ifdef MAIN_DEBUG
-        //             ESP_LOGI(TASK_TAG, "ID %s not found in database. ID denied.", !nfcReadFlag ? keypad_buffer.elements : nfcUserID);
-        // #endif
-        //         }
-
-        //         clear_buffer();
+        clear_buffer();
     }
 }
 
-void keypad_enter_new_id_task(void *param)
+/* void keypad_enter_new_id_task(void *param)
 {
     while (1)
     {
@@ -161,7 +155,7 @@ void keypad_enter_new_id_task(void *param)
             keypad_task_handle = NULL;
         }
     }
-}
+} */
 
 // Task to update the display
 void display_task(void *param)

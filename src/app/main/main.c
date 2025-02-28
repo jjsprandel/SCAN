@@ -4,7 +4,6 @@
 // TASK HANDLES
 static TaskHandle_t blink_led_task_handle = NULL;
 static TaskHandle_t wifi_init_task_handle = NULL;
-static TaskHandle_t ota_update_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
 static led_strip_handle_t led_strip;
 static uint8_t s_led_state = 0;
@@ -91,8 +90,9 @@ static void state_control_task(void *pvParameter)
 {
     while (1)
     {
-        // ESP_LOGI("Memory", "Free heap size: %lu bytes", (unsigned long)esp_get_free_heap_size());
-
+#ifdef MAIN_HEAP_DEBUG
+        ESP_LOGI("Memory", "Free heap size: %lu bytes", (unsigned long)esp_get_free_heap_size());
+#endif
         switch (current_state)
         {
         case STATE_WIFI_INIT:
@@ -127,21 +127,11 @@ static void state_control_task(void *pvParameter)
             }
             ESP_LOGI(TAG, "Wi-Fi Initialized. Ready!");
 
-            // if (blink_led_task_handle != NULL) {
-            //     vTaskDelete(blink_led_task_handle);
-            //     blink_led_task_handle = NULL;
-            // }
-
-            // if (ota_update_task_handle == NULL)
-            // {
-            //     ESP_LOGI(TAG, "Creating OTA update task");
-            //     xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 4, NULL, 8, &ota_update_task_handle);
-            // }
-
-            const char *user_id = "5387541";
-            ESP_LOGI(TAG, "Creating check-in task");
-            xTaskCreate(check_in_user_task, "CHECK IN TASK", 1024 * 12, (void *)user_id, 8, NULL);
-            vTaskDelete(NULL);
+            if (blink_led_task_handle != NULL)
+            {
+                vTaskDelete(blink_led_task_handle);
+                blink_led_task_handle = NULL;
+            }
 
             xEventGroupSetBits(event_group, IDLE_BIT);
             current_state = STATE_IDLE;
@@ -230,20 +220,28 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+
     // ESP_ERROR_CHECK(heap_trace_init_standalone(trace_record, NUM_RECORDS));
 
+#ifdef MAIN_HEAP_DEBUG
     xTaskCreate(heap_monitor_task, "HeapMonitor", MONITOR_TASK_STACK_SIZE, NULL, MONITOR_TASK_PRIORITY, NULL);
+#endif
 
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
+
     // Create tasks
     xTaskCreate(proximity_task, "Proximity Task", 2048, NULL, 1, NULL);
     xTaskCreate(nfc_scan_id_task, "nfc_scan_id_task", 4096, NULL, 1, NULL);
-    // xTaskCreate(keypad_enter_id_task, "keypad_enter_id_task", 4096, NULL, 1, NULL);
+    xTaskCreate(keypad_enter_id_task, "keypad_enter_id_task", 4096, NULL, 1, NULL);
     xTaskCreate(validation_task, "Validation Task", 4096, NULL, 1, NULL);
     xTaskCreate(display_task, "Display Task", 2048, NULL, 1, NULL);
-    xTaskCreate(example_lvgl_port_task, "LVGL", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL, EXAMPLE_LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
+    xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
+
+#ifdef MAIN_HEAP_DEBUG
     ESP_LOGI("Memory", "STARTING FREE HEAP SIZE: %lu bytes", (long unsigned int)esp_get_free_heap_size());
+#endif
+
     clear_buffer();
 
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 3, NULL);
