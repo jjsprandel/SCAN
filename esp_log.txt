@@ -1,0 +1,39 @@
+I (71262) PN532 Reading: Found an ISO14443A card
+I (71262) PN532 Reading: UID Length: 4 bytes
+I (71262) PN532 Reading: UID Value:
+I (71262) PN532 Reading: 0x4087ef68   4d 88 82 2f                                       |M../|
+I (71262) PN532 Reading: Seems to be a Mifare Classic card (4 byte UID)
+I (71272) PN532 Reading: ------------------------Sector 0-------------------------
+I (71382) PN532 Reading: Block 1
+I (71382) PN532 Reading: 0x4087ef70   14 01 03 e1 03 e1 03 e1  03 e1 03 e1 03 e1 03 e1  |................|
+I (71432) PN532 Reading: Block 2
+I (71432) PN532 Reading: 0x4087ef70   03 e1 03 e1 03 e1 03 e1  03 e1 03 e1 03 e1 03 e1  |................|
+I (71482) PN532 Reading: Block 3
+I (71482) PN532 Reading: 0x4087ef70   00 00 00 00 00 00 78 77  88 c1 00 00 00 00 00 00  |......xw........|
+I (71482) PN532 Reading: ------------------------Sector 1-------------------------
+I (71582) PN532 Reading: Block 4
+I (71582) PN532 Reading: 0x4087ef70   00 00 03 0e d1 01 0a 54  02 65 6e 35 39 33 37 35  |.......T.en59375|
+I (71632) PN532 Reading: Block 5
+I (71632) PN532 Reading: 0x4087ef70   34 37 fe 00 00 00 00 00  00 00 00 00 00 00 00 00  |47..............|
+I (71682) PN532 Reading: Block 6
+I (71682) PN532 Reading: 0x4087ef70   70 3a 2f 2f 61 72 64 75  69 6e 6f 2e 63 63 51 01  |p://arduino.ccQ.|
+I (71732) PN532 Reading: Block 7
+I (71732) PN532 Reading: 0x4087ef70   00 00 00 00 00 00 7f 07  88 40 00 00 00 00 00 00  |.........@......|
+I (71732) PN532 Reading: ------------------------Sector 2-------------------------
+I (71832) PN532 Reading: Block 8
+I (71832) PN532 Reading: 0x4087ef70   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+I (71882) PN532 Reading: Block 9
+I (71882) PN532 Reading: 0x4087ef70   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+I (71932) PN532 Reading: Block 10
+I (71932) PN532 Reading: 0x4087ef70   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+I (71982) PN532 Reading: Block 11
+I (71982) PN532 Reading: 0x4087ef70   00 00 00 00 00 00 ff 07  80 69 ff ff ff ff ff ff  |.........i......|
+I (71982) PN532 Reading: ------------------------Sector 3-------------------------
+I (72082) PN532 Reading: Block 12
+I (72082) PN532 Reading: 0x4087ef70   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+I (72132) PN532 Reading: Block 13
+I (72132) PN532 Reading: 0x4087ef70   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+I (72182) PN532 Reading: Block 14
+I (72182) PN532 Reading: 0x4087ef70   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+I (72232) PN532 Reading: Block 15
+I (72232) PN532 Reading: 0x4087ef70   00 00 00 00 00 00 ff 07  80 69 ff ff ff ff ff ff  |.........i......|

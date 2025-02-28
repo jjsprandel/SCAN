@@ -3,4 +3,10 @@
     "idf.flashType": "UART",
     "idf.enableCCache": true,
     "idf.saveBeforeBuild": true,
+    "idf.openOcdConfigs": [
+        "board/esp32c6-builtin.cfg"
+    ],
+    "files.associations": {
+        "cstdlib": "cpp"
+    },
 }
