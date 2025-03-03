@@ -8,8 +8,10 @@
 */
 #include "keypad_driver.h"
 #define KEYPAD_DEBUG
+
 keypad_buffer_t keypad_buffer;
 static const char *KEYPAD_TAG = "keypad_driver";
+bool keypadEntered = false;
 
 char keypad_array[4][4] = {
     "123A",
@@ -135,7 +137,9 @@ void keypad_handler(void *params)
             prev_time = curr_time;
             break;
         case '#':
-            xEventGroupSetBits(event_group, ID_ENTERED_SUCCESS_BIT);
+            keypadEntered = true;
+            xEventGroupSetBits(event_group, ID_ENTERED_KEYPAD_BIT);
+            vTaskDelete(NULL);
 #ifdef KEYPAD_DEBUG
             ESP_LOGI(KEYPAD_TAG, "[Buffer]> %s", keypad_buffer.elements);
 #endif

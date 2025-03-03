@@ -20,7 +20,7 @@
 
 #define KEYPAD_ADDRESS 0x20
 
-#define ID_ENTERED_SUCCESS_BIT BIT1
+#define ID_ENTERED_KEYPAD_BIT BIT6
 
 typedef struct
 {
@@ -30,6 +30,7 @@ typedef struct
 
 extern keypad_buffer_t keypad_buffer;
 extern EventGroupHandle_t event_group;
+extern bool keypadEntered;
 
 char poll_keypad(uint8_t keypad_address);
 

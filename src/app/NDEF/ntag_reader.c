@@ -173,7 +173,121 @@ void ntag2xx_memory_dump_task(void *pvParameters)
     }
 }
 
-bool read_user_id(char *outText)
+bool write_user_id(char *userID)
+{
+    uint8_t uid[] = {0, 0, 0, 0, 0, 0, 0}; // Buffer to store the returned UID
+    uint8_t uidLength;                     // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+    uint8_t dataLength;
+
+    // Require some user feedback before running this example!
+#ifdef NTAG_DEBUG_EN
+    ESP_LOGI(CARD_READER_TAG, "\r\nPlace your NDEF formatted NTAG2xx tag on the reader to update the NDEF record");
+#endif
+
+    // 1.) Wait for an NTAG203 card.  When one is found 'uid' will be populated with
+    // the UID, and uidLength will indicate the size of the UID (normally 7)
+
+    // It seems we found a valid ISO14443A Tag!
+    if (pn532_readPassiveTargetID(&nfc, PN532_MIFARE_ISO14443A, uid, &uidLength, 0))
+    {
+#ifdef DISPLAY_TARGET_ID_EN
+        // Display some basic information about the card
+        ESP_LOGI(CARD_READER_TAG, "Found an ISO14443A card");
+        ESP_LOGI(CARD_READER_TAG, "  UID Length: %d bytes, UID Value:", uidLength);
+        esp_log_buffer_hexdump_internal(CARD_READER_TAG, uid, uidLength, ESP_LOG_INFO);
+#endif
+
+        if (uidLength != 7)
+        {
+#ifdef NTAG_DEBUG_EN
+            ESP_LOGI(CARD_READER_TAG, "This doesn't seem to be an NTAG203 tag (UUID length != 7 bytes)!");
+#endif
+            return false;
+        }
+        else
+        {
+            uint8_t data[32];
+#ifdef NTAG_DEBUG_EN
+            ESP_LOGI(CARD_READER_TAG, "Seems to be an NTAG2xx tag (7 byte UID)");
+#endif
+
+            // 3.) Check if the NDEF Capability Container (CC) bits are already set
+            // in OTP memory (page 3)
+            memset(data, 0, 4);
+            if (!pn532_ntag2xx_ReadPage(&nfc, 3, data))
+            {
+#ifdef NTAG_DEBUG_EN
+                ESP_LOGI(CARD_READER_TAG, "Unable to read the Capability Container (page 3)");
+#endif
+                return false;
+            }
+            else
+            {
+                // If the tag has already been formatted as NDEF, byte 0 should be:
+                // Byte 0 = Magic Number (0xE1)
+                // Byte 1 = NDEF Version (Should be 0x10)
+                // Byte 2 = Data Area Size (value * 8 bytes)
+                // Byte 3 = Read/Write Access (0x00 for full read and write)
+                if (!((data[0] == 0xE1) && (data[1] == 0x10)))
+                {
+#ifdef NTAG_DEBUG_EN
+                    ESP_LOGI(CARD_READER_TAG, "This doesn't seem to be an NDEF formatted tag.");
+                    ESP_LOGI(CARD_READER_TAG, "Page 3 should start with 0xE1 0x10.");
+#endif
+                    return false;
+                }
+                else
+                {
+                    // 4.) Determine and display the data area size
+                    dataLength = data[2] * 8;
+#ifdef NTAG_DEBUG_EN
+                    ESP_LOGI(CARD_READER_TAG, "Tag is NDEF formatted. Data area size = %d bytes", dataLength);
+                    // 5.) Erase the old data area
+                    ESP_LOGI(CARD_READER_TAG, "Erasing previous data area ");
+#endif
+                    for (uint8_t i = 4; i < (dataLength / 4) + 4; i++)
+                    {
+                        memset(data, 0, 4);
+                        if (!pn532_ntag2xx_WritePage(&nfc, i, data))
+                        {
+#ifdef NTAG_DEBUG_EN
+                            ESP_LOGI(CARD_READER_TAG, " ERROR!");
+#endif
+                            return false;
+                        }
+                    }
+#ifdef NTAG_DEBUG_EN
+                    ESP_LOGI(CARD_READER_TAG, " DONE!");
+#endif
+
+// 6.) Try to add a new NDEF URI record
+#ifdef NTAG_DEBUG_EN
+                    ESP_LOGI(CARD_READER_TAG, "Writing Text as NDEF Record ... ");
+#endif
+                    if (pn532_ntag2xx_WriteNDEF_TEXT(&nfc, userID, dataLength))
+                    {
+#ifdef NTAG_DEBUG_EN
+                        ESP_LOGI(CARD_READER_TAG, "DONE!");
+#endif
+                    }
+                    else
+                    {
+#ifdef NTAG_DEBUG_EN
+                        ESP_LOGI(CARD_READER_TAG, "ERROR! (Text length?)");
+#endif
+                        return false;
+                    }
+
+                } // CC contents NDEF record check
+            } // CC page read check
+        } // UUID length check
+
+        // Wait a bit before trying again
+    } // Start waiting for a new ISO14443A tag
+    return true;
+}
+
+bool read_user_id(char *userID)
 {
     uint8_t uid[] = {0, 0, 0, 0, 0, 0, 0}; // Buffer to store the returned UID
     uint8_t uidLength;                     // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
@@ -212,7 +326,7 @@ bool read_user_id(char *outText)
 #ifdef NTAG_DEBUG_EN
                 ESP_LOGI(CARD_READER_TAG, "Unable to read the Capability Container (page 3)");
 #endif
-                vTaskDelete(NULL);
+                return false;
             }
             else
             {
@@ -227,6 +341,7 @@ bool read_user_id(char *outText)
                     ESP_LOGI(CARD_READER_TAG, "This doesn't seem to be an NDEF formatted tag.");
                     ESP_LOGI(CARD_READER_TAG, "Page 3 should start with 0xE1 0x10.");
 #endif
+                    return false;
                 }
                 else
                 {
@@ -254,6 +369,7 @@ bool read_user_id(char *outText)
 #ifdef NTAG_DEBUG_EN
                 ESP_LOGI(CARD_READER_TAG, "This doesn't seem to be a valid NDEF Message. Tag field is %x, should be 0x03", pageHeader[5]);
 #endif
+                return false;
             }
 
             uint8_t payloadLength = pageHeader[6] - 5;
@@ -264,6 +380,7 @@ bool read_user_id(char *outText)
                 ESP_LOGI(CARD_READER_TAG, "This doesn't seem to be a valid TEXT record");
                 ESP_LOGI(CARD_READER_TAG, "Record Length: %x, Record Type: %x", pageHeader[8], pageHeader[10]);
 #endif
+                return false;
             }
 
             uint8_t langCodeLen = pageHeader[11];                // 0x02 for language encoding
@@ -294,16 +411,13 @@ bool read_user_id(char *outText)
             }
 
             // Copy only the text portion (skip the lang code)
-            // char outText[textLen];
-            memcpy(outText, textPayload + langCodeLen, textLen);
-            outText[textLen] = '\0'; // Null-terminate the string
-                                     // #ifdef NTAG_DEBUG_EN
-            ESP_LOGI(CARD_READER_TAG, "Received NDEF Message %s and transmitting", outText);
-            esp_log_buffer_hexdump_internal(CARD_READER_TAG, outText, textLen, ESP_LOG_INFO);
+            // char userID[textLen];
+            memcpy(userID, textPayload + langCodeLen, textLen);
+            userID[textLen] = '\0'; // Null-terminate the string
+                                    // #ifdef NTAG_DEBUG_EN
+            ESP_LOGI(CARD_READER_TAG, "Received NDEF Message %s and transmitting", userID);
+            esp_log_buffer_hexdump_internal(CARD_READER_TAG, userID, textLen, ESP_LOG_INFO);
             return true;
-            // #endif
-            // xTaskNotify(id_receiver_task_handle, outText, eSetValueWithOverwrite); // Transmit ID to receiver task
-            // vTaskDelete(NULL);
         }
         else
         {
@@ -445,14 +559,14 @@ void ntag2xx_read_user_id_task(void *pvParameters)
                 }
 
                 // Copy only the text portion (skip the lang code)
-                char outText[textLen];
-                memcpy(outText, textPayload + langCodeLen, textLen);
-                outText[textLen] = '\0'; // Null-terminate the string
-                                         // #ifdef NTAG_DEBUG_EN
-                ESP_LOGI(CARD_READER_TAG, "Received NDEF Message %s and transmitting", outText);
-                esp_log_buffer_hexdump_internal(CARD_READER_TAG, outText, textLen, ESP_LOG_INFO);
+                char userID[textLen];
+                memcpy(userID, textPayload + langCodeLen, textLen);
+                userID[textLen] = '\0'; // Null-terminate the string
+                                        // #ifdef NTAG_DEBUG_EN
+                ESP_LOGI(CARD_READER_TAG, "Received NDEF Message %s and transmitting", userID);
+                esp_log_buffer_hexdump_internal(CARD_READER_TAG, userID, textLen, ESP_LOG_INFO);
                 // #endif
-                // xTaskNotify(id_receiver_task_handle, outText, eSetValueWithOverwrite); // Transmit ID to receiver task
+                // xTaskNotify(id_receiver_task_handle, userID, eSetValueWithOverwrite); // Transmit ID to receiver task
                 // vTaskDelete(NULL);
             }
             else

@@ -1,16 +1,24 @@
 #include "kiosk_tasks.h"
 
-bool idIsValid = true;        // Flag set by database query results
-bool isAdministrator = false; // Flag set by database query results
-bool keypadEnteredFlag = false;
-bool nfcReadFlag = false;
-bool check_in_successful = true; // Set to true prior to integrating RTD
+bool keypadEnteredFlag = false; // Flag set by keypad task
+bool nfcReadFlag = false;       // Flag set by nfc task
+bool idIsValid = true;          // Flag set by database query results
+bool isAdministrator = false;   // Flag set by database query results
+bool isCheckIn = true;          // Flag set by database query results
+
 state_t prev_state = STATE_WIFI_INIT;
-static TaskHandle_t database_task_handle = NULL;
 static const char *TASK_TAG = "kiosk_tasks";
 
+static TaskHandle_t proximity_task_handle = NULL;
+static TaskHandle_t nfc_scan_id_task_handle = NULL;
+static TaskHandle_t keypad_enter_id_task_handle = NULL;
+static TaskHandle_t database_query_task_handle = NULL;
+static TaskHandle_t display_task_handle = NULL;
+static TaskHandle_t lvgl_port_task_handle = NULL;
+static TaskHandle_t keypad_task_handle = NULL;
+
 // Task to handle proximity sensor
-void proximity_task(void *param)
+static void proximity_task(void *param)
 {
     while (1)
     {
@@ -19,7 +27,7 @@ void proximity_task(void *param)
         {
             xEventGroupSetBits(event_group, ENTERING_ID_BIT);
             xEventGroupClearBits(event_group, IDLE_BIT);
-#ifdef MAIN_DEBUG
+#ifdef TASK_DEBUG
             ESP_LOGI(TASK_TAG, "Proximity Detected");
 #endif
         }
@@ -28,18 +36,19 @@ void proximity_task(void *param)
 }
 
 // Task to handle NFC reading
-void nfc_scan_id_task(void *param)
+static void nfc_scan_id_task(void *param)
 {
     while (1)
     {
         xEventGroupWaitBits(event_group, ENTERING_ID_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+
         bool readIdSuccess = read_user_id(nfcUserID);
 
         if (readIdSuccess)
         {
             xEventGroupClearBits(event_group, ENTERING_ID_BIT);
-            xEventGroupSetBits(event_group, ID_ENTERED_SUCCESS_BIT);
-#ifdef MAIN_DEBUG
+            xEventGroupSetBits(event_group, ID_ENTERED_NFC_BIT);
+#ifdef TASK_DEBUG
             ESP_LOGI(TASK_TAG, "NFC Read Success. ID is: %s", nfcUserID);
 #endif
             nfcReadFlag = true;
@@ -47,120 +56,69 @@ void nfc_scan_id_task(void *param)
     }
 }
 
-void keypad_enter_id_task(void *param)
+static void keypad_enter_id_task(void *param)
 {
     while (1)
     {
         xEventGroupWaitBits(event_group, ENTERING_ID_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
         if (keypad_task_handle == NULL)
         {
-#ifdef MAIN_DEBUG
+#ifdef TASK_DEBUG
             ESP_LOGI(TASK_TAG, "Starting Keypad Task");
 #endif
             xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 1, &keypad_task_handle);
         }
 
-        xEventGroupClearBits(event_group, ENTERING_ID_BIT);
-        xEventGroupWaitBits(event_group, ID_ENTERED_SUCCESS_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-
-#ifdef MAIN_DEBUG
-        if (!nfcReadFlag)
+        if (keypadEntered && !nfcReadFlag)
+        {
+#ifdef TASK_DEBUG
             ESP_LOGI(TASK_TAG, "Keypad Read Success. ID is: %s", keypad_buffer.elements);
 #endif
-
-        if (keypad_task_handle != NULL)
-        {
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TASK_TAG, "Deleting Keypad Task");
+            if (keypad_task_handle != NULL)
+            {
+#ifdef TASK_DEBUG
+                ESP_LOGI(TASK_TAG, "Deleting Keypad Task");
 #endif
-            vTaskDelete(keypad_task_handle);
-            keypad_task_handle = NULL;
+                vTaskDelete(keypad_task_handle);
+                keypad_task_handle = NULL;
+            }
         }
     }
 }
 
-// Task to validate NFC data online
-void validation_task(void *param)
+static void database_query_task(void *param)
 {
     while (1)
     {
-        xEventGroupWaitBits(event_group, ID_ENTERED_SUCCESS_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
+        xEventGroupWaitBits(event_group, (ID_ENTERED_KEYPAD_BIT | ID_ENTERED_NFC_BIT), pdTRUE, pdFALSE, portMAX_DELAY);
+        char user_id[ID_LEN];
+        memcpy(user_id, nfcReadFlag ? nfcUserID : keypad_buffer.elements, ID_LEN);
+#ifdef TASK_DEBUG
+        ESP_LOGI(TASK_TAG, "Querying database for ID: %s", nfcUserID);
+#endif
 
-        // Database will return: valid ID, check In status, and administrator state
-        // idIsValid = check_in_user(nfcUserID);
+#ifdef DATABASE_ENABLED
+        // Database will return: valid ID, administrator state, and check-in/out state
+        // UserInfo info = database_query(nfcUserID);
+        // idIsValid = info.idIsValid;
+        // isAdministrator = info.isAdministrator;
+        // isCheckIn = info.isCheckIn;
+#else
+        // Hard code valuse for testing
         idIsValid = true;
-        isAdministrator = false;
-
-        if (idIsValid)
-        {
-            if (isAdministrator)
-            {
-                xEventGroupSetBits(event_group, ADMIN_MODE_BIT);
-                xEventGroupWaitBits(event_group, NEW_ID_ENTERED_SUCCESS_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-            }
-            else
-            {
-                xEventGroupSetBits(event_group, ID_AUTHENTICATED_BIT);
-#ifdef MAIN_DEBUG
-                ESP_LOGI(TASK_TAG, "ID %s found in database. ID accepted.", !nfcReadFlag ? keypad_buffer.elements : nfcUserID);
+        isAdministrator = true;
+        isCheckIn = true;
 #endif
-            }
-            nfcReadFlag = false;
-        }
-        else
-        {
-            keypadEnteredFlag = false;
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TASK_TAG, "ID %s not found in database. ID denied.", !nfcReadFlag ? keypad_buffer.elements : nfcUserID);
-#endif
-        }
-
+        xEventGroupSetBits(event_group, ID_AUTHENTICATED_BIT);
+        keypadEntered = false;
+        nfcReadFlag = false;
         clear_buffer();
     }
 }
 
-/* void keypad_enter_new_id_task(void *param)
-{
-    while (1)
-    {
-        xEventGroupWaitBits(event_group, ADMIN_MODE_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-        if (keypad_task_handle == NULL)
-        {
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TASK_TAG, "Starting Keypad Task");
-#endif
-            xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 1, &keypad_task_handle);
-        }
-
-        xEventGroupClearBits(event_group, ADMIN_MODE_BIT);
-        xEventGroupWaitBits(event_group, NEW_ID_ENTERED_SUCCESS_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-
-        if (sizeof(keypad_buffer.elements) / sizeof(char) == ID_LEN)
-        {
-            // idIsValid = databaseQuery(); // Transmit to database
-            if (idIsValid)
-            {
-            }
-        }
-#ifdef MAIN_DEBUG
-        ESP_LOGI(TASK_TAG, "Keypad Read Success. New ID is: %s", keypad_buffer.elements);
-#endif
-
-        if (keypad_task_handle != NULL)
-        {
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TASK_TAG, "Deleting Keypad Task");
-#endif
-            vTaskDelete(keypad_task_handle);
-            keypad_task_handle = NULL;
-        }
-    }
-} */
-
 // Task to update the display
-void display_task(void *param)
+static void display_task(void *param)
 {
-    // lv_obj_t *new_scr = NULL;
     while (1)
     {
         if (current_state != prev_state)
@@ -170,39 +128,57 @@ void display_task(void *param)
             switch (current_state)
             {
             case STATE_IDLE:
+#ifdef TASK_DEBUG
+                ESP_LOGI(TASK_TAG, "Displaying idle state screen");
+#endif
                 _lock_acquire(&lvgl_api_lock);
                 disp_obj = display_idle(display);
                 _lock_release(&lvgl_api_lock);
                 break;
             case STATE_USER_DETECTED:
+#ifdef TASK_DEBUG
+                ESP_LOGI(TASK_TAG, "Displaying user detected screen");
+#endif
                 _lock_acquire(&lvgl_api_lock);
                 disp_obj = display_idle(display);
                 _lock_release(&lvgl_api_lock);
                 break;
-            case STATE_VALIDATING:
+            case STATE_DATABASE_VALIDATION:
+#ifdef TASK_DEBUG
+                ESP_LOGI(TASK_TAG, "Displaying database validation screen");
+#endif
                 _lock_acquire(&lvgl_api_lock);
                 disp_obj = display_transmitting(display);
                 _lock_release(&lvgl_api_lock);
                 break;
-            case STATE_VALIDATION_SUCCESS:
-                _lock_acquire(&lvgl_api_lock);
-                disp_obj = display_check_in_success(display);
-                _lock_release(&lvgl_api_lock);
-                break;
-            case STATE_VALIDATION_FAILURE:
-                _lock_acquire(&lvgl_api_lock);
-                disp_obj = display_check_in_failed(display);
-                _lock_release(&lvgl_api_lock);
-                break;
-            case STATE_ADMIN:
-#ifdef MAIN_DEBUG
-                ESP_LOGI(TASK_TAG, "Entering admin mode");
+            case STATE_CHECK_IN:
+#ifdef TASK_DEBUG
+                ESP_LOGI(TASK_TAG, "Displaying check-in success screen");
 #endif
                 _lock_acquire(&lvgl_api_lock);
                 disp_obj = display_check_in_success(display);
                 _lock_release(&lvgl_api_lock);
                 break;
+            case STATE_CHECK_OUT:
+#ifdef TASK_DEBUG
+                ESP_LOGI(TASK_TAG, "Displaying check-out success screen");
+#endif
+                _lock_acquire(&lvgl_api_lock);
+                disp_obj = display_check_out_success(display);
+                _lock_release(&lvgl_api_lock);
+                break;
+            case STATE_VALIDATION_FAILURE:
+#ifdef TASK_DEBUG
+                ESP_LOGI(TASK_TAG, "Displaying validation failure screen");
+#endif
+                _lock_acquire(&lvgl_api_lock);
+                disp_obj = display_check_in_failed(display);
+                _lock_release(&lvgl_api_lock);
+                break;
             default:
+#ifdef TASK_DEBUG
+                ESP_LOGI(TASK_TAG, "Displaying default screen");
+#endif
                 _lock_acquire(&lvgl_api_lock);
                 disp_obj = display_idle(display);
                 _lock_release(&lvgl_api_lock);
@@ -210,6 +186,51 @@ void display_task(void *param)
             }
         }
         prev_state = current_state;
-        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
+// Initialize all kiosk tasks
+void init_kiosk_tasks()
+{
+    xTaskCreate(proximity_task, "Proximity Task", 2048, NULL, 1, &proximity_task_handle);
+    xTaskCreate(nfc_scan_id_task, "nfc_scan_id_task", 4096, NULL, 1, &nfc_scan_id_task_handle);
+    xTaskCreate(keypad_enter_id_task, "keypad_enter_id_task", 4096, NULL, 1, &keypad_enter_id_task_handle);
+    xTaskCreate(database_query_task, "Database validation task", 4096, NULL, 1, &database_query_task_handle);
+    xTaskCreate(display_task, "Display Task", 2048, NULL, 1, &display_task_handle);
+    xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
+}
+
+// Clean up tasks
+void teardown_kiosk_tasks()
+{
+    if (proximity_task_handle != NULL)
+    {
+        vTaskDelete(proximity_task_handle);
+        proximity_task_handle = NULL;
+    }
+    if (nfc_scan_id_task_handle != NULL)
+    {
+        vTaskDelete(nfc_scan_id_task_handle);
+        nfc_scan_id_task_handle = NULL;
+    }
+    if (keypad_enter_id_task_handle != NULL)
+    {
+        vTaskDelete(keypad_enter_id_task_handle);
+        keypad_enter_id_task_handle = NULL;
+    }
+    if (database_query_task_handle != NULL)
+    {
+        vTaskDelete(database_query_task_handle);
+        database_query_task_handle = NULL;
+    }
+    if (display_task_handle != NULL)
+    {
+        vTaskDelete(display_task_handle);
+        display_task_handle = NULL;
+    }
+    if (lvgl_port_task_handle != NULL)
+    {
+        vTaskDelete(lvgl_port_task_handle);
+        lvgl_port_task_handle = NULL;
     }
 }

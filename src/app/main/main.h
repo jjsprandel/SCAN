@@ -7,14 +7,15 @@
 #include "display_config.h"
 #include "kiosk_tasks.h"
 #include "buzzer.h"
+#include "admin_tasks.h"
+#include "display_config.h"
+#include "display_frames.h"
 
 #define HEAP_WARNING_THRESHOLD 5000  // Minimum acceptable heap size in bytes
 #define MONITOR_TASK_STACK_SIZE 2048 // Stack size in words (4 bytes each)
 #define MONITOR_TASK_PRIORITY 5      // Task priority
 // #define MAIN_HEAP_DEBUG
-
-// GLOBAL VARIABLES
-TaskHandle_t keypad_task_handle = NULL;
+#define MAIN_DEBUG
 
 // not static because it is being used in wifi_init.c as extern variable
 SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init completion
@@ -31,6 +32,6 @@ lv_display_t *display;                // Defined in display_config.h
 lv_obj_t *disp_obj;                   // Defined in kiosk_states.h
 
 char nfcUserID[MAX_ID_LEN];
-extern bool check_in_successful;
+extern bool isAdministrator;
 
 #endif

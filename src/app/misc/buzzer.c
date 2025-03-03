@@ -1,6 +1,6 @@
 #include "buzzer.h"
 
-static const char *TAG = "BUZZER";
+static const char *BUZZER_TAG = "BUZZER";
 
 uint8_t BuzzerState = 0;
 

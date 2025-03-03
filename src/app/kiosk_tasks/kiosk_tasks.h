@@ -25,15 +25,17 @@
 #include "pir.h"
 
 #define BLINK_GPIO 8
-#define MAIN_DEBUG 1
+#define TASK_DEBUG 1
 #define PROXIMITY_DETECTED_BIT BIT0
-#define ID_ENTERED_SUCCESS_BIT BIT1
+#define ID_ENTERED_NFC_BIT BIT1
 #define ID_AUTHENTICATED_BIT BIT2
-#define ADMIN_MODE_BIT BIT3
+#define EXIT_ADMIN_MODE_BIT BIT3
 #define IDLE_BIT BIT4
 #define ENTERING_ID_BIT BIT5
-#define NEW_ID_ENTERED_SUCCESS_BIT BIT6
-#define ID_LEN 7
+#define ID_ENTERED_KEYPAD_BIT BIT6
+#define ID_LEN 8
+
+// #define DATABASE_ENABLED
 
 typedef enum
 {
@@ -41,15 +43,13 @@ typedef enum
     STATE_WIFI_READY,
     STATE_IDLE,
     STATE_USER_DETECTED,
-    STATE_VALIDATING,
-    STATE_VALIDATION_SUCCESS,
+    STATE_DATABASE_VALIDATION,
+    STATE_CHECK_IN,
+    STATE_CHECK_OUT,
+    STATE_ADMIN_MODE,
     STATE_VALIDATION_FAILURE,
-    STATE_ADMIN,
     STATE_ERROR
 } state_t;
-
-// extern EventGroupHandle_t event_group;
-extern TaskHandle_t keypad_task_handle;
 
 extern state_t current_state, prev_state;
 
@@ -59,17 +59,16 @@ extern lv_display_t *display;         // Defined in display_config.c
 extern lv_obj_t *disp_obj;
 extern bool check_in_successful;
 
-extern bool idIsValid;       // Flag set by database query results
-extern bool isAdministrator; // Flag set by database query results
-extern bool keypadEnteredFlag;
-extern bool nfcReadFlag;
+extern bool idIsValid;         // Flag set by database query results
+extern bool isAdministrator;   // Flag set by database query results
+extern bool isCheckIn;         // Flag set by database query results
+extern bool keypadEnteredFlag; // Flag set by keypad task
+extern bool nfcReadFlag;       // Flag set by nfc task
+extern bool keypadEntered;     // Flag set by keypad driver
 
 extern char nfcUserID[MAX_ID_LEN]; // Used to store the ID read from NFC
 
-void proximity_task(void *param);
-void nfc_scan_id_task(void *param);
-void keypad_enter_id_task(void *param);
-void validation_task(void *param);
-void display_task(void *param);
+void init_kiosk_tasks();
+void teardown_kiosk_tasks();
 
 #endif

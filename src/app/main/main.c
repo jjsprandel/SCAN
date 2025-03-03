@@ -4,13 +4,13 @@
 // TASK HANDLES
 static TaskHandle_t blink_led_task_handle = NULL;
 static TaskHandle_t wifi_init_task_handle = NULL;
-static TaskHandle_t lvgl_port_task_handle = NULL;
+
 static led_strip_handle_t led_strip;
 static uint8_t s_led_state = 0;
 
-static const char *TAG = "MAIN";
+static const char *MAIN_TAG = "MAIN";
 
-void blink_led_task(void *pvParameter)
+static void blink_led_task(void *pvParameter)
 {
     while (1)
     {
@@ -50,7 +50,9 @@ void blink_led_task(void *pvParameter)
 
 static void configure_led(void)
 {
-    ESP_LOGI(TAG, "Configured to blink addressable LED!");
+#ifdef MAIN_DEBUG
+    ESP_LOGI(MAIN_TAG, "Configured to blink addressable LED!");
+#endif
     /* LED strip initialization with the GPIO and pixels number*/
     led_strip_config_t strip_config = {
         .strip_gpio_num = BLINK_GPIO,
@@ -72,11 +74,11 @@ static void heap_monitor_task(void *pvParameters)
     while (1)
     {
         long unsigned int free_heap = (long unsigned int)esp_get_free_heap_size();
-        // ESP_LOGI(TAG, "Free heap size: %lu bytes", free_heap);
+        // ESP_LOGI(MAIN_TAG, "Free heap size: %lu bytes", free_heap);
 
         if (free_heap < HEAP_WARNING_THRESHOLD)
         {
-            ESP_LOGE(TAG, "CRITICAL: Heap size below safe limit! Free heap: %lu bytes", free_heap);
+            ESP_LOGE(MAIN_TAG, "CRITICAL: Heap size below safe limit! Free heap: %lu bytes", free_heap);
             // Optional: Restart the system if necessary
             // esp_restart();
         }
@@ -99,14 +101,18 @@ static void state_control_task(void *pvParameter)
             // Start Wi-Fi init task if not already started
             if (wifi_init_task_handle == NULL)
             {
-                ESP_LOGI(TAG, "Starting Wi-Fi Init Task");
+#ifdef MAIN_DEBUG
+                ESP_LOGI(MAIN_TAG, "Starting Wi-Fi Init Task");
+#endif
                 xTaskCreate(wifi_init_task, "wifi_init_task", 4096, NULL, 4, &wifi_init_task_handle);
             }
 
             // Start LED blinking task if not already running
             if (blink_led_task_handle == NULL)
             {
-                ESP_LOGI(TAG, "Starting Blink LED Task");
+#ifdef MAIN_DEBUG
+                ESP_LOGI(MAIN_TAG, "Starting Blink LED Task");
+#endif
                 xTaskCreate(blink_led_task, "blink_led_task", 1024, NULL, 2, &blink_led_task_handle);
             }
 
@@ -125,7 +131,9 @@ static void state_control_task(void *pvParameter)
                 vTaskDelete(wifi_init_task_handle);
                 wifi_init_task_handle = NULL;
             }
-            ESP_LOGI(TAG, "Wi-Fi Initialized. Ready!");
+#ifdef MAIN_DEBUG
+            ESP_LOGI(MAIN_TAG, "Wi-Fi Initialized. Ready!");
+#endif
 
             if (blink_led_task_handle != NULL)
             {
@@ -144,28 +152,46 @@ static void state_control_task(void *pvParameter)
 
         case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
             xEventGroupWaitBits(event_group, ID_ENTERED_SUCCESS_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
-            current_state = STATE_VALIDATING;
+            current_state = STATE_DATABASE_VALIDATION;
             break;
 
-        case STATE_VALIDATING: // Wait until validation is complete
+        case STATE_DATABASE_VALIDATION: // Wait until validation is complete
             xEventGroupWaitBits(event_group, ID_AUTHENTICATED_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
-            current_state = check_in_successful ? STATE_VALIDATION_SUCCESS : STATE_VALIDATION_FAILURE;
+            current_state = (!idIsValid) ? STATE_VALIDATION_FAILURE : (isAdministrator) ? STATE_ADMIN_MODE
+                                                                  : (isCheckIn)         ? STATE_CHECK_IN
+                                                                                        : STATE_CHECK_OUT;
+            // current_state = check_in_successful ? STATE_VALIDATION_SUCCESS : STATE_VALIDATION_FAILURE;
             break;
-
-        case STATE_VALIDATION_SUCCESS:
+        case STATE_CHECK_IN:
 #ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "ID %s found in database. ID accepted.", nfcUserID);
+            ESP_LOGI(MAIN_TAG, "ID %s found in database. Checking in.", nfcUserID);
 #endif
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
             xEventGroupSetBits(event_group, IDLE_BIT);
             current_state = STATE_IDLE;
             break;
-
+        case STATE_CHECK_OUT:
+#ifdef MAIN_DEBUG
+            ESP_LOGI(MAIN_TAG, "ID %s found in database. Checking out.", nfcUserID);
+#endif
+            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
+            xEventGroupSetBits(event_group, IDLE_BIT);
+            current_state = STATE_IDLE;
+            break;
+        case STATE_ADMIN_MODE:
+#ifdef MAIN_DEBUG
+            ESP_LOGI(MAIN_TAG, "ID %s found in database. Entering admin mode.", nfcUserID);
+#endif
+            init_admin_mode();
+            xEventGroupWaitBits(event_group, EXIT_ADMIN_MODE_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
+            teardown_admin_mode();
+            current_state = STATE_IDLE;
+            break;
         case STATE_VALIDATION_FAILURE:
 #ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "ID %s not found in database. Try again.", nfcUserID);
+            ESP_LOGI(MAIN_TAG, "ID %s not found in database. Try again.", nfcUserID);
 #endif
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
             xEventGroupSetBits(event_group, ENTERING_ID_BIT);
             current_state = STATE_USER_DETECTED;
             break;
@@ -182,22 +208,24 @@ static void state_control_task(void *pvParameter)
                 vTaskDelete(blink_led_task_handle);
                 blink_led_task_handle = NULL;
             }
-            ESP_LOGE(TAG, "Error state reached!");
+            ESP_LOGE(MAIN_TAG, "Error state reached!");
             break;
 
         default:
-            ESP_LOGW(TAG, "Unknown state encountered: %d", current_state);
+            ESP_LOGW(MAIN_TAG, "Unknown state encountered: %d", current_state);
             break;
         }
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
-    ESP_LOGI(TAG, "State control task finished"); // Should not reach here unless task is deleted
+#ifdef MAIN_DEBUG
+    ESP_LOGI(MAIN_TAG, "State control task finished"); // Should not reach here unless task is deleted
+#endif
 }
 
 // Main State Machine
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Starting Kiosk Application");
+    ESP_LOGI(MAIN_TAG, "Starting Kiosk Application");
 
     // Initialize event group
     event_group = xEventGroupCreate();
@@ -230,19 +258,11 @@ void app_main(void)
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
 
-    // Create tasks
-    xTaskCreate(proximity_task, "Proximity Task", 2048, NULL, 1, NULL);
-    xTaskCreate(nfc_scan_id_task, "nfc_scan_id_task", 4096, NULL, 1, NULL);
-    xTaskCreate(keypad_enter_id_task, "keypad_enter_id_task", 4096, NULL, 1, NULL);
-    xTaskCreate(validation_task, "Validation Task", 4096, NULL, 1, NULL);
-    xTaskCreate(display_task, "Display Task", 2048, NULL, 1, NULL);
-    xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
+    init_kiosk_tasks();
 
 #ifdef MAIN_HEAP_DEBUG
     ESP_LOGI("Memory", "STARTING FREE HEAP SIZE: %lu bytes", (long unsigned int)esp_get_free_heap_size());
 #endif
-
-    clear_buffer();
 
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 3, NULL);
 
@@ -251,5 +271,6 @@ void app_main(void)
         vTaskDelay(4000 / portTICK_PERIOD_MS);
     }
 
-    ESP_LOGI(TAG, "Kiosk Application Finished");
+    teardown_kiosk_tasks();
+    ESP_LOGI(MAIN_TAG, "Kiosk Application Finished");
 }
