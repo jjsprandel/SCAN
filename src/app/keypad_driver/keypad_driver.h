@@ -17,10 +17,13 @@
 #define MAX_BUFFER_SIZE 21
 #define BUFFER_TIMEOUT 2
 #define TIMER_DEVIDER 16
+#define KEYPAD_DEBUG 1
 
 #define KEYPAD_ADDRESS 0x20
+#define ID_LEN 7
 
-#define ID_ENTERED_KEYPAD_BIT BIT6
+// #define ID_ENTERED_KEYPAD_BIT BIT6
+#define ID_ENTERED_BIT BIT6
 
 typedef struct
 {

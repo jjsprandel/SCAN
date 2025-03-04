@@ -1,10 +1,11 @@
 #include "kiosk_tasks.h"
 
-bool keypadEnteredFlag = false; // Flag set by keypad task
-bool nfcReadFlag = false;       // Flag set by nfc task
-bool idIsValid = true;          // Flag set by database query results
-bool isAdministrator = false;   // Flag set by database query results
-bool isCheckIn = true;          // Flag set by database query results
+bool nfcReadFlag = false;     // Flag set by nfc task
+bool idIsValid = true;        // Flag set by database query results
+bool isAdministrator = false; // Flag set by database query results
+bool isCheckIn = true;        // Flag set by database query results
+char user_id[ID_LEN];
+char nfcUserID[MAX_ID_LEN];
 
 state_t prev_state = STATE_WIFI_INIT;
 static const char *TASK_TAG = "kiosk_tasks";
@@ -16,6 +17,7 @@ static TaskHandle_t database_query_task_handle = NULL;
 static TaskHandle_t display_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
 static TaskHandle_t keypad_task_handle = NULL;
+static TaskHandle_t cleanup_task_handle = NULL;
 
 // Task to handle proximity sensor
 static void proximity_task(void *param)
@@ -42,16 +44,15 @@ static void nfc_scan_id_task(void *param)
     {
         xEventGroupWaitBits(event_group, ENTERING_ID_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
 
-        bool readIdSuccess = read_user_id(nfcUserID);
+        nfcReadFlag = read_user_id(nfcUserID);
 
-        if (readIdSuccess)
+        if (nfcReadFlag)
         {
-            xEventGroupClearBits(event_group, ENTERING_ID_BIT);
-            xEventGroupSetBits(event_group, ID_ENTERED_NFC_BIT);
+            // xEventGroupClearBits(event_group, ENTERING_ID_BIT);
+            xEventGroupSetBits(event_group, ID_ENTERED_BIT);
 #ifdef TASK_DEBUG
             ESP_LOGI(TASK_TAG, "NFC Read Success. ID is: %s", nfcUserID);
 #endif
-            nfcReadFlag = true;
         }
     }
 }
@@ -69,20 +70,23 @@ static void keypad_enter_id_task(void *param)
             xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 1, &keypad_task_handle);
         }
 
-        if (keypadEntered && !nfcReadFlag)
+        xEventGroupWaitBits(event_group, ID_ENTERED_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
+        if (!nfcReadFlag)
         {
 #ifdef TASK_DEBUG
             ESP_LOGI(TASK_TAG, "Keypad Read Success. ID is: %s", keypad_buffer.elements);
 #endif
-            if (keypad_task_handle != NULL)
-            {
-#ifdef TASK_DEBUG
-                ESP_LOGI(TASK_TAG, "Deleting Keypad Task");
-#endif
-                vTaskDelete(keypad_task_handle);
-                keypad_task_handle = NULL;
-            }
+            // xEventGroupClearBits(event_group, ENTERING_ID_BIT);
         }
+        if (keypad_task_handle != NULL)
+        {
+#ifdef TASK_DEBUG
+            ESP_LOGI(TASK_TAG, "Deleting Keypad Task");
+#endif
+            vTaskDelete(keypad_task_handle);
+            keypad_task_handle = NULL;
+        }
+        xEventGroupSetBits(event_group, DATABASE_QUERY_BIT);
     }
 }
 
@@ -90,11 +94,11 @@ static void database_query_task(void *param)
 {
     while (1)
     {
-        xEventGroupWaitBits(event_group, (ID_ENTERED_KEYPAD_BIT | ID_ENTERED_NFC_BIT), pdTRUE, pdFALSE, portMAX_DELAY);
-        char user_id[ID_LEN];
+        xEventGroupWaitBits(event_group, DATABASE_QUERY_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
+
         memcpy(user_id, nfcReadFlag ? nfcUserID : keypad_buffer.elements, ID_LEN);
 #ifdef TASK_DEBUG
-        ESP_LOGI(TASK_TAG, "Querying database for ID: %s", nfcUserID);
+        ESP_LOGI(TASK_TAG, "Querying database for ID: %s", user_id);
 #endif
 
 #ifdef DATABASE_ENABLED
@@ -106,16 +110,25 @@ static void database_query_task(void *param)
 #else
         // Hard code valuse for testing
         idIsValid = true;
-        isAdministrator = true;
+        isAdministrator = false;
         isCheckIn = true;
 #endif
         xEventGroupSetBits(event_group, ID_AUTHENTICATED_BIT);
-        keypadEntered = false;
-        nfcReadFlag = false;
-        clear_buffer();
     }
 }
 
+static void cleanup_task(void *param)
+{
+    while (1)
+    {
+        xEventGroupWaitBits(event_group, CLEAN_UP_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
+        keypadEntered = false;
+        nfcReadFlag = false;
+        memcpy(nfcUserID, "0000000", ID_LEN);
+        memcpy(user_id, "0000000", ID_LEN);
+        clear_buffer();
+    }
+}
 // Task to update the display
 static void display_task(void *param)
 {
@@ -198,6 +211,7 @@ void init_kiosk_tasks()
     xTaskCreate(database_query_task, "Database validation task", 4096, NULL, 1, &database_query_task_handle);
     xTaskCreate(display_task, "Display Task", 2048, NULL, 1, &display_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
+    xTaskCreate(cleanup_task, "Cleanup Task", 2048, NULL, 1, &cleanup_task_handle);
 }
 
 // Clean up tasks
@@ -232,5 +246,10 @@ void teardown_kiosk_tasks()
     {
         vTaskDelete(lvgl_port_task_handle);
         lvgl_port_task_handle = NULL;
+    }
+    if (cleanup_task_handle != NULL)
+    {
+        vTaskDelete(cleanup_task_handle);
+        cleanup_task_handle = NULL;
     }
 }

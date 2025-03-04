@@ -31,7 +31,7 @@ _lock_t lvgl_api_lock;                // Defined in display_config.h
 lv_display_t *display;                // Defined in display_config.h
 lv_obj_t *disp_obj;                   // Defined in kiosk_states.h
 
-char nfcUserID[MAX_ID_LEN];
+extern char user_id[ID_LEN];
 extern bool isAdministrator;
 
 #endif

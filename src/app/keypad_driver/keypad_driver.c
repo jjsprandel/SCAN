@@ -7,7 +7,6 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 #include "keypad_driver.h"
-#define KEYPAD_DEBUG
 
 keypad_buffer_t keypad_buffer;
 static const char *KEYPAD_TAG = "keypad_driver";
@@ -108,6 +107,9 @@ char poll_keypad(uint8_t keypad_address)
 void keypad_handler(void *params)
 {
     // keypad_buffer_t *keypad_buffer = (keypad_buffer_t *)params;
+#ifdef KEYPAD_DEBUG
+    ESP_LOGI(KEYPAD_TAG, "Starting Keypad Task");
+#endif
 
     char c = '\0';
     uint8_t clear_pullup = 0xff;
@@ -138,8 +140,8 @@ void keypad_handler(void *params)
             break;
         case '#':
             keypadEntered = true;
-            xEventGroupSetBits(event_group, ID_ENTERED_KEYPAD_BIT);
-            vTaskDelete(NULL);
+            if (keypad_buffer.occupied == ID_LEN)
+                xEventGroupSetBits(event_group, ID_ENTERED_BIT);
 #ifdef KEYPAD_DEBUG
             ESP_LOGI(KEYPAD_TAG, "[Buffer]> %s", keypad_buffer.elements);
 #endif

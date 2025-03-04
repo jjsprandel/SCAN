@@ -164,23 +164,23 @@ static void state_control_task(void *pvParameter)
             break;
         case STATE_CHECK_IN:
 #ifdef MAIN_DEBUG
-            ESP_LOGI(MAIN_TAG, "ID %s found in database. Checking in.", nfcUserID);
+            ESP_LOGI(MAIN_TAG, "ID %s found in database. Checking in.", user_id);
 #endif
             vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
-            xEventGroupSetBits(event_group, IDLE_BIT);
+            xEventGroupSetBits(event_group, IDLE_BIT | CLEAN_UP_BIT);
             current_state = STATE_IDLE;
             break;
         case STATE_CHECK_OUT:
 #ifdef MAIN_DEBUG
-            ESP_LOGI(MAIN_TAG, "ID %s found in database. Checking out.", nfcUserID);
+            ESP_LOGI(MAIN_TAG, "ID %s found in database. Checking out.", user_id);
 #endif
             vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
-            xEventGroupSetBits(event_group, IDLE_BIT);
+            xEventGroupSetBits(event_group, IDLE_BIT | CLEAN_UP_BIT);
             current_state = STATE_IDLE;
             break;
         case STATE_ADMIN_MODE:
 #ifdef MAIN_DEBUG
-            ESP_LOGI(MAIN_TAG, "ID %s found in database. Entering admin mode.", nfcUserID);
+            ESP_LOGI(MAIN_TAG, "ID %s found in database. Entering admin mode.", user_id);
 #endif
             init_admin_mode();
             xEventGroupWaitBits(event_group, EXIT_ADMIN_MODE_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
@@ -189,10 +189,11 @@ static void state_control_task(void *pvParameter)
             break;
         case STATE_VALIDATION_FAILURE:
 #ifdef MAIN_DEBUG
-            ESP_LOGI(MAIN_TAG, "ID %s not found in database. Try again.", nfcUserID);
+            ESP_LOGI(MAIN_TAG, "ID %s not found in database. Try again.", user_id);
 #endif
             vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
             xEventGroupSetBits(event_group, ENTERING_ID_BIT);
+            xEventGroupSetBits(event_group, CLEAN_UP_BIT);
             current_state = STATE_USER_DETECTED;
             break;
 
