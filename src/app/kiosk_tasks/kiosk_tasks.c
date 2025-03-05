@@ -54,6 +54,7 @@ static void nfc_scan_id_task(void *param)
             ESP_LOGI(TASK_TAG, "NFC Read Success. ID is: %s", nfcUserID);
 #endif
         }
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
@@ -87,6 +88,7 @@ static void keypad_enter_id_task(void *param)
             keypad_task_handle = NULL;
         }
         xEventGroupSetBits(event_group, DATABASE_QUERY_BIT);
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
@@ -115,6 +117,7 @@ static void database_query_task(void *param)
 #endif
         xEventGroupSetBits(event_group, ID_AUTHENTICATED_BIT);
     }
+    vTaskDelay(pdMS_TO_TICKS(500));
 }
 
 static void cleanup_task(void *param)
@@ -127,6 +130,8 @@ static void cleanup_task(void *param)
         memcpy(nfcUserID, "0000000", ID_LEN);
         memcpy(user_id, "0000000", ID_LEN);
         clear_buffer();
+
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 // Task to update the display
@@ -198,6 +203,7 @@ static void display_task(void *param)
                 break;
             }
         }
+        vTaskDelay(pdMS_TO_TICKS(500));
         prev_state = current_state;
     }
 }
