@@ -17,7 +17,7 @@
 #include "ntag_reader.h"
 #include "firebase_http_client.h"
 
-#define ID_LEN 7
+#define ID_LEN 11
 
 typedef enum
 {
