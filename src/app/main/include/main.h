@@ -17,9 +17,11 @@
 #include "ntag_reader.h"
 #include "firebase_http_client.h"
 #include "pir.h"
-
-#define ID_LEN 11
+#include "keypad_driver.h"
+#define ID_LEN 10
+#define BLINK_GPIO 8
 #define MAIN_DEBUG 1
+
 typedef enum
 {
     STATE_WIFI_INIT,
@@ -35,6 +37,10 @@ typedef enum
 } state_t;
 
 pn532_t nfc; // Defined in ntag_reader.h
+
+extern UserInfo user_info_instance;
+extern UserInfo *user_info;
+extern TaskHandle_t state_control_task_handle;
 
 char user_id[ID_LEN];
 void state_control_task(void *pvParameter);

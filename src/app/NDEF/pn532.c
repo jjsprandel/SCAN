@@ -2,8 +2,8 @@
 
 #include "pn532.h"
 
-#define PN532_DEBUG_EN
-#define MIFARE_DEBUG_EN
+// #define PN532_DEBUG_EN
+// #define MIFARE_DEBUG_EN
 // #define PN532_DEBUG_EN
 
 #ifdef PN532_DEBUG_EN
