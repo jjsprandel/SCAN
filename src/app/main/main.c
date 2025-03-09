@@ -1,7 +1,5 @@
 #include "main.h"
 
-#define BLINK_GPIO 8
-
 static state_t current_state = STATE_WIFI_INIT;
 
 // Task Handles
@@ -9,6 +7,8 @@ static TaskHandle_t blink_led_task_handle = NULL;
 static TaskHandle_t wifi_init_task_handle = NULL;
 static TaskHandle_t ota_update_task_handle = NULL;
 static TaskHandle_t database_task_handle = NULL;
+static TaskHandle_t keypad_task_handle = NULL;
+TaskHandle_t state_control_task_handle = NULL;
 
 // not static because it is being used in wifi_init.c as extern variable
 SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init completion
@@ -79,6 +79,7 @@ static void configure_led(void)
 // Function to control state transitions and task management
 void state_control_task(void *pvParameter)
 {
+    char user_id[ID_LEN];
     while (1)
     {
         // ESP_LOGI("Memory", "Free heap size: %lu bytes", (unsigned long)esp_get_free_heap_size());
@@ -128,12 +129,6 @@ void state_control_task(void *pvParameter)
                             }
             */
 
-            // if (database_task_handle == NULL)
-            // {
-            //     const char *user_id = "6942069420";
-            //     ESP_LOGI(TAG, "Creating check-in task");
-            //     xTaskCreate(check_in_user_task, "CHECK IN TASK", 1024 * 12, (void *)user_id, 8, &database_task_handle);
-            // }
             current_state = STATE_IDLE;
             break;
         case STATE_IDLE: // Wait until proximity is detected
@@ -142,26 +137,27 @@ void state_control_task(void *pvParameter)
             break;
 
         case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
-            // Insert keypad logic here
             char nfcUserID[ID_LEN];
 
-            bool nfcReadFlag = read_user_id(nfcUserID, 0);
+            bool nfcReadFlag = false;
 
-            if (nfcReadFlag)
+            BaseType_t keypadNotify = ulTaskNotifyTake(pdTRUE, 0);
+
+            nfcReadFlag = read_user_id(nfcUserID, 50);
+
+            if ((nfcReadFlag) || (keypadNotify > 0))
             {
 #ifdef MAIN_DEBUG
-                ESP_LOGI(MAIN_TAG, "User ID entered by %s", nfcReadFlag ? "NFC Transceiver" : "Keypad");
+                ESP_LOGI(TAG, "User ID entered by %s", nfcReadFlag ? "NFC Transceiver" : "Keypad");
 #endif
-                memcpy(user_id, nfcUserID, ID_LEN);
+                memcpy(user_id, nfcReadFlag ? nfcUserID : keypad_buffer.elements, ID_LEN);
                 current_state = STATE_DATABASE_VALIDATION;
             }
             break;
 
         case STATE_DATABASE_VALIDATION: // Wait until validation is complete
-            // Insert database validation logic here
-
             // If invalid user, set state to STATE_VALIDATION_FAILURE
-            if(!get_user_info(nfcUserID))
+            if (!get_user_info(user_id))
             {
                 ESP_LOGE(TAG, "Invalid user detected");
                 current_state = STATE_VALIDATION_FAILURE;
@@ -170,7 +166,7 @@ void state_control_task(void *pvParameter)
             // If admin, set state to STATE_ADMIN_MODE
             else if (strcmp(user_info->role, "admin") == 0)
             {
-                ESP_LOGI(TAG, "Headin' into Admin Mode");
+                ESP_LOGI(TAG, "Entering Admin Mode");
                 current_state = STATE_ADMIN_MODE;
                 break;
             }
@@ -178,17 +174,23 @@ void state_control_task(void *pvParameter)
             else if (strcmp(user_info->role, "student") == 0)
             {
                 if (strcmp(user_info->check_in_status, "Checked In") == 0)
-                    current_state = check_out_user(nfcUserID) ? STATE_CHECK_OUT : STATE_VALIDATION_FAILURE;
+                    current_state = check_out_user(user_id) ? STATE_CHECK_OUT : STATE_VALIDATION_FAILURE;
                 else
-                    current_state = check_in_user(nfcUserID) ? STATE_CHECK_IN : STATE_VALIDATION_FAILURE;
+                    current_state = check_in_user(user_id) ? STATE_CHECK_IN : STATE_VALIDATION_FAILURE;
             }
             break;
         case STATE_CHECK_IN:
-            // Insert check-in logic here
+#ifdef MAIN_DEBUG
+            ESP_LOGI(TAG, "ID %s found in database. Checking in.", user_id);
+#endif
+            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
             current_state = STATE_IDLE;
             break;
         case STATE_CHECK_OUT:
-            // Insert check-out logic here
+#ifdef MAIN_DEBUG
+            ESP_LOGI(TAG, "ID %s found in database. Checking out.", user_id);
+#endif
+            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
             current_state = STATE_IDLE;
             break;
         case STATE_ADMIN_MODE:
@@ -196,7 +198,10 @@ void state_control_task(void *pvParameter)
             current_state = STATE_IDLE;
             break;
         case STATE_VALIDATION_FAILURE:
-            // Insert validation failure logic here
+#ifdef MAIN_DEBUG
+            ESP_LOGI(TAG, "ID %s not found in database. Try again.", user_id);
+#endif
+            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
             current_state = STATE_USER_DETECTED;
             break;
         case STATE_ERROR:
@@ -242,13 +247,23 @@ void app_main(void)
     // ESP_ERROR_CHECK( heap_trace_init_standalone( trace_record, NUM_RECORDS ) );
     // ESP_LOGI("Memory", "STARTING FREE HEAP SIZE: %lu bytes", (long unsigned int)esp_get_free_heap_size());
     /* Configure the peripheral according to the LED type */
+    i2c_master_init();
     configure_led();
     nfc_init();
 
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
 
-    xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, NULL);
+    xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
+
+    xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
+
+#ifdef MAIN_DEBUG
+    if (keypad_task_handle != NULL)
+        ESP_LOGI(TAG, "Creating keypad task");
+    else
+        ESP_LOGE(TAG, "Failed to create keypad task");
+#endif
 
     while (1)
     {

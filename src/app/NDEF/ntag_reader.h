@@ -20,8 +20,8 @@
 #define MAX_ID_LEN 64
 
 // Debugging Macros
-#define NTAG_DEBUG_EN
-#define DISPLAY_TARGET_ID_EN
+// #define NTAG_DEBUG_EN
+// #define DISPLAY_TARGET_ID_EN
 
 extern pn532_t nfc;
 extern TaskHandle_t id_receiver_task_handle;
