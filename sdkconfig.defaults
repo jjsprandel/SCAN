@@ -90,3 +90,6 @@ CONFIG_PARTITION_TABLE_FILENAME="/project/src/bootloader/partitions/default/part
 CONFIG_PARTITION_TABLE_OFFSET=0xd000
 CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
+
+#LVGL Font
+CONFIG_LV_FONT_MONTSERRAT_32=y

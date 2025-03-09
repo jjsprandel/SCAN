@@ -102,6 +102,33 @@ static void display_screen(state_t display_state)
     }
 }
 
+static void check_task_creation()
+{
+    if (state_control_task_handle == NULL)
+    {
+        ESP_LOGE(TAG, "State Control Task creation failed!");
+    }
+    else
+    {
+        ESP_LOGI(TAG, "State Control Task created successfully!");
+    }
+    if (keypad_task_handle == NULL)
+    {
+        ESP_LOGE(TAG, "Keypad Task creation failed!");
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Keypad Task created successfully!");
+    }
+    if (lvgl_port_task_handle == NULL)
+    {
+        ESP_LOGE(TAG, "LVGL Port Task creation failed!");
+    }
+    else
+    {
+        ESP_LOGI(TAG, "LVGL Port Task created successfully!");
+    }
+}
 // Function to control state transitions and task management
 void state_control_task(void *pvParameter)
 {
@@ -158,7 +185,10 @@ void state_control_task(void *pvParameter)
             current_state = STATE_IDLE;
             break;
         case STATE_IDLE: // Wait until proximity is detected
-            // Insert proximity sensor logic here
+// Insert proximity sensor logic here
+#ifdef MAIN_DEBUG
+            ESP_LOGI(TAG, "Proximity detected");
+#endif
             current_state = STATE_USER_DETECTED;
             break;
 
@@ -251,7 +281,7 @@ void state_control_task(void *pvParameter)
         }
         if (current_state != prev_state)
         {
-            // display_screen(current_state);
+            display_screen(current_state);
             prev_state = current_state;
         }
         vTaskDelay(500 / portTICK_PERIOD_MS);
@@ -278,24 +308,24 @@ void app_main(void)
     // ESP_ERROR_CHECK( heap_trace_init_standalone( trace_record, NUM_RECORDS ) );
     // ESP_LOGI("Memory", "STARTING FREE HEAP SIZE: %lu bytes", (long unsigned int)esp_get_free_heap_size());
     /* Configure the peripheral according to the LED type */
+
+    // Initialize peripherals
     i2c_master_init();
     configure_led();
-    // gc9a01_init();
+    gc9a01_init();
     nfc_init();
 
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
-    // create_screens();
-    xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
 
+    create_screens();
+
+    xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
-    // xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
+    xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
 
 #ifdef MAIN_DEBUG
-    if (keypad_task_handle != NULL)
-        ESP_LOGI(TAG, "Creating keypad task");
-    else
-        ESP_LOGE(TAG, "Failed to create keypad task");
+    check_task_creation();
 #endif
 
     while (1)
@@ -303,116 +333,3 @@ void app_main(void)
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
-
-/*
-
-#define PROXIMITY_DETECTED BIT0
-#define NFC_READ_SUCCESS BIT1
-#define NFC_VALIDATED BIT2
-
-static EventGroupHandle_t event_group;
-
-typedef enum {
-    STATE_IDLE,
-    STATE_USER_DETECTED,
-    STATE_READING_NFC,
-    STATE_VALIDATING,
-    STATE_DISPLAY_RESULT
-} state_t;
-
-static state_t current_state = STATE_IDLE;
-
-// Task to handle proximity sensor
-void proximity_task(void *param) {
-    while (1) {
-        if (proximity_sensor_detected()) {
-            xEventGroupSetBits(event_group, PROXIMITY_DETECTED);
-        }
-        vTaskDelay(pdMS_TO_TICKS(500)); // Check every 500 ms
-    }
-}
-
-// Task to handle NFC reading
-void nfc_task(void *param) {
-    while (1) {
-        xEventGroupWaitBits(event_group, PROXIMITY_DETECTED, pdTRUE, pdFALSE, portMAX_DELAY);
-        if (nfc_read_data()) {
-            xEventGroupSetBits(event_group, NFC_READ_SUCCESS);
-        }
-    }
-}
-
-// Task to validate NFC data online
-void validation_task(void *param) {
-    while (1) {
-        xEventGroupWaitBits(event_group, NFC_READ_SUCCESS, pdTRUE, pdFALSE, portMAX_DELAY);
-        bool valid = database_validate_nfc();
-        if (valid) {
-            xEventGroupSetBits(event_group, NFC_VALIDATED);
-        }
-        current_state = STATE_DISPLAY_RESULT;
-    }
-}
-
-// Task to update the display based on validation result
-void display_task(void *param) {
-    while (1) {
-        xEventGroupWaitBits(event_group, NFC_VALIDATED, pdTRUE, pdFALSE, portMAX_DELAY);
-        display_show_result(true);  // Show success
-        vTaskDelay(pdMS_TO_TICKS(5000));  // Display result for 5 seconds
-        current_state = STATE_IDLE;
-    }
-}
-
-// Main State Machine
-void app_main(void) {
-    // Initialize event group
-    event_group = xEventGroupCreate();
-
-    // Initialize hardware and network
-    nfc_reader_init();
-    display_init();
-    wifi_init();
-    sensor_init();
-
-    // Create tasks
-    xTaskCreate(proximity_task, "Proximity Task", 2048, NULL, 1, NULL);
-    xTaskCreate(nfc_task, "NFC Task", 4096, NULL, 1, NULL);
-    xTaskCreate(validation_task, "Validation Task", 4096, NULL, 1, NULL);
-    xTaskCreate(display_task, "Display Task", 2048, NULL, 1, NULL);
-
-    while (1) {
-        switch (current_state) {
-            case STATE_IDLE:
-                // Wait until proximity is detected
-                xEventGroupWaitBits(event_group, PROXIMITY_DETECTED, pdTRUE, pdFALSE, portMAX_DELAY);
-                current_state = STATE_USER_DETECTED;
-                break;
-
-            case STATE_USER_DETECTED:
-                // Wait until NFC data is read
-                xEventGroupWaitBits(event_group, NFC_READ_SUCCESS, pdTRUE, pdFALSE, portMAX_DELAY);
-                current_state = STATE_READING_NFC;
-                break;
-
-            case STATE_READING_NFC:
-                // Move to validation state after NFC read
-                current_state = STATE_VALIDATING;
-                break;
-
-            case STATE_VALIDATING:
-                // Wait until NFC validation completes
-                xEventGroupWaitBits(event_group, NFC_VALIDATED, pdTRUE, pdFALSE, portMAX_DELAY);
-                current_state = STATE_DISPLAY_RESULT;
-                break;
-
-            case STATE_DISPLAY_RESULT:
-                // Result is displayed; transition back to idle state after showing result
-                current_state = STATE_IDLE;
-                break;
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(100)); // Small delay to prevent rapid state change
-    }
-}
-*/
