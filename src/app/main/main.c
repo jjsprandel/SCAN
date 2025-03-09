@@ -8,6 +8,7 @@ static TaskHandle_t wifi_init_task_handle = NULL;
 static TaskHandle_t ota_update_task_handle = NULL;
 static TaskHandle_t database_task_handle = NULL;
 static TaskHandle_t keypad_task_handle = NULL;
+static TaskHandle_t lvgl_port_task_handle = NULL;
 TaskHandle_t state_control_task_handle = NULL;
 
 // not static because it is being used in wifi_init.c as extern variable
@@ -90,14 +91,14 @@ static void display_screen(state_t display_state)
 {
     if (screen_objects[current_state] != NULL)
     {
-        ESP_LOGI(MAIN_TAG, "Displaying screen for state %d", current_state);
+        ESP_LOGI(TAG, "Displaying screen for state %d", current_state);
         _lock_acquire(&lvgl_api_lock);
         lv_scr_load(screen_objects[current_state]);
         _lock_release(&lvgl_api_lock);
     }
     else
     {
-        ESP_LOGE(MAIN_TAG, "Screen object not found for state %d", current_state);
+        ESP_LOGE(TAG, "Screen object not found for state %d", current_state);
     }
 }
 
@@ -250,7 +251,7 @@ void state_control_task(void *pvParameter)
         }
         if (current_state != prev_state)
         {
-            display_screen();
+            // display_screen(current_state);
             prev_state = current_state;
         }
         vTaskDelay(500 / portTICK_PERIOD_MS);
@@ -279,14 +280,16 @@ void app_main(void)
     /* Configure the peripheral according to the LED type */
     i2c_master_init();
     configure_led();
+    // gc9a01_init();
     nfc_init();
 
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
-    create_screens();
+    // create_screens();
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
 
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
+    // xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
 
 #ifdef MAIN_DEBUG
     if (keypad_task_handle != NULL)

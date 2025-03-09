@@ -46,7 +46,5 @@ void example_lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *p
 void example_increase_lvgl_tick(void *arg);
 void lvgl_port_task(void *arg);
 void gc9a01_init();
-void display_test(void *pvParameters);
-void display_test_1(void *pvParameters);
 
 #endif

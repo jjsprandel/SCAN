@@ -16,7 +16,6 @@
 #include "esp_log.h"
 #include "esp_heap_caps.h"
 
-#include "lvgl_demo_ui.h"
 #include "display_config.h"
 
 static const char *DISPLAY_TAG = "example";
@@ -236,22 +235,4 @@ void gc9a01_init()
     lv_indev_set_user_data(indev, tp);
     lv_indev_set_read_cb(indev, example_lvgl_touch_cb);
 #endif
-}
-
-void display_test(void *pvParameters)
-{
-    gc9a01_init();
-#ifdef DISPLAY_CONFIG_DEBUG
-    ESP_LOGI(DISPLAY_TAG, "Create LVGL task");
-#endif
-    xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
-#ifdef DISPLAY_CONFIG_DEBUG
-    ESP_LOGI(DISPLAY_TAG, "Display LVGL Meter Widget");
-#endif
-    // Lock the mutex due to the LVGL APIs are not thread-safe
-    _lock_acquire(&lvgl_api_lock);
-    example_lvgl_demo_ui(display);
-    _lock_release(&lvgl_api_lock);
-
-    vTaskDelete(NULL);
 }
