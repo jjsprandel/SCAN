@@ -35,6 +35,9 @@ typedef enum
 
 pn532_t nfc; // Defined in ntag_reader.h
 
+extern UserInfo user_info_instance;
+extern UserInfo* user_info;
+
 char user_id[ID_LEN];
 void state_control_task(void *pvParameter);
 void blink_led_1_task(void *pvParameter);

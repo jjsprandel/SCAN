@@ -2,7 +2,7 @@
 
 #define BLINK_GPIO 8
 
-static state_t current_state = STATE_IDLE;
+static state_t current_state = STATE_WIFI_INIT;
 
 // Task Handles
 static TaskHandle_t blink_led_task_handle = NULL;
@@ -144,6 +144,7 @@ void state_control_task(void *pvParameter)
         case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
             // Insert keypad logic here
             char nfcUserID[ID_LEN];
+
             bool nfcReadFlag = read_user_id(nfcUserID, 0);
 
             if (nfcReadFlag)
@@ -158,7 +159,29 @@ void state_control_task(void *pvParameter)
 
         case STATE_DATABASE_VALIDATION: // Wait until validation is complete
             // Insert database validation logic here
-            current_state = STATE_CHECK_IN;
+
+            // If invalid user, set state to STATE_VALIDATION_FAILURE
+            if(!get_user_info(nfcUserID))
+            {
+                ESP_LOGE(TAG, "Invalid user detected");
+                current_state = STATE_VALIDATION_FAILURE;
+                break;
+            }
+            // If admin, set state to STATE_ADMIN_MODE
+            else if (strcmp(user_info->role, "admin") == 0)
+            {
+                ESP_LOGI(TAG, "Headin' into Admin Mode");
+                current_state = STATE_ADMIN_MODE;
+                break;
+            }
+            // If student, check-in/out
+            else if (strcmp(user_info->role, "student") == 0)
+            {
+                if (strcmp(user_info->check_in_status, "Checked In") == 0)
+                    current_state = check_out_user(nfcUserID) ? STATE_CHECK_OUT : STATE_VALIDATION_FAILURE;
+                else
+                    current_state = check_in_user(nfcUserID) ? STATE_CHECK_IN : STATE_VALIDATION_FAILURE;
+            }
             break;
         case STATE_CHECK_IN:
             // Insert check-in logic here
