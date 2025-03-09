@@ -16,9 +16,10 @@
 #include "firebase_utils.h"
 #include "ntag_reader.h"
 #include "firebase_http_client.h"
+#include "pir.h"
 
 #define ID_LEN 11
-
+#define MAIN_DEBUG 1
 typedef enum
 {
     STATE_WIFI_INIT,
