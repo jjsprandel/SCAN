@@ -17,6 +17,8 @@
 #include "ntag_reader.h"
 #include "firebase_http_client.h"
 #include "keypad_driver.h"
+#include "display_config.h"
+#include "display_frames.h"
 
 #define ID_LEN 10
 #define BLINK_GPIO 8
@@ -36,7 +38,10 @@ typedef enum
     STATE_ERROR
 } state_t;
 
-pn532_t nfc; // Defined in ntag_reader.h
+pn532_t nfc;           // Defined in ntag_reader.h
+_lock_t lvgl_api_lock; // Defined in display_config.h
+lv_display_t *display; // Defined in display_config.h
+lv_obj_t *screen_objects[STATE_ERROR] = {NULL};
 
 extern UserInfo user_info_instance;
 extern UserInfo *user_info;

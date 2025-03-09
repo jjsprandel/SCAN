@@ -1,6 +1,6 @@
 #include "main.h"
 
-static state_t current_state = STATE_WIFI_INIT;
+static state_t current_state = STATE_WIFI_INIT, prev_state = STATE_ERROR;
 
 // Task Handles
 static TaskHandle_t blink_led_task_handle = NULL;
@@ -74,6 +74,31 @@ static void configure_led(void)
 
     /* Set all LED off to clear all pixels */
     led_strip_clear(led_strip);
+}
+
+static void create_screens()
+{
+    screen_objects[STATE_IDLE] = display_idle(display);
+    screen_objects[STATE_USER_DETECTED] = display_user_detected(display);
+    screen_objects[STATE_CHECK_IN] = display_check_in_success(display);
+    screen_objects[STATE_CHECK_OUT] = display_check_out_success(display);
+    screen_objects[STATE_DATABASE_VALIDATION] = display_database_validation(display);
+    screen_objects[STATE_VALIDATION_FAILURE] = display_check_in_failed(display);
+}
+
+static void display_screen(state_t display_state)
+{
+    if (screen_objects[current_state] != NULL)
+    {
+        ESP_LOGI(MAIN_TAG, "Displaying screen for state %d", current_state);
+        _lock_acquire(&lvgl_api_lock);
+        lv_scr_load(screen_objects[current_state]);
+        _lock_release(&lvgl_api_lock);
+    }
+    else
+    {
+        ESP_LOGE(MAIN_TAG, "Screen object not found for state %d", current_state);
+    }
 }
 
 // Function to control state transitions and task management
@@ -223,6 +248,11 @@ void state_control_task(void *pvParameter)
             ESP_LOGW(TAG, "Unknown state encountered: %d", current_state);
             break;
         }
+        if (current_state != prev_state)
+        {
+            display_screen();
+            prev_state = current_state;
+        }
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
     ESP_LOGI(TAG, "State control task finished"); // Should not reach here unless task is deleted
@@ -253,7 +283,7 @@ void app_main(void)
 
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
-
+    create_screens();
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
 
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
