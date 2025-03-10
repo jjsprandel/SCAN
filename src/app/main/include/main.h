@@ -23,7 +23,7 @@
 #define ID_LEN 10
 #define BLINK_GPIO 8
 #define MAIN_DEBUG 1
-
+#define NUM_LEDS 3
 typedef enum
 {
     STATE_WIFI_INIT,

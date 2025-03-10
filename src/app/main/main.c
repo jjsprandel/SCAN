@@ -26,27 +26,33 @@ void blink_led_task(void *pvParameter)
     {
         s_led_state = !s_led_state;
 
-        if (current_state == STATE_WIFI_INIT)
-        {
-            vTaskDelay(200 / portTICK_PERIOD_MS);
-        }
-        else
-        {
-            vTaskDelay(1200 / portTICK_PERIOD_MS);
-        }
+        // if (current_state == STATE_WIFI_INIT)
+        // {
+        //     vTaskDelay(200 / portTICK_PERIOD_MS);
+        // }
+        // else
+        // {
+        //     vTaskDelay(1200 / portTICK_PERIOD_MS);
+        // }
 
         /* If the addressable LED is enabled */
-        if (s_led_state)
+        if (s_led_state && current_state == STATE_WIFI_INIT)
         {
             /* Set the LED pixel using RGB from 0 (0%) to 255 (100%) for each color */
-            if (current_state == STATE_WIFI_INIT)
+            // if (current_state == STATE_WIFI_INIT)
+            // {
+            for (int i = 0; i < NUM_LEDS; i++)
             {
-                led_strip_set_pixel(led_strip, 0, 100, 0, 0);
+                led_strip_set_pixel(led_strip, i, 100, 0, 0);
             }
-            else
-            {
-                led_strip_set_pixel(led_strip, 0, 0, 0, 50);
-            }
+            // }
+            // else
+            // {
+            //     for (int i = 0; i < NUM_LEDS; i++)
+            //     {
+            //         led_strip_set_pixel(led_strip, i, 0, 0, 50);
+            //     }
+            // }
             /* Refresh the strip to send data */
             led_strip_refresh(led_strip);
         }
@@ -55,6 +61,33 @@ void blink_led_task(void *pvParameter)
             /* Set all LED off to clear all pixels */
             led_strip_clear(led_strip);
         }
+        if (current_state == STATE_USER_DETECTED)
+        {
+            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
+        }
+        else if (current_state == STATE_DATABASE_VALIDATION)
+        {
+            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
+            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+        }
+        else if (current_state == STATE_CHECK_IN || current_state == STATE_CHECK_OUT)
+        {
+            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
+            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+            led_strip_set_pixel(led_strip, 2, 0, 100, 0);
+        }
+        else if (current_state == STATE_VALIDATION_FAILURE)
+        {
+            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
+            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+            led_strip_set_pixel(led_strip, 2, 100, 0, 0);
+        }
+        else if (current_state == STATE_IDLE)
+        {
+            led_strip_clear(led_strip);
+        }
+        led_strip_refresh(led_strip);
+        vTaskDelay(250 / portTICK_PERIOD_MS);
     }
 }
 
@@ -64,7 +97,7 @@ static void configure_led(void)
     /* LED strip initialization with the GPIO and pixels number*/
     led_strip_config_t strip_config = {
         .strip_gpio_num = BLINK_GPIO,
-        .max_leds = 1, // at least one LED on board
+        .max_leds = 3, // at least one LED on board
     };
 
     led_strip_rmt_config_t rmt_config = {
@@ -169,9 +202,11 @@ void state_control_task(void *pvParameter)
                 vTaskDelete(wifi_init_task_handle);
                 wifi_init_task_handle = NULL;
             }
-            // ESP_LOGI(TAG, "Wi-Fi Initialized. Ready!");
-
-            // if (blink_led_task_handle != NULL) {
+#ifdef MAIN_DEBUG
+            ESP_LOGI(TAG, "Wi-Fi Initialized. Ready!");
+#endif
+            // if (blink_led_task_handle != NULL)
+            // {
             //     vTaskDelete(blink_led_task_handle);
             //     blink_led_task_handle = NULL;
             // }
@@ -314,7 +349,7 @@ void app_main(void)
     configure_led();
     gc9a01_init();
     nfc_init();
-
+    configure_led();
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
 
