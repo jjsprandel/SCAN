@@ -220,15 +220,18 @@ void state_control_task(void *pvParameter)
             current_state = STATE_IDLE;
             break;
         case STATE_IDLE: // Wait until proximity is detected
-// Insert proximity sensor logic here
+        if (gpio_get_level(PIR_GPIO))
+        {
 #ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "Proximity detected");
+            ESP_LOGI(TAG, "Proximity Detected");
 #endif
+            clear_buffer();
+            xTaskNotify(state_control_task_handle, 0, eSetValueWithOverwrite);
             current_state = STATE_USER_DETECTED;
-            break;
-
+        }
+        break;
         case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
-            char nfcUserID[ID_LEN];
+            char nfcUserID[ID_LEN] = {'\0'};
 
             bool nfcReadFlag = false;
 

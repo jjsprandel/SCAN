@@ -19,11 +19,13 @@
 #include "keypad_driver.h"
 #include "display_config.h"
 #include "display_frames.h"
+#include "pir.h"
 
 #define ID_LEN 10
 #define BLINK_GPIO 8
 #define MAIN_DEBUG 1
 #define NUM_LEDS 3
+
 typedef enum
 {
     STATE_WIFI_INIT,
