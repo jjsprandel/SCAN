@@ -139,7 +139,18 @@ void keypad_handler(void *params)
 #ifdef KEYPAD_DEBUG
                 ESP_LOGI(KEYPAD_TAG, "ID of valid length is entered");
 #endif
-                if (state_control_task_handle != NULL)
+                BaseType_t adminNotify = ulTaskNotifyTake(pdTRUE, 0);
+                if (adminNotify > 0)
+                {
+                    if (admin_mode_control_task_handle != NULL)
+                    {
+#ifdef KEYPAD_DEBUG
+                        ESP_LOGI(KEYPAD_TAG, "Notification sent to admin mode control task");
+#endif
+                        xTaskNotifyGive(admin_mode_control_task_handle);
+                    }
+                }
+                else if (state_control_task_handle != NULL)
                 {
                     xTaskNotifyGive(state_control_task_handle);
 #ifdef KEYPAD_DEBUG

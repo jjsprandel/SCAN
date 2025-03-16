@@ -9,6 +9,7 @@ static TaskHandle_t ota_update_task_handle = NULL;
 static TaskHandle_t database_task_handle = NULL;
 static TaskHandle_t keypad_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
+TaskHandle_t admin_mode_control_task_handle = NULL;
 TaskHandle_t state_control_task_handle = NULL;
 
 // not static because it is being used in wifi_init.c as extern variable
@@ -17,6 +18,7 @@ SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init 
 static const char *TAG = "MAIN";
 
 static uint8_t s_led_state = 0;
+static int64_t start_time, end_time;
 
 static led_strip_handle_t led_strip;
 
@@ -91,9 +93,17 @@ void blink_led_task(void *pvParameter)
     }
 }
 
+// Add this function to log the elapsed time in seconds
+static void log_elapsed_time(char *auth_type)
+{
+    end_time = esp_timer_get_time();
+    double elapsed_time_sec = (end_time - start_time) / 1000000.0;
+    MAIN_DEBUG_LOG("Time taken for %s: %.6f seconds", auth_type, elapsed_time_sec);
+}
+
 static void configure_led(void)
 {
-    ESP_LOGI(TAG, "Configured to blink addressable LED!");
+    MAIN_DEBUG_LOG("Configured to blink addressable LED!");
     /* LED strip initialization with the GPIO and pixels number*/
     led_strip_config_t strip_config = {
         .strip_gpio_num = BLINK_GPIO,
@@ -110,28 +120,72 @@ static void configure_led(void)
     led_strip_clear(led_strip);
 }
 
+static void heap_monitor_task(void *pvParameters)
+{
+    while (1)
+    {
+        long unsigned int free_heap = (long unsigned int)esp_get_free_heap_size();
+        // ESP_LOGI(MAIN_TAG, "Free heap size: %lu bytes", free_heap);
+
+        if (free_heap < HEAP_WARNING_THRESHOLD)
+        {
+            MAIN_ERROR_LOG("CRITICAL: Heap size below safe limit! Free heap: %lu bytes", free_heap);
+            // Optional: Restart the system if necessary
+            // esp_restart();
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(5000)); // Check every 5 seconds
+    }
+}
+
 static void create_screens()
 {
-    screen_objects[STATE_IDLE] = display_idle(display);
-    screen_objects[STATE_USER_DETECTED] = display_user_detected(display);
-    screen_objects[STATE_CHECK_IN] = display_check_in_success(display);
-    screen_objects[STATE_CHECK_OUT] = display_check_out_success(display);
-    screen_objects[STATE_DATABASE_VALIDATION] = display_database_validation(display);
-    screen_objects[STATE_VALIDATION_FAILURE] = display_check_in_failed(display);
+    screen_objects[STATE_IDLE] = display_idle();
+    screen_objects[STATE_USER_DETECTED] = display_user_detected();
+    screen_objects[STATE_CHECK_IN] = display_check_in_success();
+    screen_objects[STATE_CHECK_OUT] = display_check_out_success();
+    screen_objects[STATE_DATABASE_VALIDATION] = display_database_validation();
+    screen_objects[STATE_VALIDATION_FAILURE] = display_check_in_failed();
+    screen_objects[STATE_ERROR] = display_error();
+
+    admin_screen_objects[ADMIN_STATE_ENTER_ID] = display_admin_enter_id();
+    admin_screen_objects[ADMIN_STATE_VALIDATE_ID] = display_admin_id_validating();
+    admin_screen_objects[ADMIN_STATE_TAP_CARD] = display_admin_tap_card();
+    admin_screen_objects[ADMIN_STATE_CARD_WRITE_SUCCESS] = display_card_write_success();
+    admin_screen_objects[ADMIN_STATE_ENTER_ID_ERROR] = display_id_enter_error();
+    admin_screen_objects[ADMIN_STATE_CARD_WRITE_ERROR] = display_card_write_error();
+    admin_screen_objects[ADMIN_STATE_ERROR] = display_admin_error();
 }
 
 static void display_screen(state_t display_state)
 {
-    if (screen_objects[current_state] != NULL)
+    if (current_state != STATE_ADMIN_MODE)
     {
-        ESP_LOGI(TAG, "Displaying screen for state %d", current_state);
-        _lock_acquire(&lvgl_api_lock);
-        lv_scr_load(screen_objects[current_state]);
-        _lock_release(&lvgl_api_lock);
+        if (screen_objects[current_state] != NULL)
+        {
+            MAIN_DEBUG_LOG("Displaying screen for state %d", current_state);
+            _lock_acquire(&lvgl_api_lock);
+            lv_scr_load(screen_objects[current_state]);
+            _lock_release(&lvgl_api_lock);
+        }
+        else
+        {
+            MAIN_ERROR_LOG("Screen object not found for state %d", current_state);
+        }
     }
     else
     {
-        ESP_LOGE(TAG, "Screen object not found for state %d", current_state);
+        if (admin_screen_objects[current_admin_state] != NULL)
+        {
+            // MAIN_DEBUG_LOG("Displaying admin screen for state %d", current_admin_state);
+            _lock_acquire(&lvgl_api_lock);
+            lv_scr_load(admin_screen_objects[current_admin_state]);
+            _lock_release(&lvgl_api_lock);
+        }
+        // else
+        // {
+        //     MAIN_ERROR_LOG("Admin screen object not found for state %d", current_admin_state);
+        // }
     }
 }
 
@@ -139,51 +193,59 @@ static void check_task_creation()
 {
     if (state_control_task_handle == NULL)
     {
-        ESP_LOGE(TAG, "State Control Task creation failed!");
+        MAIN_ERROR_LOG("State Control Task creation failed!");
     }
     else
     {
-        ESP_LOGI(TAG, "State Control Task created successfully!");
+        MAIN_DEBUG_LOG("State Control Task created successfully!");
     }
     if (keypad_task_handle == NULL)
     {
-        ESP_LOGE(TAG, "Keypad Task creation failed!");
+        MAIN_ERROR_LOG("Keypad Task creation failed!");
     }
     else
     {
-        ESP_LOGI(TAG, "Keypad Task created successfully!");
+        MAIN_DEBUG_LOG("Keypad Task created successfully!");
     }
     if (lvgl_port_task_handle == NULL)
     {
-        ESP_LOGE(TAG, "LVGL Port Task creation failed!");
+        MAIN_ERROR_LOG("LVGL Port Task creation failed!");
     }
     else
     {
-        ESP_LOGI(TAG, "LVGL Port Task created successfully!");
+        MAIN_DEBUG_LOG("LVGL Port Task created successfully!");
+    }
+    if (admin_mode_control_task_handle == NULL)
+    {
+        MAIN_ERROR_LOG("Admin Mode Control Task creation failed!");
+    }
+    else
+    {
+        MAIN_DEBUG_LOG("Admin Mode Control Task created successfully!");
     }
 }
+
 // Function to control state transitions and task management
 void state_control_task(void *pvParameter)
 {
     char user_id[ID_LEN];
     while (1)
     {
-        // ESP_LOGI("Memory", "Free heap size: %lu bytes", (unsigned long)esp_get_free_heap_size());
-
+        // MAIN_DEBUG_LOG("Free heap size: %lu bytes", (unsigned long)esp_get_free_heap_size());
         switch (current_state)
         {
         case STATE_WIFI_INIT:
             // Start Wi-Fi init task if not already started
             if (wifi_init_task_handle == NULL)
             {
-                ESP_LOGI(TAG, "Starting Wi-Fi Init Task");
+                MAIN_DEBUG_LOG("Starting Wi-Fi Init Task");
                 xTaskCreate(wifi_init_task, "wifi_init_task", 4096, NULL, 4, &wifi_init_task_handle);
             }
 
             // Start LED blinking task if not already running
             if (blink_led_task_handle == NULL)
             {
-                ESP_LOGI(TAG, "Starting Blink LED Task");
+                MAIN_DEBUG_LOG("Starting Blink LED Task");
                 xTaskCreate(blink_led_task, "blink_led_task", 1024, NULL, 2, &blink_led_task_handle);
             }
 
@@ -203,7 +265,7 @@ void state_control_task(void *pvParameter)
                 wifi_init_task_handle = NULL;
             }
 #ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "Wi-Fi Initialized. Ready!");
+            MAIN_DEBUG_LOG("Wi-Fi Initialized. Ready!");
 #endif
             // if (blink_led_task_handle != NULL)
             // {
@@ -212,7 +274,7 @@ void state_control_task(void *pvParameter)
             // }
             /*
                             if (ota_update_task_handle == NULL) {
-                                ESP_LOGI(TAG, "Creating OTA update task");
+                                MAIN_DEBUG_LOG("Creating OTA update task");
                                 xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 4, NULL, 8, &ota_update_task_handle);
                             }
             */
@@ -220,16 +282,16 @@ void state_control_task(void *pvParameter)
             current_state = STATE_IDLE;
             break;
         case STATE_IDLE: // Wait until proximity is detected
-        if (gpio_get_level(PIR_GPIO))
-        {
+            if (gpio_get_level(PIR_GPIO))
+            {
 #ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "Proximity Detected");
+                MAIN_DEBUG_LOG("Proximity Detected");
 #endif
-            clear_buffer();
-            xTaskNotify(state_control_task_handle, 0, eSetValueWithOverwrite);
-            current_state = STATE_USER_DETECTED;
-        }
-        break;
+                clear_buffer();
+                xTaskNotify(state_control_task_handle, 0, eSetValueWithOverwrite);
+                current_state = STATE_USER_DETECTED;
+            }
+            break;
         case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
             char nfcUserID[ID_LEN] = {'\0'};
 
@@ -242,7 +304,7 @@ void state_control_task(void *pvParameter)
             if ((nfcReadFlag) || (keypadNotify > 0))
             {
 #ifdef MAIN_DEBUG
-                ESP_LOGI(TAG, "User ID entered by %s", nfcReadFlag ? "NFC Transceiver" : "Keypad");
+                MAIN_DEBUG_LOG("User ID entered by %s", nfcReadFlag ? "NFC Transceiver" : "Keypad");
 #endif
                 memcpy(user_id, nfcReadFlag ? nfcUserID : keypad_buffer.elements, ID_LEN);
                 current_state = STATE_DATABASE_VALIDATION;
@@ -250,17 +312,17 @@ void state_control_task(void *pvParameter)
             break;
 
         case STATE_DATABASE_VALIDATION: // Wait until validation is complete
-            // If invalid user, set state to STATE_VALIDATION_FAILURE
+#ifdef DATABASE_QUERY_ENABLE
             if (!get_user_info(user_id))
             {
-                ESP_LOGE(TAG, "Invalid user detected");
+                MAIN_ERROR_LOG("Invalid user detected");
                 current_state = STATE_VALIDATION_FAILURE;
                 break;
             }
             // If admin, set state to STATE_ADMIN_MODE
             else if (strcmp(user_info->role, "admin") == 0)
             {
-                ESP_LOGI(TAG, "Entering Admin Mode");
+                MAIN_DEBUG_LOG("Entering Admin Mode");
                 current_state = STATE_ADMIN_MODE;
                 break;
             }
@@ -272,28 +334,38 @@ void state_control_task(void *pvParameter)
                 else
                     current_state = check_in_user(user_id) ? STATE_CHECK_IN : STATE_VALIDATION_FAILURE;
             }
+#else
+            MAIN_DEBUG_LOG("Entering Admin Mode");
+            xTaskNotifyGive(keypad_task_handle);
+            xTaskNotifyGive(admin_mode_control_task_handle);
+            current_state = STATE_ADMIN_MODE;
+#endif
             break;
         case STATE_CHECK_IN:
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "ID %s found in database. Checking in.", user_id);
-#endif
+            log_elapsed_time("check in authentication");
+            MAIN_DEBUG_LOG("ID %s found in database. Checking in.", user_id);
             vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
+            current_state = STATE_IDLE;
             current_state = STATE_IDLE;
             break;
         case STATE_CHECK_OUT:
-#ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "ID %s found in database. Checking out.", user_id);
-#endif
+            log_elapsed_time("check out authentication");
+            MAIN_DEBUG_LOG("ID %s found in database. Checking out.", user_id);
             vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
             current_state = STATE_IDLE;
             break;
         case STATE_ADMIN_MODE:
-            // Insert admin mode logic here
-            current_state = STATE_IDLE;
+            BaseType_t adminNotify = ulTaskNotifyTake(pdTRUE, 0);
+
+            if (adminNotify > 0)
+            {
+                MAIN_DEBUG_LOG("Exiting admin mode");
+                current_state = STATE_IDLE;
+            }
             break;
         case STATE_VALIDATION_FAILURE:
 #ifdef MAIN_DEBUG
-            ESP_LOGI(TAG, "ID %s not found in database. Try again.", user_id);
+            MAIN_DEBUG_LOG("ID %s not found in database. Try again.", user_id);
 #endif
             vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
             current_state = STATE_USER_DETECTED;
@@ -310,26 +382,60 @@ void state_control_task(void *pvParameter)
                 vTaskDelete(blink_led_task_handle);
                 blink_led_task_handle = NULL;
             }
-            ESP_LOGE(TAG, "Error state reached!");
+            MAIN_ERROR_LOG("Error state reached!");
             break;
 
         default:
             ESP_LOGW(TAG, "Unknown state encountered: %d", current_state);
             break;
         }
-        if (current_state != prev_state)
+        if ((current_state != prev_state) || current_state == STATE_ADMIN_MODE)
         {
             display_screen(current_state);
             prev_state = current_state;
         }
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
-    ESP_LOGI(TAG, "State control task finished"); // Should not reach here unless task is deleted
+    MAIN_DEBUG_LOG("State control task finished"); // Should not reach here unless task is deleted
+}
+
+static void teardown_tasks()
+{
+    if (state_control_task_handle != NULL)
+    {
+        vTaskDelete(state_control_task_handle);
+        state_control_task_handle = NULL;
+    }
+    if (keypad_task_handle != NULL)
+    {
+        vTaskDelete(keypad_task_handle);
+        keypad_task_handle = NULL;
+    }
+    if (lvgl_port_task_handle != NULL)
+    {
+        vTaskDelete(lvgl_port_task_handle);
+        lvgl_port_task_handle = NULL;
+    }
+    if (admin_mode_control_task_handle != NULL)
+    {
+        vTaskDelete(admin_mode_control_task_handle);
+        admin_mode_control_task_handle = NULL;
+    }
+    if (blink_led_task_handle != NULL)
+    {
+        vTaskDelete(blink_led_task_handle);
+        blink_led_task_handle = NULL;
+    }
+    if (wifi_init_task_handle != NULL)
+    {
+        vTaskDelete(wifi_init_task_handle);
+        wifi_init_task_handle = NULL;
+    }
 }
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "App Main Start");
+    MAIN_DEBUG_LOG("App Main Start");
 
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -344,7 +450,7 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
     // ESP_ERROR_CHECK( heap_trace_init_standalone( trace_record, NUM_RECORDS ) );
-    // ESP_LOGI("Memory", "STARTING FREE HEAP SIZE: %lu bytes", (long unsigned int)esp_get_free_heap_size());
+    // ESP_MAIN_DEBUG("STARTING FREE HEAP SIZE: %lu bytes", (long unsigned int)esp_get_free_heap_size());
     /* Configure the peripheral according to the LED type */
 
     // Initialize peripherals
@@ -353,14 +459,20 @@ void app_main(void)
     gc9a01_init();
     nfc_init();
     configure_led();
+
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
+
+#ifdef MAIN_HEAP_DEBUG
+    xTaskCreate(heap_monitor_task, "HeapMonitor", MONITOR_TASK_STACK_SIZE, NULL, 1, NULL);
+#endif
 
     create_screens();
 
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
+    xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096, NULL, 4, &admin_mode_control_task_handle);
 
 #ifdef MAIN_DEBUG
     check_task_creation();
@@ -370,4 +482,7 @@ void app_main(void)
     {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
+
+    teardown_tasks();
+    MAIN_DEBUG_LOG("App Main End");
 }
