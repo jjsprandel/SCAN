@@ -347,8 +347,15 @@ void app_main(void)
     // ESP_LOGI("Memory", "STARTING FREE HEAP SIZE: %lu bytes", (long unsigned int)esp_get_free_heap_size());
     /* Configure the peripheral according to the LED type */
 
+    // Initialize I2C bus
+    i2c_master_bus_handle_t bus_handle;
+    i2c_master_dev_handle_t dev_handle;
+    i2c_master_init(&bus_handle);
+    ESP_LOGI(TAG, "I2C initialized successfully");
+
+
+
     // Initialize peripherals
-    i2c_master_init();
     configure_led();
     gc9a01_init();
     nfc_init();

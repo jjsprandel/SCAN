@@ -20,6 +20,7 @@
 #include "display_config.h"
 #include "display_frames.h"
 #include "pir.h"
+#include "i2c_config.h"
 
 #define ID_LEN 10
 #define BLINK_GPIO 8

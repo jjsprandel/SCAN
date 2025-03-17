@@ -13,8 +13,8 @@
 
 extern SemaphoreHandle_t wifi_init_semaphore;
 
-#define EXAMPLE_ESP_WIFI_SSID "iPhone (43)"
-#define EXAMPLE_ESP_WIFI_PASS "brynds8899"
+#define EXAMPLE_ESP_WIFI_SSID "Jonah Hotspot"
+#define EXAMPLE_ESP_WIFI_PASS "12345678"
 #define EXAMPLE_ESP_MAXIMUM_RETRY 10
 
 #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA2_PSK

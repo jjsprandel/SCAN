@@ -4,6 +4,7 @@
             "name": "ESP32",
             "compilerPath": "/usr/bin/gcc",
             "includePath": [
+                "${workspaceFolder}/src/app/**/include",
                 "${workspaceFolder}/**",
                 "/opt/esp/idf/components/**",
                 "/opt/esp/idf//tools/cmake/**",

@@ -1,9 +1,32 @@
 dependencies:
+  espressif/cmake_utilities:
+    component_hash: 351350613ceafba240b761b4ea991e0f231ac7a9f59a9ee901f751bddc0bb18f
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.1'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 0.5.3
+  espressif/esp_lcd_gc9a01:
+    component_hash: 2ccbdfa5a1762c7a8be66770b69a256d809651d6069098852d2c829648707b5b
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.4'
+    - name: espressif/cmake_utilities
+      registry_url: https://components.espressif.com
+      require: private
+      version: 0.*
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.2.0
   espressif/led_strip:
     component_hash: 28c6509a727ef74925b372ed404772aeedf11cce10b78c3f69b3c66799095e2d
     dependencies:
     - name: idf
-      registry_url: https://components.espressif.com
       require: private
       version: '>=4.4'
     source:
@@ -14,8 +37,17 @@ dependencies:
     source:
       type: idf
     version: 5.5.0
+  lvgl/lvgl:
+    component_hash: 2409fdc84e9766d2a18afd84b051aef3f838348136cdb1c10ac2e8bcdb012bf6
+    dependencies: []
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 9.2.0
 direct_dependencies:
+- espressif/esp_lcd_gc9a01
 - espressif/led_strip
-manifest_hash: a9af7824fb34850fbe175d5384052634b3c00880abb2d3a7937e666d07603998
+- lvgl/lvgl
+manifest_hash: 2e702c611a73f65d1d7e786d5ff47d907d5cda464d52baa095f0e6bbb07ffb04
 target: esp32c6
 version: 2.0.0

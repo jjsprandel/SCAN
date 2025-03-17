@@ -1,12 +1,12 @@
 #ifndef keypad_driver_h
 #define keypad_driver_h
 
-#include <driver/i2c.h>
+
 #include <freertos/task.h>
 #include <esp_log.h>
 #include <stdio.h>
 #include <driver/gpio.h>
-#include <driver/i2c.h>
+#include <driver/i2c_master.h>
 #include <freertos/task.h>
 #include <driver/timer.h>
 #include "freertos/FreeRTOS.h"
@@ -42,6 +42,5 @@ void clear_buffer();
 void add_to_buffer(char val);
 
 void keypad_handler(void *params);
-esp_err_t i2c_master_init(void);
 
 #endif

@@ -1,11 +1,3 @@
-/*
-
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
 #include "keypad_driver.h"
 
 keypad_buffer_t keypad_buffer;
@@ -174,20 +166,4 @@ void keypad_handler(void *params)
 
         vTaskDelay(50 / portTICK_PERIOD_MS);
     }
-}
-
-esp_err_t i2c_master_init(void)
-{
-    i2c_config_t conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = GPIO_NUM_1,
-        .scl_io_num = GPIO_NUM_0,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = 100000,
-    };
-
-    i2c_param_config(I2C_NUM_0, &conf);
-
-    return i2c_driver_install(I2C_NUM_0, conf.mode, 0, 0, 0);
 }

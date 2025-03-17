@@ -1,0 +1,19 @@
+#include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+#include "driver/i2c_master.h"
+
+
+#define I2C_MASTER_NUM              I2C_NUM_0
+
+#define I2C_SDA_PIN                 GPIO_NUM_1
+#define I2C_SCL_PIN                 GPIO_NUM_0
+#define I2C_CLK_SRC                 I2C_CLK_SRC_DEFAULT
+#define I2C_GLITCH_IGNORE_CNT       7
+#define I2C_MASTER_FREQ_HZ          100000 // standard mode; limited by max SCL speed for PCF8574
+
+
+
+void i2c_master_init(i2c_master_bus_handle_t *bus_handle);
+
