@@ -312,9 +312,9 @@ void state_control_task(void *pvParameter)
             break;
 
         case STATE_DATABASE_VALIDATION: // Wait until validation is complete
-#ifdef DATABASE_QUERY_ENABLE
+#ifdef DATABASE_QUERY_ENABLED
             if (!get_user_info(user_id))
-            {
+            { //1314151617
                 MAIN_ERROR_LOG("Invalid user detected");
                 current_state = STATE_VALIDATION_FAILURE;
                 break;
@@ -323,12 +323,15 @@ void state_control_task(void *pvParameter)
             else if (strcmp(user_info->role, "admin") == 0)
             {
                 MAIN_DEBUG_LOG("Entering Admin Mode");
+                xTaskNotifyGive(keypad_task_handle);
+                xTaskNotifyGive(admin_mode_control_task_handle);
                 current_state = STATE_ADMIN_MODE;
                 break;
             }
             // If student, check-in/out
             else if (strcmp(user_info->role, "student") == 0)
             {
+                start_time = esp_timer_get_time();
                 if (strcmp(user_info->check_in_status, "Checked In") == 0)
                     current_state = check_out_user(user_id) ? STATE_CHECK_OUT : STATE_VALIDATION_FAILURE;
                 else
@@ -472,7 +475,7 @@ void app_main(void)
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
-    xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096, NULL, 4, &admin_mode_control_task_handle);
+    xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
 
 #ifdef MAIN_DEBUG
     check_task_creation();

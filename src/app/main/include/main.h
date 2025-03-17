@@ -29,7 +29,7 @@
 #define MONITOR_TASK_STACK_SIZE 2048 // Stack size in words (4 bytes each)
 #define MONITOR_TASK_PRIORITY 5      // Task priority
 #define MAIN_HEAP_DEBUG 1
-
+#define DATABASE_QUERY_ENABLED 1
 #ifdef MAIN_DEBUG
 #define MAIN_DEBUG_LOG(fmt, ...)           \
     do                                     \
