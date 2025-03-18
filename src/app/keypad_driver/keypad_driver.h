@@ -10,7 +10,7 @@
 #include "freertos/FreeRTOS.h"
 #include <stdbool.h>
 #include <stdint.h>
-#include "../i2c/include/i2c_config.h"
+#include "driver/i2c_master.h"
 
 #define _KP
 #define DEBOUNCE_PERIOD_MS 150

@@ -9,7 +9,7 @@
 #define CYPD3177_I2C_H
  
 #include <stdint.h>
-#include "../../i2c/include/i2c_config.h"
+#include "driver/i2c_master.h"
  
 #define CYPD3177_I2C_ADDR      0x08  // 7-bit I2C address of the BCR
 
