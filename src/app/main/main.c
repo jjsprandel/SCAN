@@ -319,7 +319,7 @@ void state_control_task(void *pvParameter)
         }
         if (current_state != prev_state)
         {
-            display_screen(current_state);
+            // display_screen(current_state);
             prev_state = current_state;
         }
         vTaskDelay(500 / portTICK_PERIOD_MS);
@@ -350,7 +350,7 @@ void app_main(void)
     // Initialize peripherals
     i2c_master_init();
     configure_led();
-    gc9a01_init();
+    // gc9a01_init();
     nfc_init();
     configure_led();
     // Create semaphore for signaling Wi-Fi init completion

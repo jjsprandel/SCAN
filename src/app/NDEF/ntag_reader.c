@@ -9,6 +9,8 @@ static const char *INIT_TAG = "PN532 Initialization";
 void nfc_init()
 {
     pn532_spi_init(&nfc, PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
+
+    ESP_LOGI(INIT_TAG, "SPI interface initialized");
     pn532_begin(&nfc);
 
     uint32_t versiondata = pn532_getFirmwareVersion(&nfc);

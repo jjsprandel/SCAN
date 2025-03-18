@@ -20,6 +20,7 @@ extern "C"
 #include <esp_log_buffer.h>
 
 #include "driver/gpio.h"
+#include "driver/spi_master.h"
 
 #define PN532_PREAMBLE (0x00)
 #define PN532_STARTCODE1 (0x00)
@@ -144,7 +145,7 @@ extern "C"
         uint8_t _miso;
         uint8_t _mosi;
         uint8_t _ss;
-
+        spi_device_handle_t _spi;
         uint8_t _uid[7];      // ISO14443A uid
         uint8_t _uidLen;      // uid len
         uint8_t _key[6];      // Mifare Classic key

@@ -2,9 +2,8 @@
 
 #include "pn532.h"
 
-// #define PN532_DEBUG_EN
-// #define MIFARE_DEBUG_EN
-// #define PN532_DEBUG_EN
+#define PN532_DEBUG_EN
+#define MIFARE_DEBUG_EN
 
 #ifdef PN532_DEBUG_EN
 #define PN532_DEBUG(fmt, ...) printf(fmt, ##__VA_ARGS__)
@@ -38,6 +37,8 @@ static bool pn532_waitready(pn532_t *obj, uint16_t timeout);
 static void pn532_spi_write(pn532_t *obj, uint8_t c);
 static uint8_t pn532_spi_read(pn532_t *obj);
 
+static const char* TAG = "pn532";
+
 void pn532_spi_init(pn532_t *obj, uint8_t clk, uint8_t miso, uint8_t mosi, uint8_t ss)
 {
     obj->_clk = clk;
@@ -45,16 +46,46 @@ void pn532_spi_init(pn532_t *obj, uint8_t clk, uint8_t miso, uint8_t mosi, uint8
     obj->_mosi = mosi;
     obj->_ss = ss;
 
-    esp_rom_gpio_pad_select_gpio(obj->_clk);
-    esp_rom_gpio_pad_select_gpio(obj->_miso);
-    esp_rom_gpio_pad_select_gpio(obj->_mosi);
+
+    // esp_rom_gpio_pad_select_gpio(obj->_clk);
+    // esp_rom_gpio_pad_select_gpio(obj->_miso);
+    // esp_rom_gpio_pad_select_gpio(obj->_mosi);
     esp_rom_gpio_pad_select_gpio(obj->_ss);
 
     gpio_set_direction(obj->_ss, GPIO_MODE_OUTPUT);
     gpio_set_level(obj->_ss, 1);
-    gpio_set_direction(obj->_clk, GPIO_MODE_OUTPUT);
-    gpio_set_direction(obj->_mosi, GPIO_MODE_OUTPUT);
-    gpio_set_direction(obj->_miso, GPIO_MODE_INPUT);
+    // gpio_set_direction(obj->_clk, GPIO_MODE_OUTPUT);
+    // gpio_set_direction(obj->_mosi, GPIO_MODE_OUTPUT);
+    // gpio_set_direction(obj->_miso, GPIO_MODE_INPUT);
+
+    // Configure the SPI bus
+spi_bus_config_t buscfg = {
+    .miso_io_num = miso,
+    .mosi_io_num = mosi,
+    .sclk_io_num = clk,
+    .quadwp_io_num = -1,
+    .quadhd_io_num = -1,
+    .max_transfer_sz = 64, // Adjust as needed
+};
+
+esp_err_t ret = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO);
+if (ret != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to initialize SPI bus");
+}
+
+// Configure the SPI device (PN532)
+spi_device_interface_config_t devcfg = {
+    .clock_speed_hz = 1 * 1000 * 1000, // 1 MHz (adjust as needed)
+    .mode = 0,                         // SPI mode 0
+    .spics_io_num = ss,        // Chip select pin for PN532
+    .flags = SPI_DEVICE_BIT_LSBFIRST,
+    .queue_size = 1
+};
+
+ret = spi_bus_add_device(SPI2_HOST, &devcfg, &(obj->_spi));
+if (ret != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to add PN532 to SPI bus");
+}
 }
 
 /**************************************************************************/
@@ -64,7 +95,7 @@ void pn532_spi_init(pn532_t *obj, uint8_t clk, uint8_t miso, uint8_t mosi, uint8
 /**************************************************************************/
 void pn532_begin(pn532_t *obj)
 {
-    gpio_set_level(obj->_ss, 0);
+    // gpio_set_level(obj->_ss, 0);
 
     PN532_DELAY(1000);
 
@@ -73,7 +104,7 @@ void pn532_begin(pn532_t *obj)
     pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 1, 1000);
 
     // ignore response!
-    gpio_set_level(obj->_ss, 1);
+    // gpio_set_level(obj->_ss, 1);
 }
 
 /**************************************************************************/
@@ -1473,24 +1504,37 @@ void pn532_writecommand(pn532_t *obj, uint8_t *cmd, uint8_t cmdlen)
     @param  c       8-bit command to write to the SPI bus
 */
 /**************************************************************************/
-void pn532_spi_write(pn532_t *obj, uint8_t c)
-{
-    int8_t i;
-    gpio_set_level(obj->_clk, 1);
+// void pn532_spi_write(pn532_t *obj, uint8_t c)
+// {
+//     int8_t i;
+//     gpio_set_level(obj->_clk, 1);
 
-    for (i = 0; i < 8; i++)
-    {
-        gpio_set_level(obj->_clk, 0);
-        if (c & _BV(i))
-        {
-            gpio_set_level(obj->_mosi, 1);
-        }
-        else
-        {
-            gpio_set_level(obj->_mosi, 0);
-        }
-        gpio_set_level(obj->_clk, 1);
-    }
+//     for (i = 0; i < 8; i++)
+//     {
+//         gpio_set_level(obj->_clk, 0);
+//         if (c & _BV(i))
+//         {
+//             gpio_set_level(obj->_mosi, 1);
+//         }
+//         else
+//         {
+//             gpio_set_level(obj->_mosi, 0);
+//         }
+//         gpio_set_level(obj->_clk, 1);
+//     }
+// }
+
+void pn532_spi_write(pn532_t *obj, uint8_t data) {
+    spi_transaction_t t;
+    memset(&t, 0, sizeof(t));       //Zero out the transaction
+    t.length = 8;
+    t.tx_buffer = &data;
+    t.flags = (SPI_TRANS_CS_KEEP_ACTIVE); // instead of gpio_set_level(obj->_ss, 0); and gpio_set_level(obj->_ss, 1); I'm using spi_device_acquire_bus(obj->spi,portMAX_DELAY); and spi_device_release_bus(obj->spi);.
+
+    ESP_LOGI(TAG, "send data: 0x%02x", data);
+
+    ESP_ERROR_CHECK(spi_device_transmit(obj->_spi, &t));
+
 }
 
 /**************************************************************************/
@@ -1500,22 +1544,41 @@ void pn532_spi_write(pn532_t *obj, uint8_t c)
     @returns The 8-bit value that was read from the SPI bus
 */
 /**************************************************************************/
-uint8_t pn532_spi_read(pn532_t *obj)
-{
-    int8_t i, x;
-    x = 0;
+// uint8_t pn532_spi_read(pn532_t *obj)
+// {
+//     int8_t i, x;
+//     x = 0;
 
-    gpio_set_level(obj->_clk, 1);
+//     gpio_set_level(obj->_clk, 1);
 
-    for (i = 0; i < 8; i++)
-    {
-        if (gpio_get_level(obj->_miso))
-        {
-            x |= _BV(i);
-        }
-        gpio_set_level(obj->_clk, 0);
-        gpio_set_level(obj->_clk, 1);
-    }
+//     for (i = 0; i < 8; i++)
+//     {
+//         if (gpio_get_level(obj->_miso))
+//         {
+//             x |= _BV(i);
+//         }
+//         gpio_set_level(obj->_clk, 0);
+//         gpio_set_level(obj->_clk, 1);
+//     }
 
-    return x;
+//     return x;
+// }
+
+uint8_t pn532_spi_read(pn532_t *obj) {
+
+    uint8_t data = 1;
+    spi_transaction_t t;
+    memset(&t, 0, sizeof(t));       //Zero out the transaction
+    t.length = 8;
+    t.rxlength = 8;
+    t.tx_buffer = NULL;
+    t.rx_buffer = &data;
+    t.flags = (SPI_TRANS_CS_KEEP_ACTIVE); // instead of gpio_set_level(obj->_ss, 0); and gpio_set_level(obj->_ss, 1); I'm using spi_device_acquire_bus(obj->spi,portMAX_DELAY); and spi_device_release_bus(obj->spi);.
+
+    ESP_ERROR_CHECK(spi_device_transmit(obj->_spi, &t));
+
+    ESP_LOGI(TAG, "read data: 0x%02x", data);
+
+    return data;
+
 }
