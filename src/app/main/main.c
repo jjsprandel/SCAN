@@ -348,9 +348,9 @@ void app_main(void)
     /* Configure the peripheral according to the LED type */
 
     // Initialize I2C bus
-    i2c_master_init(&master_handle);
-    i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
-    i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
+    //i2c_master_init(&master_handle);
+    //i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
+    //i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
     ESP_LOGI(TAG, "I2C initialized successfully");
 
 

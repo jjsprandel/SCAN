@@ -7,10 +7,10 @@
 #include <stdio.h>
 #include <driver/gpio.h>
 #include <driver/timer.h>
-#include "freertos/FreeRTOS.h"
+//#include "freertos/FreeRTOS.h"
 #include <stdbool.h>
 #include <stdint.h>
-#include "../i2c/include/i2c_config.h"
+
 
 #define _KP
 #define DEBOUNCE_PERIOD_MS 150
@@ -31,8 +31,8 @@ typedef struct
 } keypad_buffer_t;
 
 
-extern i2c_master_dev_handle_t pcf8574n_i2c_handle;
-extern i2c_device_config_t pcf8574n_i2c_config;
+// i2c_master_dev_handle_t pcf8574n_i2c_handle;
+// i2c_device_config_t pcf8574n_i2c_config;
 
 
 extern keypad_buffer_t keypad_buffer;
