@@ -8,7 +8,7 @@
 #include "esp_system.h"
 #include "esp_log.h"
 #include "driver/gpio.h"
-#include "led_strip.h"
+// #include "led_strip.h"
 #include "sdkconfig.h"
 #include "nvs_flash.h"
 #include "wifi_init.h"
@@ -19,26 +19,15 @@
 #include "keypad_driver.h"
 #include "display_config.h"
 #include "display_frames.h"
-#include "pir.h"
+#include "pir_sensor.h"
+#include "status_leds.h"
+#include "state_enum.h"
+#include "status_buzzer.h"
 
 #define ID_LEN 10
 #define BLINK_GPIO 8
 #define MAIN_DEBUG 1
 #define NUM_LEDS 3
-
-typedef enum
-{
-    STATE_WIFI_INIT,
-    STATE_WIFI_READY,
-    STATE_IDLE,
-    STATE_USER_DETECTED,
-    STATE_DATABASE_VALIDATION,
-    STATE_CHECK_IN,
-    STATE_CHECK_OUT,
-    STATE_ADMIN_MODE,
-    STATE_VALIDATION_FAILURE,
-    STATE_ERROR
-} state_t;
 
 pn532_t nfc;           // Defined in ntag_reader.h
 _lock_t lvgl_api_lock; // Defined in display_config.h

@@ -3,113 +3,19 @@
 static state_t current_state = STATE_WIFI_INIT, prev_state = STATE_ERROR;
 
 // Task Handles
-static TaskHandle_t blink_led_task_handle = NULL;
+TaskHandle_t state_control_task_handle = NULL;
 static TaskHandle_t wifi_init_task_handle = NULL;
 static TaskHandle_t ota_update_task_handle = NULL;
-static TaskHandle_t database_task_handle = NULL;
 static TaskHandle_t keypad_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
-TaskHandle_t state_control_task_handle = NULL;
 
 // not static because it is being used in wifi_init.c as extern variable
 SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init completion
 
 static const char *TAG = "MAIN";
+static bool s_led_state = true;
 
-static uint8_t s_led_state = 0;
-
-static led_strip_handle_t led_strip;
-
-void blink_led_task(void *pvParameter)
-{
-    while (1)
-    {
-        s_led_state = !s_led_state;
-
-        // if (current_state == STATE_WIFI_INIT)
-        // {
-        //     vTaskDelay(200 / portTICK_PERIOD_MS);
-        // }
-        // else
-        // {
-        //     vTaskDelay(1200 / portTICK_PERIOD_MS);
-        // }
-
-        /* If the addressable LED is enabled */
-        if (s_led_state && current_state == STATE_WIFI_INIT)
-        {
-            /* Set the LED pixel using RGB from 0 (0%) to 255 (100%) for each color */
-            // if (current_state == STATE_WIFI_INIT)
-            // {
-            for (int i = 0; i < NUM_LEDS; i++)
-            {
-                led_strip_set_pixel(led_strip, i, 100, 0, 0);
-            }
-            // }
-            // else
-            // {
-            //     for (int i = 0; i < NUM_LEDS; i++)
-            //     {
-            //         led_strip_set_pixel(led_strip, i, 0, 0, 50);
-            //     }
-            // }
-            /* Refresh the strip to send data */
-            led_strip_refresh(led_strip);
-        }
-        else
-        {
-            /* Set all LED off to clear all pixels */
-            led_strip_clear(led_strip);
-        }
-        if (current_state == STATE_USER_DETECTED)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-        }
-        else if (current_state == STATE_DATABASE_VALIDATION)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-        }
-        else if (current_state == STATE_CHECK_IN || current_state == STATE_CHECK_OUT)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-            led_strip_set_pixel(led_strip, 2, 0, 100, 0);
-        }
-        else if (current_state == STATE_VALIDATION_FAILURE)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-            led_strip_set_pixel(led_strip, 2, 100, 0, 0);
-        }
-        else if (current_state == STATE_IDLE)
-        {
-            led_strip_clear(led_strip);
-        }
-        led_strip_refresh(led_strip);
-        vTaskDelay(250 / portTICK_PERIOD_MS);
-    }
-}
-
-static void configure_led(void)
-{
-    ESP_LOGI(TAG, "Configured to blink addressable LED!");
-    /* LED strip initialization with the GPIO and pixels number*/
-    led_strip_config_t strip_config = {
-        .strip_gpio_num = BLINK_GPIO,
-        .max_leds = 3, // at least one LED on board
-    };
-
-    led_strip_rmt_config_t rmt_config = {
-        .resolution_hz = 10 * 1000 * 1000, // 10MHz
-        .flags.with_dma = false,
-    };
-    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
-
-    /* Set all LED off to clear all pixels */
-    led_strip_clear(led_strip);
-}
-
+// Load all display screens into memory
 static void create_screens()
 {
     screen_objects[STATE_IDLE] = display_idle(display);
@@ -120,6 +26,7 @@ static void create_screens()
     screen_objects[STATE_VALIDATION_FAILURE] = display_check_in_failed(display);
 }
 
+// Load screen onto display as a function of current state
 static void display_screen(state_t display_state)
 {
     if (screen_objects[current_state] != NULL)
@@ -135,33 +42,19 @@ static void display_screen(state_t display_state)
     }
 }
 
-static void check_task_creation()
+// Check if a task has been successfully created. For debug purposes
+static void check_task_creation(char *taskName, TaskHandle_t taskHandle)
 {
-    if (state_control_task_handle == NULL)
+    if (taskHandle == NULL)
     {
-        ESP_LOGE(TAG, "State Control Task creation failed!");
+        ESP_LOGE(TAG, "%s task creation failed!", taskName);
     }
     else
     {
-        ESP_LOGI(TAG, "State Control Task created successfully!");
-    }
-    if (keypad_task_handle == NULL)
-    {
-        ESP_LOGE(TAG, "Keypad Task creation failed!");
-    }
-    else
-    {
-        ESP_LOGI(TAG, "Keypad Task created successfully!");
-    }
-    if (lvgl_port_task_handle == NULL)
-    {
-        ESP_LOGE(TAG, "LVGL Port Task creation failed!");
-    }
-    else
-    {
-        ESP_LOGI(TAG, "LVGL Port Task created successfully!");
+        ESP_LOGI(TAG, "%s task created successfully!", taskName);
     }
 }
+
 // Function to control state transitions and task management
 void state_control_task(void *pvParameter)
 {
@@ -180,12 +73,7 @@ void state_control_task(void *pvParameter)
                 xTaskCreate(wifi_init_task, "wifi_init_task", 4096, NULL, 4, &wifi_init_task_handle);
             }
 
-            // Start LED blinking task if not already running
-            if (blink_led_task_handle == NULL)
-            {
-                ESP_LOGI(TAG, "Starting Blink LED Task");
-                xTaskCreate(blink_led_task, "blink_led_task", 1024, NULL, 2, &blink_led_task_handle);
-            }
+            s_led_state = !s_led_state;
 
             // Check if Wi-Fi init is completed (signaled by semaphore)
             if (xSemaphoreTake(wifi_init_semaphore, portMAX_DELAY) == pdTRUE)
@@ -205,18 +93,12 @@ void state_control_task(void *pvParameter)
 #ifdef MAIN_DEBUG
             ESP_LOGI(TAG, "Wi-Fi Initialized. Ready!");
 #endif
-            // if (blink_led_task_handle != NULL)
-            // {
-            //     vTaskDelete(blink_led_task_handle);
-            //     blink_led_task_handle = NULL;
+            
+            // if (ota_update_task_handle == NULL) {
+            //     ESP_LOGI(TAG, "Creating OTA update task");
+            //     xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 4, NULL, 8, &ota_update_task_handle);
             // }
-            /*
-                            if (ota_update_task_handle == NULL) {
-                                ESP_LOGI(TAG, "Creating OTA update task");
-                                xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 4, NULL, 8, &ota_update_task_handle);
-                            }
-            */
-
+            s_led_state = true;
             current_state = STATE_IDLE;
             break;
         case STATE_IDLE: // Wait until proximity is detected
@@ -305,11 +187,7 @@ void state_control_task(void *pvParameter)
                 vTaskDelete(wifi_init_task_handle);
                 wifi_init_task_handle = NULL;
             }
-            if (blink_led_task_handle != NULL)
-            {
-                vTaskDelete(blink_led_task_handle);
-                blink_led_task_handle = NULL;
-            }
+
             ESP_LOGE(TAG, "Error state reached!");
             break;
 
@@ -319,6 +197,8 @@ void state_control_task(void *pvParameter)
         }
         if (current_state != prev_state)
         {
+            play_kiosk_buzzer(current_state);
+            set_kiosk_leds(current_state, s_led_state);
             display_screen(current_state);
             prev_state = current_state;
         }
@@ -352,7 +232,8 @@ void app_main(void)
     configure_led();
     gc9a01_init();
     nfc_init();
-    configure_led();
+    buzzer_init();
+
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
 
@@ -363,7 +244,9 @@ void app_main(void)
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
 
 #ifdef MAIN_DEBUG
-    check_task_creation();
+    check_task_creation("State control", state_control_task_handle);
+    check_task_creation("Keypad", keypad_task_handle);
+    check_task_creation("LVGL", lvgl_port_task_handle);
 #endif
 
     while (1)
