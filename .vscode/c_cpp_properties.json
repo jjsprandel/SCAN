@@ -5,6 +5,7 @@
             "compilerPath": "/usr/bin/gcc",
             "includePath": [
                 "${workspaceFolder}/src/app/**/include",
+                "${workspaceFolder}/src/app/device_drivers/**/include",
                 "${workspaceFolder}/**",
                 "/opt/esp/idf/components/**",
                 "/opt/esp/idf//tools/cmake/**",

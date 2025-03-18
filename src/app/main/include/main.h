@@ -1,3 +1,4 @@
+// ESP-IDF header files
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -11,6 +12,8 @@
 #include "led_strip.h"
 #include "sdkconfig.h"
 #include "nvs_flash.h"
+
+// project component header files
 #include "wifi_init.h"
 #include "ota.h"
 #include "firebase_utils.h"
@@ -20,7 +23,9 @@
 #include "display_config.h"
 #include "display_frames.h"
 #include "pir.h"
+
 #include "i2c_config.h"
+#include "cypd3177_i2c.h"
 
 #define ID_LEN 10
 #define BLINK_GPIO 8

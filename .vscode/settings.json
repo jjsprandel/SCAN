@@ -16,7 +16,11 @@
         "cjson_utils.h": "c",
         "i2c_master.h": "c",
         "task.h": "c",
-        "keypad_driver.h": "c"
+        "keypad_driver.h": "c",
+        "cypd3177_i2c.h": "c",
+        "i2c_config.h": "c",
+        "i2c.h": "c",
+        "freertos.h": "c"
     },
     "idf.pythonInstallPath": "/usr/bin/python3",
     "idf.customExtraVars": {

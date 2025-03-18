@@ -2,6 +2,10 @@
 
 static const char *TAG = "i2c_master";
 
+// variable definitions
+i2c_master_bus_handle_t master_handle;
+
+
 void i2c_master_init(i2c_master_bus_handle_t *bus_handle)
 {
     i2c_master_bus_config_t bus_config = {
@@ -15,12 +19,7 @@ void i2c_master_init(i2c_master_bus_handle_t *bus_handle)
     ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, bus_handle));
 }
 
-void i2c_master_add_device(i2c_master_bus_handle_t *bus_handle, i2c_master_dev_handle_t *dev_handle, uint16_t device_address)
+void i2c_master_add_device(i2c_master_bus_handle_t *bus_handle, i2c_master_dev_handle_t *dev_handle, const i2c_device_config_t *dev_config)
 {
-    i2c_device_config_t dev_config = {
-        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address = device_address,
-        .scl_speed_hz = I2C_MASTER_FREQ_HZ,
-    };
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(*bus_handle, &dev_config, dev_handle));
+    ESP_ERROR_CHECK(i2c_master_bus_add_device(*bus_handle, dev_config, dev_handle));
 }
