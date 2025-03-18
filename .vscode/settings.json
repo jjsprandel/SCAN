@@ -20,7 +20,8 @@
         "cypd3177_i2c.h": "c",
         "i2c_config.h": "c",
         "i2c.h": "c",
-        "freertos.h": "c"
+        "freertos.h": "c",
+        "esp_log.h": "c"
     },
     "idf.pythonInstallPath": "/usr/bin/python3",
     "idf.customExtraVars": {
