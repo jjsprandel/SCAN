@@ -1,6 +1,8 @@
 #include "cypd3177.h"
 
-// Configure the GPIO pin
+static const char *TAG = "CYPD3177_INTR";
+
+// GPIO pin config
 gpio_config_t cypd3177_intr_config = {
     .intr_type = GPIO_INTR_NEGEDGE, // Trigger on falling edge (active low)
     .mode = GPIO_MODE_INPUT,
@@ -9,8 +11,17 @@ gpio_config_t cypd3177_intr_config = {
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
 };
 
-static void IRAM_ATTR gpio_isr_handler_1(void *arg)
+// ISR: Notify the task
+void IRAM_ATTR cypd3177_isr_handler(void *arg)
 {
-    int gpio_num = CYPD3177_INTR_PIN;
-    //xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
+    ESP_LOGI(TAG, "Interrupt triggered");
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    // check the interrupt pin level after interrupt is triggered to double check that the interrupt signal is still active (debouncing/transient handling)
+    if (gpio_get_level(CYPD3177_INTR_PIN) == 0)
+    {
+        vTaskNotifyGiveFromISR(cypd3177_task_handle, &xHigherPriorityTaskWoken);
+    }
+
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);  // Yield if needed
 }

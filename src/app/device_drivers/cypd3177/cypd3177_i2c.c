@@ -54,33 +54,33 @@ void get_interrupt_response_code(void *pvParameter)
     uint8_t clear_dev_intr[3] = {0x06, 0x00, 0x03 };
     uint8_t event_mask[6] = {0x24, 0x10, 0x18, 0x00, 0x00, 0x00 };
     i2c_master_transmit(cypd3177_i2c_handle, event_mask, 6, -1);
-    
+
     while (1) 
     {
-    // get interrupt type
-    i2c_master_transmit_receive(cypd3177_i2c_handle, interrupt_type_addr, 2, (uint8_t *)&interrupt_type_reg, sizeof(interrupt_type_reg), -1);
-
-    ESP_LOGI(TAG, "device interrupt value: %d", interrupt_type_reg.device_interrupt);
-    ESP_LOGI(TAG, "PD port interrupt value: %d", interrupt_type_reg.pd_port_interrupt);
-
-    if (interrupt_type_reg.device_interrupt)
-    {
-        //vTaskDelay(10000 / portTICK_PERIOD_MS);
-        get_dev_response(NULL);
-        //i2c_master_transmit(cypd3177_i2c_handle, event_mask, 6, -1);
-        
-        //i2c_master_transmit(cypd3177_i2c_handle, reset_command, 4, -1);
-    }
-
-    if (interrupt_type_reg.pd_port_interrupt)
-    {
-        get_pd_response(NULL);
-    }
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // Block until ISR signals
     
-    i2c_master_transmit(cypd3177_i2c_handle, clear_dev_intr, 3, -1);
+        // get interrupt type
+        i2c_master_transmit_receive(cypd3177_i2c_handle, interrupt_type_addr, 2, (uint8_t *)&interrupt_type_reg, sizeof(interrupt_type_reg), -1);
 
+        ESP_LOGI(TAG, "device interrupt value: %d", interrupt_type_reg.device_interrupt);
+        ESP_LOGI(TAG, "PD port interrupt value: %d", interrupt_type_reg.pd_port_interrupt);
 
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
+        if (interrupt_type_reg.device_interrupt)
+        {
+            //vTaskDelay(10000 / portTICK_PERIOD_MS);
+            get_dev_response(NULL);
+            //i2c_master_transmit(cypd3177_i2c_handle, event_mask, 6, -1);
+        
+            //i2c_master_transmit(cypd3177_i2c_handle, reset_command, 4, -1);
+        }
+
+        if (interrupt_type_reg.pd_port_interrupt)
+        {
+            get_pd_response(NULL);
+        }
+    
+        i2c_master_transmit(cypd3177_i2c_handle, clear_dev_intr, 3, -1);
+
     }
 
 }

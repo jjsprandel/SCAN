@@ -15,8 +15,10 @@
 #include <stdint.h>
 
 
+extern TaskHandle_t cypd3177_task_handle;
+
 #define CYPD3177_INTR_PIN               GPIO_NUM_5
-#define FORMAT(addr)                    { (uint8_t)((addr) & 0xFF), (uint8_t)(((addr) >> 8) & 0xFF) }
+#define FORMAT(i2c_addr)                    { (uint8_t)((i2c_addr) & 0xFF), (uint8_t)(((i2c_addr) >> 8) & 0xFF) }
 #define CYPD3177_I2C_ADDR               0x08  // 7-bit I2C address of the BCR
 
 /* Status Registers */
@@ -142,6 +144,8 @@ void power_check(void *pvParameter);
 void get_interrupt_response_code(void *pvParameter);
 void get_dev_response(void *pvParameter);
 void get_pd_response(void *pvParameter);
+
+extern void IRAM_ATTR cypd3177_isr_handler(void *arg);
 
 #endif /* CYPD3177_I2C_H */
  

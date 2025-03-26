@@ -8,7 +8,7 @@ static TaskHandle_t wifi_init_task_handle = NULL;
 static TaskHandle_t ota_update_task_handle = NULL;
 static TaskHandle_t database_task_handle = NULL;
 static TaskHandle_t keypad_task_handle = NULL;
-static TaskHandle_t cypd3177_task_handle = NULL;
+extern TaskHandle_t cypd3177_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
 TaskHandle_t admin_mode_control_task_handle = NULL;
 TaskHandle_t state_control_task_handle = NULL;
@@ -460,9 +460,9 @@ void app_main(void)
     // GPIO config
     gpio_config(&cypd3177_intr_config);
     
-    // Install the ISR handler
+    // Install the ISR service and attach handlers
     gpio_install_isr_service(0);
-    //gpio_isr_handler_add(CYPD3177_INT_PIN, gpio_isr_handler, (void *)CYPD3177_INT_PIN);
+    gpio_isr_handler_add(CYPD3177_INTR_PIN, cypd3177_isr_handler, NULL);
     
     // Initialize I2C bus
     i2c_master_init(&master_handle);
