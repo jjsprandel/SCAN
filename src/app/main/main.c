@@ -8,6 +8,7 @@ static TaskHandle_t wifi_init_task_handle = NULL;
 static TaskHandle_t ota_update_task_handle = NULL;
 static TaskHandle_t database_task_handle = NULL;
 static TaskHandle_t keypad_task_handle = NULL;
+static TaskHandle_t cypd3177_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
 TaskHandle_t state_control_task_handle = NULL;
 
@@ -347,10 +348,17 @@ void app_main(void)
     // ESP_LOGI("Memory", "STARTING FREE HEAP SIZE: %lu bytes", (long unsigned int)esp_get_free_heap_size());
     /* Configure the peripheral according to the LED type */
 
+    // GPIO config
+    gpio_config(&cypd3177_intr_config);
+    
+    // Install the ISR handler
+    gpio_install_isr_service(0);
+    //gpio_isr_handler_add(CYPD3177_INT_PIN, gpio_isr_handler, (void *)CYPD3177_INT_PIN);
+    
     // Initialize I2C bus
-    //i2c_master_init(&master_handle);
-    //i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
-    //i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
+    i2c_master_init(&master_handle);
+    i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
+    i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
     ESP_LOGI(TAG, "I2C initialized successfully");
 
 
@@ -367,6 +375,7 @@ void app_main(void)
 
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
+    xTaskCreate(get_interrupt_response_code, "cypd3177_task", 4096, NULL, 3, &cypd3177_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
 
 #ifdef MAIN_DEBUG

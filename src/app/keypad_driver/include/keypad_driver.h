@@ -2,14 +2,16 @@
 #define keypad_driver_h
 
 
+#include <driver/i2c_master.h>
+#include "freertos/FreeRTOS.h"
 #include <freertos/task.h>
 #include <esp_log.h>
 #include <stdio.h>
 #include <driver/gpio.h>
+#include <driver/i2c_master.h>
+#include <freertos/task.h>
 #include <driver/timer.h>
-//#include "freertos/FreeRTOS.h"
 #include <stdbool.h>
-#include <stdint.h>
 
 
 #define _KP
@@ -31,8 +33,8 @@ typedef struct
 } keypad_buffer_t;
 
 
-// i2c_master_dev_handle_t pcf8574n_i2c_handle;
-// i2c_device_config_t pcf8574n_i2c_config;
+extern i2c_master_dev_handle_t pcf8574n_i2c_handle;
+extern i2c_device_config_t pcf8574n_i2c_config;
 
 
 extern keypad_buffer_t keypad_buffer;

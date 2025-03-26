@@ -1,5 +1,4 @@
 #include "keypad_driver.h"
-#include "driver/i2c_master.h"
 
 i2c_master_dev_handle_t pcf8574n_i2c_handle;
 
@@ -59,8 +58,8 @@ char poll_keypad(uint8_t keypad_address)
     uint8_t cols = 0;
 
     // Detect active line
-    ESP_ERROR_CHECK(i2c_master_transmit(pcf8574n_i2c_handle, &activate, 1, 100));
-    ESP_ERROR_CHECK(i2c_master_receive(pcf8574n_i2c_handle, &data, 1, 100));
+    ESP_ERROR_CHECK(i2c_master_transmit(pcf8574n_i2c_handle, &activate, 1, 50));
+    ESP_ERROR_CHECK(i2c_master_receive(pcf8574n_i2c_handle, &data, 1, 50));
     switch ((data ^ 0xff) >> 4)
     {
     case 8:
@@ -79,8 +78,8 @@ char poll_keypad(uint8_t keypad_address)
 
     // Detect active column
     activate = 0x0f;
-    ESP_ERROR_CHECK(i2c_master_transmit(pcf8574n_i2c_handle, &activate, 1, -1));
-    ESP_ERROR_CHECK(i2c_master_receive(pcf8574n_i2c_handle, &data, 1, -1));
+    ESP_ERROR_CHECK(i2c_master_transmit(pcf8574n_i2c_handle, &activate, 1, 50));
+    ESP_ERROR_CHECK(i2c_master_receive(pcf8574n_i2c_handle, &data, 1, 50));
     switch ((data ^ 0xff) & 0x0f)
     {
     case 8:
@@ -112,7 +111,7 @@ void keypad_handler(void *params)
     uint8_t clear_pullup = 0xff;
     double prev_time = 0;
     double curr_time = 0;
-    ESP_ERROR_CHECK(i2c_master_transmit(pcf8574n_i2c_handle, &clear_pullup, 1, -1));
+    ESP_ERROR_CHECK(i2c_master_transmit(pcf8574n_i2c_handle, &clear_pullup, 1, 50));
     init_timer();
 
     while (1)
@@ -174,6 +173,6 @@ void keypad_handler(void *params)
             break;
         }
 
-        vTaskDelay(50 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }

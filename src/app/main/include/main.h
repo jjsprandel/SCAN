@@ -24,6 +24,8 @@
 #include "display_frames.h"
 #include "pir.h"
 
+#include "i2c_config.h"
+#include "cypd3177.h"
 
 #define ID_LEN 10
 #define BLINK_GPIO 8
