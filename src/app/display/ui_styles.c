@@ -241,17 +241,6 @@ void ui_set_screen_transition(lv_obj_t* new_screen, bool slide_left) {
         return;
     }
     
-    int start_pos = slide_left ? UI_SCREEN_WIDTH : -UI_SCREEN_WIDTH;
-    
-    lv_obj_set_x(new_screen, start_pos);
+    // Load the new screen instantly without animation
     lv_scr_load(new_screen);
-    
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, new_screen);
-    lv_anim_set_values(&a, start_pos, 0);
-    lv_anim_set_exec_cb(&a, screen_transition_anim_cb);
-    lv_anim_set_time(&a, UI_ANIM_TIME_NORMAL);
-    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
-    lv_anim_start(&a);
 } 

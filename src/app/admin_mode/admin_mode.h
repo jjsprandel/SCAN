@@ -12,7 +12,7 @@
 #include "firebase_utils.h"
 
 #define ADMIN_DEBUG
-// #define DATABASE_QUERY_ENABLED
+#define DATABASE_QUERY_ENABLED
 
 typedef enum
 {

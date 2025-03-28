@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <ctype.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -31,7 +32,7 @@
 #define MONITOR_TASK_STACK_SIZE 2048 // Stack size in words (4 bytes each)
 #define MONITOR_TASK_PRIORITY 5      // Task priority
 #define MAIN_HEAP_DEBUG 1
-// #define DATABASE_QUERY_ENABLED 1
+#define DATABASE_QUERY_ENABLED 1
 #ifdef MAIN_DEBUG
 #define MAIN_DEBUG_LOG(fmt, ...)           \
     do                                     \
@@ -78,7 +79,7 @@ extern TaskHandle_t state_control_task_handle;
 extern TaskHandle_t admin_mode_control_task_handle;
 extern admin_state_t current_admin_state, prev_admin_state;
 
-char user_id[ID_LEN];
+char user_id[ID_LEN+1];
 void state_control_task(void *pvParameter);
 void blink_led_1_task(void *pvParameter);
 void blink_led_2_task(void *pvParameter);

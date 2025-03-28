@@ -1,4 +1,35 @@
 #include "main.h"
+#include <ctype.h>
+
+// Helper function to check for non-printable characters
+static bool is_valid_id_string(const char* str, size_t max_len) {
+    for (size_t i = 0; i < max_len && str[i] != '\0'; i++) {
+        unsigned char c = (unsigned char)str[i];
+        if (!isprint(c)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Helper function to check if a string contains only numeric characters
+static bool is_numeric_string(const char* str, size_t max_len) {
+    if (str == NULL) {
+        return false;
+    }
+    
+    // Empty string is not valid
+    if (str[0] == '\0') {
+        return false;
+    }
+    
+    for (size_t i = 0; i < max_len && str[i] != '\0'; i++) {
+        if (!isdigit((unsigned char)str[i])) {
+            return false;
+        }
+    }
+    return true;
+}
 
 static state_t current_state = STATE_WIFI_INIT, prev_state = STATE_ERROR;
 static admin_state_t prev_admin_state_internal = ADMIN_STATE_ERROR;
@@ -256,7 +287,7 @@ static void check_task_creation()
 // Function to control state transitions and task management
 void state_control_task(void *pvParameter)
 {
-    char user_id[ID_LEN];
+    // char user_id[ID_LEN+1];
     while (1)
     {
         // MAIN_DEBUG_LOG("Free heap size: %lu bytes", (unsigned long)esp_get_free_heap_size());
@@ -321,7 +352,7 @@ void state_control_task(void *pvParameter)
             }
             break;
         case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
-            char nfcUserID[ID_LEN] = {'\0'};
+            char nfcUserID[ID_LEN+1] = {'\0'};
 
             bool nfcReadFlag = false;
 
@@ -334,7 +365,38 @@ void state_control_task(void *pvParameter)
 #ifdef MAIN_DEBUG
                 MAIN_DEBUG_LOG("User ID entered by %s", nfcReadFlag ? "NFC Transceiver" : "Keypad");
 #endif
+                
+                // Validate the user ID before using it
+                if (nfcReadFlag) {
+                    // Check for non-printable characters in the NFC data
+                    bool valid_id = true;
+                    for (int i = 0; i < ID_LEN && nfcUserID[i] != '\0'; i++) {
+                        if (!isprint((unsigned char)nfcUserID[i])) {
+                            MAIN_ERROR_LOG("Invalid character in NFC ID at position %d", i);
+                            valid_id = false;
+                            break;
+                        }
+                    }
+                    
+                    if (!valid_id) {
+                        MAIN_ERROR_LOG("Rejecting invalid NFC ID");
+                        current_state = STATE_ERROR;
+                        break;
+                    }
+                }
+                
                 memcpy(user_id, nfcReadFlag ? nfcUserID : keypad_buffer.elements, ID_LEN);
+                user_id[ID_LEN] = '\0'; // Ensure null termination
+                
+                MAIN_DEBUG_LOG("Processing user ID: %s", user_id);
+                
+                // Validate that the user ID contains only numeric characters
+                if (!is_numeric_string(user_id, ID_LEN)) {
+                    MAIN_ERROR_LOG("Invalid user ID: %s - contains non-numeric characters", user_id);
+                    current_state = STATE_VALIDATION_FAILURE;
+                    break;
+                }
+                
                 current_state = STATE_DATABASE_VALIDATION;
             }
             break;
@@ -377,15 +439,13 @@ void state_control_task(void *pvParameter)
             log_elapsed_time("check in authentication");
             MAIN_DEBUG_LOG("ID %s found in database. Checking in.", user_id);
             vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
-            current_state = STATE_CHECK_OUT;
-            // current_state = STATE_IDLE;
+            current_state = STATE_IDLE;
             break;
         case STATE_CHECK_OUT:
             log_elapsed_time("check out authentication");
             MAIN_DEBUG_LOG("ID %s found in database. Checking out.", user_id);
             vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
-            current_state = STATE_ERROR;
-            // current_state = STATE_IDLE;
+            current_state = STATE_IDLE;
             break;
         case STATE_ADMIN_MODE:
             BaseType_t adminNotify = ulTaskNotifyTake(pdTRUE, 0);
@@ -398,7 +458,7 @@ void state_control_task(void *pvParameter)
             break;
         case STATE_VALIDATION_FAILURE:
 #ifdef MAIN_DEBUG
-            MAIN_DEBUG_LOG("ID %s not found in database. Try again.", user_id);
+            MAIN_DEBUG_LOG("ID '%s' not found in database. Try again.", user_id);
 #endif
             vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
             current_state = STATE_USER_DETECTED;
@@ -416,6 +476,7 @@ void state_control_task(void *pvParameter)
                 blink_led_task_handle = NULL;
             }
             MAIN_ERROR_LOG("Error state reached!");
+            vTaskDelay(pdMS_TO_TICKS(5000));
             current_state = STATE_IDLE;
             break;
 
