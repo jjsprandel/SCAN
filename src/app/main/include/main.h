@@ -8,7 +8,7 @@
 #include "esp_system.h"
 #include "esp_log.h"
 #include "driver/gpio.h"
-// #include "led_strip.h"
+#include "led_strip.h"
 #include "sdkconfig.h"
 #include "nvs_flash.h"
 #include "wifi_init.h"
@@ -20,7 +20,6 @@
 #include "display_config.h"
 #include "display_frames.h"
 #include "pir_sensor.h"
-#include "status_leds.h"
 #include "state_enum.h"
 #include "status_buzzer.h"
 

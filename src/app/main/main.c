@@ -13,7 +13,100 @@ static TaskHandle_t lvgl_port_task_handle = NULL;
 SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init completion
 
 static const char *TAG = "MAIN";
-static bool s_led_state = true;
+
+static uint8_t s_led_state = 0;
+
+static led_strip_handle_t led_strip;
+
+void blink_led_task(void *pvParameter)
+{
+    while (1)
+    {
+        s_led_state = !s_led_state;
+
+        // if (current_state == STATE_WIFI_INIT)
+        // {
+        //     vTaskDelay(200 / portTICK_PERIOD_MS);
+        // }
+        // else
+        // {
+        //     vTaskDelay(1200 / portTICK_PERIOD_MS);
+        // }
+
+        /* If the addressable LED is enabled */
+        if (s_led_state && current_state == STATE_WIFI_INIT)
+        {
+            /* Set the LED pixel using RGB from 0 (0%) to 255 (100%) for each color */
+            // if (current_state == STATE_WIFI_INIT)
+            // {
+            for (int i = 0; i < NUM_LEDS; i++)
+            {
+                led_strip_set_pixel(led_strip, i, 100, 0, 0);
+            }
+            // }
+            // else
+            // {
+            //     for (int i = 0; i < NUM_LEDS; i++)
+            //     {
+            //         led_strip_set_pixel(led_strip, i, 0, 0, 50);
+            //     }
+            // }
+            /* Refresh the strip to send data */
+            led_strip_refresh(led_strip);
+        }
+        else
+        {
+            /* Set all LED off to clear all pixels */
+            led_strip_clear(led_strip);
+        }
+        if (current_state == STATE_USER_DETECTED)
+        {
+            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
+        }
+        else if (current_state == STATE_DATABASE_VALIDATION)
+        {
+            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
+            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+        }
+        else if (current_state == STATE_CHECK_IN || current_state == STATE_CHECK_OUT)
+        {
+            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
+            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+            led_strip_set_pixel(led_strip, 2, 0, 100, 0);
+        }
+        else if (current_state == STATE_VALIDATION_FAILURE)
+        {
+            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
+            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+            led_strip_set_pixel(led_strip, 2, 100, 0, 0);
+        }
+        else if (current_state == STATE_IDLE)
+        {
+            led_strip_clear(led_strip);
+        }
+        led_strip_refresh(led_strip);
+        vTaskDelay(250 / portTICK_PERIOD_MS);
+    }
+}
+
+static void configure_led(void)
+{
+    ESP_LOGI(TAG, "Configured to blink addressable LED!");
+    /* LED strip initialization with the GPIO and pixels number*/
+    led_strip_config_t strip_config = {
+        .strip_gpio_num = BLINK_GPIO,
+        .max_leds = 3, // at least one LED on board
+    };
+
+    led_strip_rmt_config_t rmt_config = {
+        .resolution_hz = 10 * 1000 * 1000, // 10MHz
+        .flags.with_dma = false,
+    };
+    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
+
+    /* Set all LED off to clear all pixels */
+    led_strip_clear(led_strip);
+}
 
 // Load all display screens into memory
 static void create_screens()
@@ -198,7 +291,6 @@ void state_control_task(void *pvParameter)
         if (current_state != prev_state)
         {
             play_kiosk_buzzer(current_state);
-            set_kiosk_leds(current_state, s_led_state);
             display_screen(current_state);
             prev_state = current_state;
         }
