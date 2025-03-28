@@ -6,10 +6,10 @@
 #include <esp_log_buffer.h>
 
 // SPI Pin Configuration
-#define PN532_SCK 10 // 10
-#define PN532_MOSI 7 // 7
-#define PN532_SS 20
-#define PN532_MISO 2
+#define PN532_SCK 19 // 10
+#define PN532_MOSI 21 // 7
+#define PN532_SS 22
+#define PN532_MISO 20
 
 // NTAG213 Memory Layout
 #define NTAG_213_USER_START 4
