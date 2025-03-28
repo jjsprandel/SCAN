@@ -1,6 +1,7 @@
 #include "main.h"
 
 static state_t current_state = STATE_WIFI_INIT, prev_state = STATE_ERROR;
+static admin_state_t prev_admin_state_internal = ADMIN_STATE_ERROR;
 
 // Task Handles
 static TaskHandle_t blink_led_task_handle = NULL;
@@ -140,21 +141,22 @@ static void heap_monitor_task(void *pvParameters)
 
 static void create_screens()
 {
-    screen_objects[STATE_IDLE] = display_idle();
-    screen_objects[STATE_USER_DETECTED] = display_user_detected();
-    screen_objects[STATE_CHECK_IN] = display_check_in_success();
-    screen_objects[STATE_CHECK_OUT] = display_check_out_success();
-    screen_objects[STATE_DATABASE_VALIDATION] = display_database_validation();
-    screen_objects[STATE_VALIDATION_FAILURE] = display_check_in_failed();
-    screen_objects[STATE_ERROR] = display_error();
+    // Use new UI screens instead of the old display functions
+    screen_objects[STATE_IDLE] = ui_screen_idle();
+    screen_objects[STATE_USER_DETECTED] = ui_screen_user_detected();
+    screen_objects[STATE_CHECK_IN] = ui_screen_check_in_success();
+    screen_objects[STATE_CHECK_OUT] = ui_screen_check_out_success();
+    screen_objects[STATE_DATABASE_VALIDATION] = ui_screen_database_validation();
+    screen_objects[STATE_VALIDATION_FAILURE] = ui_screen_validation_failure();
+    screen_objects[STATE_ERROR] = ui_screen_error();
 
-    admin_screen_objects[ADMIN_STATE_ENTER_ID] = display_admin_enter_id();
-    admin_screen_objects[ADMIN_STATE_VALIDATE_ID] = display_admin_id_validating();
-    admin_screen_objects[ADMIN_STATE_TAP_CARD] = display_admin_tap_card();
-    admin_screen_objects[ADMIN_STATE_CARD_WRITE_SUCCESS] = display_card_write_success();
-    admin_screen_objects[ADMIN_STATE_ENTER_ID_ERROR] = display_id_enter_error();
-    admin_screen_objects[ADMIN_STATE_CARD_WRITE_ERROR] = display_card_write_error();
-    admin_screen_objects[ADMIN_STATE_ERROR] = display_admin_error();
+    admin_screen_objects[ADMIN_STATE_ENTER_ID] = ui_screen_admin_enter_id();
+    admin_screen_objects[ADMIN_STATE_VALIDATE_ID] = ui_screen_admin_id_validating();
+    admin_screen_objects[ADMIN_STATE_TAP_CARD] = ui_screen_admin_tap_card();
+    admin_screen_objects[ADMIN_STATE_CARD_WRITE_SUCCESS] = ui_screen_card_write_success();
+    admin_screen_objects[ADMIN_STATE_ENTER_ID_ERROR] = ui_screen_id_enter_error();
+    admin_screen_objects[ADMIN_STATE_CARD_WRITE_ERROR] = ui_screen_card_write_error();
+    admin_screen_objects[ADMIN_STATE_ERROR] = ui_screen_admin_error();
 }
 
 static void display_screen(state_t display_state)
@@ -164,8 +166,19 @@ static void display_screen(state_t display_state)
         if (screen_objects[current_state] != NULL)
         {
             MAIN_DEBUG_LOG("Displaying screen for state %d", current_state);
+            
+            // Update user info for screens that need it
+            if (current_state == STATE_CHECK_IN || current_state == STATE_CHECK_OUT) {
+                if (user_info != NULL) {
+                    char full_name[64];
+                    snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
+                    ui_update_user_info(full_name, user_id);
+                }
+            }
+            
             _lock_acquire(&lvgl_api_lock);
-            lv_scr_load(screen_objects[current_state]);
+            // Use animated screen transition
+            ui_set_screen_transition(screen_objects[current_state], current_state > prev_state);
             _lock_release(&lvgl_api_lock);
         }
         else
@@ -177,15 +190,30 @@ static void display_screen(state_t display_state)
     {
         if (admin_screen_objects[current_admin_state] != NULL)
         {
-            // MAIN_DEBUG_LOG("Displaying admin screen for state %d", current_admin_state);
-            _lock_acquire(&lvgl_api_lock);
-            lv_scr_load(admin_screen_objects[current_admin_state]);
-            _lock_release(&lvgl_api_lock);
+            // Only update the admin screen if it's different from the previous one
+            if (prev_admin_state_internal != current_admin_state) {
+                MAIN_DEBUG_LOG("Displaying admin screen for state %d", current_admin_state);
+                
+                // In admin mode, update the user ID or user info if needed
+                if (current_admin_state == ADMIN_STATE_VALIDATE_ID) {
+                    ui_update_user_info(NULL, user_id);
+                } else if (current_admin_state == ADMIN_STATE_TAP_CARD || 
+                          current_admin_state == ADMIN_STATE_CARD_WRITE_SUCCESS) {
+                    if (user_info != NULL) {
+                        char full_name[64];
+                        snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
+                        ui_update_user_info(full_name, user_id);
+                    }
+                }
+                
+                _lock_acquire(&lvgl_api_lock);
+                // Use animated screen transition for admin screens too
+                ui_set_screen_transition(admin_screen_objects[current_admin_state], current_admin_state > prev_admin_state);
+                _lock_release(&lvgl_api_lock);
+                
+                prev_admin_state_internal = current_admin_state;
+            }
         }
-        // else
-        // {
-        //     MAIN_ERROR_LOG("Admin screen object not found for state %d", current_admin_state);
-        // }
     }
 }
 
@@ -314,7 +342,7 @@ void state_control_task(void *pvParameter)
         case STATE_DATABASE_VALIDATION: // Wait until validation is complete
 #ifdef DATABASE_QUERY_ENABLED
             if (!get_user_info(user_id))
-            { //1314151617
+            {
                 MAIN_ERROR_LOG("Invalid user detected");
                 current_state = STATE_VALIDATION_FAILURE;
                 break;
@@ -341,21 +369,23 @@ void state_control_task(void *pvParameter)
             MAIN_DEBUG_LOG("Entering Admin Mode");
             xTaskNotifyGive(keypad_task_handle);
             xTaskNotifyGive(admin_mode_control_task_handle);
+            vTaskDelay(pdMS_TO_TICKS(5000));
             current_state = STATE_ADMIN_MODE;
 #endif
             break;
         case STATE_CHECK_IN:
             log_elapsed_time("check in authentication");
             MAIN_DEBUG_LOG("ID %s found in database. Checking in.", user_id);
-            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
-            current_state = STATE_IDLE;
-            current_state = STATE_IDLE;
+            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            current_state = STATE_CHECK_OUT;
+            // current_state = STATE_IDLE;
             break;
         case STATE_CHECK_OUT:
             log_elapsed_time("check out authentication");
             MAIN_DEBUG_LOG("ID %s found in database. Checking out.", user_id);
-            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
-            current_state = STATE_IDLE;
+            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            current_state = STATE_ERROR;
+            // current_state = STATE_IDLE;
             break;
         case STATE_ADMIN_MODE:
             BaseType_t adminNotify = ulTaskNotifyTake(pdTRUE, 0);
@@ -370,7 +400,7 @@ void state_control_task(void *pvParameter)
 #ifdef MAIN_DEBUG
             MAIN_DEBUG_LOG("ID %s not found in database. Try again.", user_id);
 #endif
-            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
             current_state = STATE_USER_DETECTED;
             break;
         case STATE_ERROR:
@@ -386,6 +416,7 @@ void state_control_task(void *pvParameter)
                 blink_led_task_handle = NULL;
             }
             MAIN_ERROR_LOG("Error state reached!");
+            current_state = STATE_IDLE;
             break;
 
         default:
@@ -470,6 +501,9 @@ void app_main(void)
     xTaskCreate(heap_monitor_task, "HeapMonitor", MONITOR_TASK_STACK_SIZE, NULL, 1, NULL);
 #endif
 
+    // Initialize UI system before creating screens
+    ui_init();
+    
     create_screens();
 
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
