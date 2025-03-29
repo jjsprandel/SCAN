@@ -10,7 +10,6 @@ static TaskHandle_t keypad_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
 static TaskHandle_t blink_led_task_handle = NULL;
 TaskHandle_t admin_mode_control_task_handle = NULL;
-TaskHandle_t state_control_task_handle = NULL;
 
 // not static because it is being used in wifi_init.c as extern variable
 SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init completion
