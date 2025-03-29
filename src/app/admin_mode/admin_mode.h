@@ -32,6 +32,6 @@ extern admin_state_t current_admin_state;
 extern admin_state_t prev_admin_state;
 extern UserInfo user_info_instance;
 extern UserInfo *user_info;
-
+extern TaskHandle_t keypad_task_handle;
 void admin_mode_control_task(void *param);
 #endif // ADMIN_MODE_H

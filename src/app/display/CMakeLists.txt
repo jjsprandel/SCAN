@@ -1,4 +1,4 @@
-idf_component_register(SRCS "display_frames.c" "display_config.c" "admin_frames.c" "ui_styles.c" "ui_screens.c"
+idf_component_register(SRCS "display_config.c" "ui_styles.c" "ui_screens.c"
                      # Add manually created image C files
                      "image_files/admin_icon.c"
                      "image_files/arrow_icon.c"

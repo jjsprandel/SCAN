@@ -2,6 +2,7 @@
 
 static const char *ADMIN_TAG = "admin_mode";
 admin_state_t current_admin_state = ADMIN_STATE_BEGIN, prev_admin_state = ADMIN_STATE_ERROR;
+static uint8_t invalid_id_attempts = 0; // Counter for invalid ID attempts
 
 void admin_mode_control_task(void *param)
 {
@@ -16,6 +17,7 @@ void admin_mode_control_task(void *param)
             ESP_LOGI(ADMIN_TAG, "Admin Mode Control Task Started");
 #endif
             clear_buffer();
+            invalid_id_attempts = 0; // Reset attempt counter when entering admin mode
             current_admin_state = ADMIN_STATE_ENTER_ID;
             break;
 
@@ -40,17 +42,30 @@ void admin_mode_control_task(void *param)
             if (!get_user_info(user_id_to_write))
             {
                 ESP_LOGE(ADMIN_TAG, "Error validating ID in database. Try again.");
-                current_admin_state = ADMIN_STATE_ENTER_ID_ERROR;
+                invalid_id_attempts++;
+                if (invalid_id_attempts >= 3) {
+                    ESP_LOGE(ADMIN_TAG, "Maximum number of invalid ID attempts reached. Exiting admin mode.");
+                    current_admin_state = ADMIN_STATE_ERROR;
+                } else {
+                    current_admin_state = ADMIN_STATE_ENTER_ID_ERROR;
+                }
             }
             else if (strcmp(user_info->active_student, "Yes") == 0)
             {
                 ESP_LOGI(ADMIN_TAG, "ID validated in database");
+                invalid_id_attempts = 0; // Reset counter on success
                 current_admin_state = ADMIN_STATE_TAP_CARD;
             }
             else
             {
                 ESP_LOGE(ADMIN_TAG, "User is not an active student. Try again.");
-                current_admin_state = ADMIN_STATE_ENTER_ID_ERROR;
+                invalid_id_attempts++;
+                if (invalid_id_attempts >= 3) {
+                    ESP_LOGE(ADMIN_TAG, "Maximum number of invalid ID attempts reached. Exiting admin mode.");
+                    current_admin_state = ADMIN_STATE_ERROR;
+                } else {
+                    current_admin_state = ADMIN_STATE_ENTER_ID_ERROR;
+                }
             }
 #else
             ESP_LOGI(ADMIN_TAG, "ID validated in database");
@@ -92,6 +107,7 @@ void admin_mode_control_task(void *param)
 #ifdef ADMIN_DEBUG
             ESP_LOGE(ADMIN_TAG, "Error validating ID in database. Try again.");
 #endif
+            xTaskNotifyGive(keypad_task_handle);
             vTaskDelay(pdMS_TO_TICKS(5000));
             current_admin_state = ADMIN_STATE_ENTER_ID;
             break;
@@ -101,6 +117,7 @@ void admin_mode_control_task(void *param)
 #endif
             vTaskDelay(pdMS_TO_TICKS(5000));
             current_admin_state = ADMIN_STATE_BEGIN;
+            xTaskNotifyGive(state_control_task_handle); // Notify state control to exit admin mode
             break;
 
         default:

@@ -167,6 +167,7 @@ void keypad_handler(void *params)
 #ifdef KEYPAD_DEBUG
                 ESP_LOGI(KEYPAD_TAG, "ID %s invalid, please entered an ID of length %d", keypad_buffer.elements, ID_LEN);
 #endif
+            
             }
 #ifdef KEYPAD_DEBUG
             ESP_LOGI(KEYPAD_TAG, "[Buffer]> %s", keypad_buffer.elements);

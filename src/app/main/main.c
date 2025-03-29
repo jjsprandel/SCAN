@@ -39,7 +39,7 @@ static TaskHandle_t blink_led_task_handle = NULL;
 static TaskHandle_t wifi_init_task_handle = NULL;
 static TaskHandle_t ota_update_task_handle = NULL;
 static TaskHandle_t database_task_handle = NULL;
-static TaskHandle_t keypad_task_handle = NULL;
+TaskHandle_t keypad_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
 TaskHandle_t admin_mode_control_task_handle = NULL;
 TaskHandle_t state_control_task_handle = NULL;
@@ -227,18 +227,17 @@ static void display_screen(state_t display_state)
                 
                 // In admin mode, update the user ID or user info if needed
                 if (current_admin_state == ADMIN_STATE_VALIDATE_ID) {
-                    ui_update_user_info(NULL, user_id);
+                    ui_update_user_info(NULL, keypad_buffer.elements);
                 } else if (current_admin_state == ADMIN_STATE_TAP_CARD || 
                           current_admin_state == ADMIN_STATE_CARD_WRITE_SUCCESS) {
                     if (user_info != NULL) {
                         char full_name[64];
                         snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
-                        ui_update_user_info(full_name, user_id);
+                        ui_update_user_info(full_name, keypad_buffer.elements);
                     }
                 }
                 
                 _lock_acquire(&lvgl_api_lock);
-                // Use animated screen transition for admin screens too
                 ui_set_screen_transition(admin_screen_objects[current_admin_state], current_admin_state > prev_admin_state);
                 _lock_release(&lvgl_api_lock);
                 
@@ -383,7 +382,7 @@ void state_control_task(void *pvParameter)
                         current_state = STATE_ERROR;
                         break;
                     }
-                }
+                } 
                 
                 memcpy(user_id, nfcReadFlag ? nfcUserID : keypad_buffer.elements, ID_LEN);
                 user_id[ID_LEN] = '\0'; // Ensure null termination

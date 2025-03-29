@@ -77,6 +77,7 @@ extern UserInfo user_info_instance;
 extern UserInfo *user_info;
 extern TaskHandle_t state_control_task_handle;
 extern TaskHandle_t admin_mode_control_task_handle;
+extern TaskHandle_t keypad_task_handle;
 extern admin_state_t current_admin_state, prev_admin_state;
 
 char user_id[ID_LEN+1];
