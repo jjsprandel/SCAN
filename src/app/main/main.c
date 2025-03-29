@@ -485,7 +485,7 @@ void app_main(void)
     // Initialize peripherals
     configure_led();
     gc9a01_init();
-    //nfc_init();
+    nfc_init();
     configure_led();
 
     // Create semaphore for signaling Wi-Fi init completion
