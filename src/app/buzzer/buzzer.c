@@ -10,9 +10,6 @@
 static const char* TAG = "buzzer";
 static const uint32_t STACK_SIZE = 2048;
 
-// /* Global buzzer pointer. It must persist beyond app_main(). */
-// Buzzer* kiosk_buzzer = NULL;
-
 /* Internal structure that holds buzzer state */
 typedef struct {
     TaskHandle_t task_handle;
@@ -22,17 +19,13 @@ typedef struct {
     ledc_timer_t ledc_timer_num;
     ledc_channel_t ledc_channel;
     uint32_t ledc_idle_level;
-    /* Pointer to a dynamically allocated BuzzerMusic;
-       when non-NULL, it indicates a new play request. */
     const BuzzerMusic* music;
 } BuzzerInternal;
 
-/* The public (opaque) Buzzer object holds a pointer to the internal data. */
 struct Buzzer {
     BuzzerInternal* internal;
 };
 
-/* Simple clamping functions */
 static uint32_t clamp_uint32(uint32_t value, uint32_t min, uint32_t max) {
     if (value < min) return min;
     if (value > max) return max;
@@ -45,7 +38,6 @@ static float clamp_float(float value, float min, float max) {
     return value;
 }
 
-/* Set the buzzer note (frequency and volume) */
 static void set_buzzer_note(BuzzerInternal* internal, uint32_t frequency, float volume) {
     /* Clamp frequency between 1<<LEDC_LL_FRACTIONAL_BITS and 1<<timer_bit */
     frequency = clamp_uint32(frequency, (1UL << LEDC_LL_FRACTIONAL_BITS), (1UL << internal->ledc_timer_bit));
@@ -56,14 +48,12 @@ static void set_buzzer_note(BuzzerInternal* internal, uint32_t frequency, float 
     ESP_ERROR_CHECK(ledc_set_freq(internal->ledc_speed_mode, internal->ledc_timer_num, frequency));
 }
 
-/* Stop the buzzer output */
 static void stop_buzzer(BuzzerInternal* internal) {
     ESP_ERROR_CHECK(ledc_set_duty(internal->ledc_speed_mode, internal->ledc_channel, 0));
     ESP_ERROR_CHECK(ledc_update_duty(internal->ledc_speed_mode, internal->ledc_channel));
     ESP_ERROR_CHECK(ledc_stop(internal->ledc_speed_mode, internal->ledc_channel, internal->ledc_idle_level));
 }
 
-/* Task function that continuously processes play requests */
 static void buzzer_task(void* pvParameters) {
     BuzzerInternal* internal = (BuzzerInternal*) pvParameters;
     while (1) {
@@ -76,15 +66,13 @@ static void buzzer_task(void* pvParameters) {
                     for (size_t i = 0; i < playing->count; i++) {
                         BuzzerNote note = playing->notes[i];
                         set_buzzer_note(internal, note.frequency, note.volume);
-                        /* Wait for the duration of the note.
-                           If a new request comes in during this time,
-                           break early to process the new task. */
+                        /* Wait for the duration of the note. If a new request comes in during this time, break early to process the new task. */
                         if (xSemaphoreTake(internal->semaphore_handle, pdMS_TO_TICKS(note.duration_ms)) == pdTRUE) {
                             new_task = 1;
                             break;
                         }
                     }
-                    /* Free the allocated music after playing */
+
                     free((void*)playing->notes);
                     free((void*)playing);
                     internal->music = NULL;
@@ -198,7 +186,7 @@ esp_err_t Buzzer_Beep(Buzzer* buzzer, const BuzzerNote* note) {
         ESP_LOGE(TAG, "Buzzer not initialized");
         return ESP_FAIL;
     }
-    /* Allocate and copy one note */
+
     BuzzerNote* note_copy = (BuzzerNote*) malloc(sizeof(BuzzerNote));
     if (!note_copy) return ESP_FAIL;
     *note_copy = *note;
@@ -269,8 +257,7 @@ void example_buzzer_program(Buzzer* kiosk_buzzer){
         return;
     }
 
-    /* Frequency test: Beep with increasing frequency.
-       In C we can use a compound literal to create a BuzzerNote. */
+    /* Frequency test: Beep with increasing frequency. In C we can use a compound literal to create a BuzzerNote. */
     for (int i = 1; i < 800; i++) {
         BuzzerNote note = { .frequency = 10 * i, .duration_ms = 10, .volume = 0.01f };
         err = Buzzer_Beep(kiosk_buzzer, &note);
@@ -280,9 +267,7 @@ void example_buzzer_program(Buzzer* kiosk_buzzer){
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 
-    /* Simple interactive sound: play two short notes.
-       We define an array of two notes and wrap it in a BuzzerMusic struct.
-       Note that the Buzzer_Play() function in our library makes an internal copy. */
+    /* Simple interactive sound: play two short notes. */
     BuzzerNote simpleNotes[2] = {
         { .frequency = 800, .duration_ms = 200, .volume = 0.10f },
         { .frequency = 500, .duration_ms = 200, .volume = 0.10f }
@@ -300,9 +285,6 @@ void example_buzzer_program(Buzzer* kiosk_buzzer){
     }
     vTaskDelay(pdMS_TO_TICKS(1000));
 
-    /* Now let’s try to play a music melody.
-       First, define an array of music keys. The first element is 0 (a placeholder),
-       followed by note frequencies in low, mid, and high octaves. */
     int music_keys[] = {
         0,    // index 0, not used for sound
         262,  294,  330,  349,  392,  440,  494,   // low
@@ -312,18 +294,12 @@ void example_buzzer_program(Buzzer* kiosk_buzzer){
 
     /* Define a melody as an array of note index–duration pairs.
        For example, {3, 4} means use music_keys[3] as the note frequency,
-       with a duration factor of 4. (The original C++ example uses user-defined literals like 3_m;
-       here we simply use integers.)
-       For brevity, this example uses a shorter melody. */
+       with a duration factor of 4. */
     MelodyPair melody[] = {
         {3, 4}, {3, 2}, {5, 2}, {6, 2}, {8, 2}, {8, 2}, {6, 2}, {5, 4}, {5, 2}, {6, 2}, {5, 8}
-        /* You can extend this array with additional pairs as needed */
     };
     size_t num_pairs = sizeof(melody) / sizeof(melody[0]);
 
-    /* Each melody pair produces two BuzzerNotes:
-       one for the note and one for a short gap.
-       Allocate an array to hold 2 * num_pairs notes. */
     size_t total_notes = num_pairs * 2;
     BuzzerNote* notes = malloc(total_notes * sizeof(BuzzerNote));
     if (notes == NULL) {
@@ -335,14 +311,12 @@ void example_buzzer_program(Buzzer* kiosk_buzzer){
     for (size_t i = 0; i < num_pairs; i++) {
         int note_idx = melody[i].note_index;
         int duration_factor = melody[i].duration_factor;
-        /* First note: play the note from music_keys.
-           The duration is 150 * duration_factor milliseconds.
-           Volume is set low (0.01f). */
+        
         notes[i * 2].frequency = music_keys[note_idx];
         notes[i * 2].duration_ms = 150 * duration_factor;
         notes[i * 2].volume = 0.01f;
         total_length += notes[i * 2].duration_ms;
-        /* Second note: a short gap with silence. */
+
         notes[i * 2 + 1].frequency = 0;
         notes[i * 2 + 1].duration_ms = 10;
         notes[i * 2 + 1].volume = 0.0f;
@@ -356,8 +330,7 @@ void example_buzzer_program(Buzzer* kiosk_buzzer){
     if (err != ESP_OK) {
         ESP_LOGE(TAG,"Buzzer_Play (melody) failed\n");
     }
-    /* Wait for one-tenth of the total duration of the music,
-       then stop the buzzer and play the music again (the library stops after playing the full sequence). */
+
     vTaskDelay(pdMS_TO_TICKS(total_length / 10));
     err = Buzzer_Stop(kiosk_buzzer);
     if (err != ESP_OK) {
@@ -368,12 +341,5 @@ void example_buzzer_program(Buzzer* kiosk_buzzer){
         ESP_LOGE(TAG,"Buzzer_Play (repeat) failed\n");
     }
 
-    /* Clean up the allocated memory for the melody.
-       The Buzzer_Play() function internally makes a copy, so it is safe to free our copy. */
     free(notes);
-
-    /* Optionally, deinitialize the buzzer when done.
-       Buzzer_Deinit() should be called if app_main() is ending.
-       ESP_ERROR_CHECK(Buzzer_Deinit(kiosk_buzzer));
-       free(kiosk_buzzer); */
 }
