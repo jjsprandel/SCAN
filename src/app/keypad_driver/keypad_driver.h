@@ -32,6 +32,7 @@ typedef struct
 extern keypad_buffer_t keypad_buffer;
 extern EventGroupHandle_t event_group;
 extern TaskHandle_t state_control_task_handle;
+extern TaskHandle_t admin_mode_control_task_handle;
 
 char poll_keypad(uint8_t keypad_address);
 
