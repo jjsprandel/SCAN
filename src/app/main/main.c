@@ -18,7 +18,6 @@ static bool is_numeric_string(const char* str, size_t max_len) {
         return false;
     }
     
-    // Empty string is not valid
     if (str[0] == '\0') {
         return false;
     }
@@ -208,7 +207,6 @@ static void display_screen(state_t display_state)
             }
             
             _lock_acquire(&lvgl_api_lock);
-            // Use animated screen transition
             ui_set_screen_transition(screen_objects[current_state], current_state > prev_state);
             _lock_release(&lvgl_api_lock);
         }
@@ -367,7 +365,6 @@ void state_control_task(void *pvParameter)
                 
                 // Validate the user ID before using it
                 if (nfcReadFlag) {
-                    // Check for non-printable characters in the NFC data
                     bool valid_id = true;
                     for (int i = 0; i < ID_LEN && nfcUserID[i] != '\0'; i++) {
                         if (!isprint((unsigned char)nfcUserID[i])) {
@@ -385,13 +382,12 @@ void state_control_task(void *pvParameter)
                 } 
                 
                 memcpy(user_id, nfcReadFlag ? nfcUserID : keypad_buffer.elements, ID_LEN);
-                user_id[ID_LEN] = '\0'; // Ensure null termination
+                user_id[ID_LEN] = '\0';
                 
                 MAIN_DEBUG_LOG("Processing user ID: %s", user_id);
                 
-                // Validate that the user ID contains only numeric characters
                 if (!is_numeric_string(user_id, ID_LEN)) {
-                    MAIN_ERROR_LOG("Invalid user ID: %s - contains non-numeric characters", user_id);
+                    MAIN_ERROR_LOG("Invalid user ID: '%s'. Contains non-numeric characters", user_id);
                     current_state = STATE_VALIDATION_FAILURE;
                     break;
                 }
@@ -434,18 +430,21 @@ void state_control_task(void *pvParameter)
             current_state = STATE_ADMIN_MODE;
 #endif
             break;
+
         case STATE_CHECK_IN:
             log_elapsed_time("check in authentication");
             MAIN_DEBUG_LOG("ID %s found in database. Checking in.", user_id);
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(5000));
             current_state = STATE_IDLE;
             break;
+
         case STATE_CHECK_OUT:
             log_elapsed_time("check out authentication");
             MAIN_DEBUG_LOG("ID %s found in database. Checking out.", user_id);
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(5000));
             current_state = STATE_IDLE;
             break;
+
         case STATE_ADMIN_MODE:
             BaseType_t adminNotify = ulTaskNotifyTake(pdTRUE, 0);
 
@@ -455,15 +454,16 @@ void state_control_task(void *pvParameter)
                 current_state = STATE_IDLE;
             }
             break;
+
         case STATE_VALIDATION_FAILURE:
 #ifdef MAIN_DEBUG
             MAIN_DEBUG_LOG("ID '%s' not found in database. Try again.", user_id);
 #endif
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(5000));
             current_state = STATE_USER_DETECTED;
             break;
+
         case STATE_ERROR:
-            // Handle error state - for now just stopping all tasks
             if (wifi_init_task_handle != NULL)
             {
                 vTaskDelete(wifi_init_task_handle);
@@ -543,9 +543,6 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-    // ESP_ERROR_CHECK( heap_trace_init_standalone( trace_record, NUM_RECORDS ) );
-    // ESP_MAIN_DEBUG("STARTING FREE HEAP SIZE: %lu bytes", (long unsigned int)esp_get_free_heap_size());
-    /* Configure the peripheral according to the LED type */
 
     // Initialize peripherals
     i2c_master_init();
@@ -561,9 +558,7 @@ void app_main(void)
     xTaskCreate(heap_monitor_task, "HeapMonitor", MONITOR_TASK_STACK_SIZE, NULL, 1, NULL);
 #endif
 
-    // Initialize UI system before creating screens
     ui_init();
-    
     create_screens();
 
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
