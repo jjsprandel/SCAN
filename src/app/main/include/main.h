@@ -84,6 +84,8 @@ extern TaskHandle_t admin_mode_control_task_handle;
 extern TaskHandle_t cypd3177_task_handle;
 extern admin_state_t current_admin_state, prev_admin_state;
 
+extern int usb_connected;
+
 char user_id[ID_LEN];
 void state_control_task(void *pvParameter);
 void blink_led_1_task(void *pvParameter);

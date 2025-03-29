@@ -14,8 +14,8 @@
 #include <driver/gpio.h>
 #include <stdint.h>
 
-
 extern TaskHandle_t cypd3177_task_handle;
+extern int usb_connected;
 
 #define CYPD3177_INTR_PIN               GPIO_NUM_18
 #define FORMAT(i2c_addr)                    { (uint8_t)((i2c_addr) & 0xFF), (uint8_t)(((i2c_addr) >> 8) & 0xFF) }

@@ -97,6 +97,15 @@ void get_dev_response(void *pvParameter)
 void get_pd_response(void *pvParameter)
 {
     i2c_master_transmit_receive(cypd3177_i2c_handle, pd_response_addr, 2, (uint8_t *)&pd_response_reg, 4, -1);
+    if (pd_response_reg.response_code == 0x84)
+    {
+        usb_connected = 1;
+    }
+
+    else if (pd_response_reg.response_code == 0x85)
+    {
+        usb_connected = 0;
+    }
     ESP_LOGI(TAG, "pd response code: 0x%02X", pd_response_reg.response_code);
     ESP_LOGI(TAG, "pd response type: %d", pd_response_reg.response_type);
     //ESP_LOGI(TAG, "pd length1: %d", pd_response_reg.length1);

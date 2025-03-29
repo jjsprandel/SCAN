@@ -23,6 +23,8 @@ static int64_t start_time, end_time;
 
 static led_strip_handle_t led_strip;
 
+extern int usb_connected = 1;
+
 void blink_led_task(void *pvParameter)
 {
     while (1)
@@ -89,6 +91,14 @@ void blink_led_task(void *pvParameter)
         {
             led_strip_clear(led_strip);
         }
+
+        if (usb_connected == 0)
+        {
+            led_strip_set_pixel(led_strip, 0, 50, 75, 60);
+            led_strip_set_pixel(led_strip, 1, 50, 75, 60);
+            led_strip_set_pixel(led_strip, 2, 50, 75, 60);
+        }
+
         led_strip_refresh(led_strip);
         vTaskDelay(250 / portTICK_PERIOD_MS);
     }
@@ -230,7 +240,7 @@ static void check_task_creation()
 void state_control_task(void *pvParameter)
 {
     char user_id[ID_LEN];
-    while (1)
+    while (1) 
     {
         // MAIN_DEBUG_LOG("Free heap size: %lu bytes", (unsigned long)esp_get_free_heap_size());
         switch (current_state)
@@ -475,7 +485,7 @@ void app_main(void)
     // Initialize peripherals
     configure_led();
     gc9a01_init();
-    nfc_init();
+    //nfc_init();
     configure_led();
 
     // Create semaphore for signaling Wi-Fi init completion
