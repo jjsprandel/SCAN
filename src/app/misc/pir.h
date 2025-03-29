@@ -3,7 +3,7 @@
 
 #include "driver/gpio.h"
 
-#define PIR_GPIO 13
+#define PIR_GPIO 23 // 13
 
 void sensor_init();
 #endif // PIR_H
