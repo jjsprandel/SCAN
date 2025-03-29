@@ -2,6 +2,7 @@
 #define PIR_H
 
 #include "driver/gpio.h"
+#define USING_MAIN_PCB 1
 
 #ifdef USING_MAIN_PCB
     #define PIR_GPIO 13
