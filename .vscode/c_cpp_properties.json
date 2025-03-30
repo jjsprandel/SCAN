@@ -2,7 +2,7 @@
     "configurations": [
         {
             "name": "ESP32",
-            "compilerPath": "/usr/bin/gcc",
+            "compilerPath": "${config:idf.toolsPath}/tools/riscv32-esp-elf/esp-14.2.0_20241119/riscv32-esp-elf/bin/riscv32-esp-elf-gcc",
             "includePath": [
                 "${workspaceFolder}/**",
                 "/opt/esp/idf/components/**",
