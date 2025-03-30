@@ -4,7 +4,7 @@
 #include "state_enum.h"
 #include "esp_log.h"
 
-#define BUZZER_GPIO GPIO_NUM_11
+#define BUZZER_GPIO GPIO_NUM_15
 #define BUZZER_DEBUG 1
 
 #define VOLUME_LOW 0.05f
