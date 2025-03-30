@@ -48,6 +48,6 @@ direct_dependencies:
 - espressif/esp_lcd_gc9a01
 - espressif/led_strip
 - lvgl/lvgl
-manifest_hash: 2e702c611a73f65d1d7e786d5ff47d907d5cda464d52baa095f0e6bbb07ffb04
+manifest_hash: 12a281d2322521c1c927dbbaf1ae4d56b69d879b71163a2391aa76ab13d10bd6
 target: esp32c6
 version: 2.0.0

@@ -16,4 +16,5 @@
     "files.associations": {
         "cstdint": "c"
     },
+    "idf.pythonInstallPath": "/usr/bin/python3",
 }

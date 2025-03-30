@@ -23,6 +23,15 @@
 #define KEYPAD_DEBUG 1
 
 #define ID_LEN 10
+#define USING_MAIN_PCB
+
+#ifdef USING_MAIN_PCB
+    #define KEYPAD_I2C_SDA GPIO_NUM_4
+    #define KEYPAD_I2C_SCL GPIO_NUM_5
+#else
+    #define KEYPAD_I2C_SDA GPIO_NUM_1
+    #define KEYPAD_I2C_SCL GPIO_NUM_0
+#endif
 
 typedef struct
 {

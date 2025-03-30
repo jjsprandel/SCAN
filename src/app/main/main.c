@@ -3,15 +3,14 @@
 static state_t current_state = STATE_WIFI_INIT, prev_state = STATE_ERROR;
 
 // Task Handles
-static TaskHandle_t blink_led_task_handle = NULL;
+TaskHandle_t state_control_task_handle = NULL;
 static TaskHandle_t wifi_init_task_handle = NULL;
 static TaskHandle_t ota_update_task_handle = NULL;
-static TaskHandle_t database_task_handle = NULL;
 static TaskHandle_t keypad_task_handle = NULL;
 extern TaskHandle_t cypd3177_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
+static TaskHandle_t blink_led_task_handle = NULL;
 TaskHandle_t admin_mode_control_task_handle = NULL;
-TaskHandle_t state_control_task_handle = NULL;
 
 // not static because it is being used in wifi_init.c as extern variable
 SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init completion
@@ -131,6 +130,7 @@ static void configure_led(void)
     led_strip_clear(led_strip);
 }
 
+// Load all display screens into memory
 static void heap_monitor_task(void *pvParameters)
 {
     while (1)
@@ -168,6 +168,7 @@ static void create_screens()
     admin_screen_objects[ADMIN_STATE_ERROR] = display_admin_error();
 }
 
+// Load screen onto display as a function of current state
 static void display_screen(state_t display_state)
 {
     if (current_state != STATE_ADMIN_MODE)
@@ -200,7 +201,8 @@ static void display_screen(state_t display_state)
     }
 }
 
-static void check_task_creation()
+// Check if a task has been successfully created. For debug purposes
+static void check_task_creation(char *taskName, TaskHandle_t taskHandle)
 {
     if (state_control_task_handle == NULL)
     {
@@ -278,11 +280,7 @@ void state_control_task(void *pvParameter)
 #ifdef MAIN_DEBUG
             MAIN_DEBUG_LOG("Wi-Fi Initialized. Ready!");
 #endif
-            // if (blink_led_task_handle != NULL)
-            // {
-            //     vTaskDelete(blink_led_task_handle);
-            //     blink_led_task_handle = NULL;
-            // }
+            
             /*
                             if (ota_update_task_handle == NULL) {
                                 MAIN_DEBUG_LOG("Creating OTA update task");
@@ -405,6 +403,7 @@ void state_control_task(void *pvParameter)
         }
         if ((current_state != prev_state) || current_state == STATE_ADMIN_MODE)
         {
+            play_kiosk_buzzer(current_state);
             display_screen(current_state);
             prev_state = current_state;
         }
@@ -486,6 +485,7 @@ void app_main(void)
     configure_led();
     gc9a01_init();
     nfc_init();
+    buzzer_init();
     configure_led();
 
     // Create semaphore for signaling Wi-Fi init completion
@@ -504,7 +504,9 @@ void app_main(void)
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
 
 #ifdef MAIN_DEBUG
-    check_task_creation();
+    check_task_creation("State control", state_control_task_handle);
+    check_task_creation("Keypad", keypad_task_handle);
+    check_task_creation("LVGL", lvgl_port_task_handle);
 #endif
 
     while (1)
