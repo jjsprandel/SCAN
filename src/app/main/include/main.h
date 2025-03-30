@@ -16,9 +16,11 @@
 #include "firebase_http_client.h"
 #include "display_config.h"
 #include "display_frames.h"
+#include "pir_sensor.h"
+#include "state_enum.h"
+#include "status_buzzer.h"
 #include "admin_frames.h"
 #include "admin_mode.h"
-#include "pir.h"
 #include "esp_timer.h"
 
 #define ID_LEN 10
@@ -51,20 +53,6 @@
 #else
 #define MAIN_ERROR_LOG(fmt, ...) ((void)0)
 #endif
-
-typedef enum
-{
-    STATE_WIFI_INIT,
-    STATE_WIFI_READY,
-    STATE_IDLE,
-    STATE_USER_DETECTED,
-    STATE_DATABASE_VALIDATION,
-    STATE_CHECK_IN,
-    STATE_CHECK_OUT,
-    STATE_ADMIN_MODE,
-    STATE_VALIDATION_FAILURE,
-    STATE_ERROR
-} state_t;
 
 pn532_t nfc;           // Defined in ntag_reader.h
 _lock_t lvgl_api_lock; // Defined in display_config.h
