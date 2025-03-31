@@ -25,6 +25,7 @@
 #include "admin_frames.h"
 #include "admin_mode.h"
 #include "esp_timer.h"
+#include "mqtt.h"
 
 #include "i2c_config.h"
 #include "cypd3177.h"
