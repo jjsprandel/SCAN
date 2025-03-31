@@ -7,6 +7,7 @@ TaskHandle_t state_control_task_handle = NULL;
 static TaskHandle_t wifi_init_task_handle = NULL;
 static TaskHandle_t ota_update_task_handle = NULL;
 static TaskHandle_t keypad_task_handle = NULL;
+extern TaskHandle_t cypd3177_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
 static TaskHandle_t blink_led_task_handle = NULL;
 TaskHandle_t admin_mode_control_task_handle = NULL;
@@ -20,6 +21,8 @@ static uint8_t s_led_state = 0;
 static int64_t start_time, end_time;
 
 static led_strip_handle_t led_strip;
+
+extern int usb_connected = 1;
 
 void blink_led_task(void *pvParameter)
 {
@@ -87,6 +90,14 @@ void blink_led_task(void *pvParameter)
         {
             led_strip_clear(led_strip);
         }
+
+        if (usb_connected == 0)
+        {
+            led_strip_set_pixel(led_strip, 0, 50, 75, 60);
+            led_strip_set_pixel(led_strip, 1, 50, 75, 60);
+            led_strip_set_pixel(led_strip, 2, 50, 75, 60);
+        }
+
         led_strip_refresh(led_strip);
         vTaskDelay(250 / portTICK_PERIOD_MS);
     }
@@ -231,7 +242,7 @@ static void check_task_creation(char *taskName, TaskHandle_t taskHandle)
 void state_control_task(void *pvParameter)
 {
     char user_id[ID_LEN];
-    while (1)
+    while (1) 
     {
         // MAIN_DEBUG_LOG("Free heap size: %lu bytes", (unsigned long)esp_get_free_heap_size());
         switch (current_state)
@@ -455,8 +466,22 @@ void app_main(void)
     // ESP_MAIN_DEBUG("STARTING FREE HEAP SIZE: %lu bytes", (long unsigned int)esp_get_free_heap_size());
     /* Configure the peripheral according to the LED type */
 
+    // GPIO config
+    gpio_config(&cypd3177_intr_config);
+    
+    // Install the ISR service and attach handlers
+    gpio_install_isr_service(0);
+    //gpio_isr_handler_add(CYPD3177_INTR_PIN, cypd3177_isr_handler, NULL);
+    
+    // Initialize I2C bus
+    i2c_master_init(&master_handle);
+    i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
+    i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
+    ESP_LOGI(TAG, "I2C initialized successfully");
+
+
+
     // Initialize peripherals
-    i2c_master_init();
     configure_led();
     gc9a01_init();
     nfc_init();
@@ -474,6 +499,7 @@ void app_main(void)
 
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
+    //xTaskCreate(power_check, "cypd3177_task", 4096, NULL, 3, &cypd3177_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
 

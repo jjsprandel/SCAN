@@ -1,3 +1,4 @@
+// ESP-IDF header files
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -11,6 +12,8 @@
 #include "led_strip.h"
 #include "sdkconfig.h"
 #include "nvs_flash.h"
+
+// project component header files
 #include "wifi_init.h"
 #include "ota.h"
 #include "firebase_http_client.h"
@@ -22,6 +25,10 @@
 #include "admin_frames.h"
 #include "admin_mode.h"
 #include "esp_timer.h"
+
+#include "i2c_config.h"
+#include "cypd3177.h"
+#include "pcf8574n.h"
 
 #define ID_LEN 10
 #define BLINK_GPIO 8
@@ -64,7 +71,10 @@ extern UserInfo user_info_instance;
 extern UserInfo *user_info;
 extern TaskHandle_t state_control_task_handle;
 extern TaskHandle_t admin_mode_control_task_handle;
+extern TaskHandle_t cypd3177_task_handle;
 extern admin_state_t current_admin_state, prev_admin_state;
+
+extern int usb_connected;
 
 char user_id[ID_LEN];
 void state_control_task(void *pvParameter);

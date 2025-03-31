@@ -8,7 +8,7 @@
 #include "ntag_reader.h"
 #include "pn532.h"
 #include "esp_heap_task_info.h"
-#include "keypad_driver.h"
+#include "keypad.h"
 #include "firebase_utils.h"
 
 #define ADMIN_DEBUG

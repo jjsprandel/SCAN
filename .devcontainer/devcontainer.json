@@ -30,7 +30,8 @@
 				"ms-vscode.cpptools",
 				"espressif.esp-idf-extension",
 				"ms-vscode.cpptools-extension-pack",
-				"ms-vscode.cpptools-themes"
+				"ms-vscode.cpptools-themes",
+				"github.vscode-github-actions"
 			]
 		}
 	},

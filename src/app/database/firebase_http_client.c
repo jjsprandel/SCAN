@@ -247,7 +247,6 @@ int firebase_https_request_put(char *url, char *data, size_t data_size)
 {
     int http_code;
     char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER + 1] = {0};
-    size_t local_response_buffer_size = sizeof(local_response_buffer);
 
     esp_http_client_config_t config = {
         .url = url,
