@@ -471,7 +471,7 @@ void app_main(void)
     
     // Install the ISR service and attach handlers
     gpio_install_isr_service(0);
-    gpio_isr_handler_add(CYPD3177_INTR_PIN, cypd3177_isr_handler, NULL);
+    //gpio_isr_handler_add(CYPD3177_INTR_PIN, cypd3177_isr_handler, NULL);
     
     // Initialize I2C bus
     i2c_master_init(&master_handle);
@@ -499,7 +499,7 @@ void app_main(void)
 
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
-    xTaskCreate(get_interrupt_response_code, "cypd3177_task", 4096, NULL, 3, &cypd3177_task_handle);
+    //xTaskCreate(power_check, "cypd3177_task", 4096, NULL, 3, &cypd3177_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
 

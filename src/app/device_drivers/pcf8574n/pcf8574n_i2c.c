@@ -12,12 +12,12 @@ i2c_device_config_t pcf8574n_i2c_config = {
 
 void set_pcf_pins(uint8_t pin_config)
 {
-    ESP_ERROR_CHECK(i2c_master_transmit(pcf8574n_i2c_handle, &pin_config, 1, 50));
+    i2c_master_transmit(pcf8574n_i2c_handle, &pin_config, 1, 50);
     return;
 }
 
 void read_pcf_pins(uint8_t *pin_states)
 {
-    ESP_ERROR_CHECK(i2c_master_receive(pcf8574n_i2c_handle, pin_states, 1, 50));
+    i2c_master_receive(pcf8574n_i2c_handle, pin_states, 1, 50);
     return;
 }

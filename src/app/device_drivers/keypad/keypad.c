@@ -54,16 +54,16 @@ uint8_t detect_active_row()
     switch ((data ^ 0xff) >> 4)
     {
     case 8:
-        row = 1;
+        row = 4;
         break;
     case 4:
-        row = 2;
-        break;
-    case 2:
         row = 3;
         break;
+    case 2:
+        row = 2;
+        break;
     case 1:
-        row = 4;
+        row = 1;
         break;
     }
     return row;
@@ -79,16 +79,16 @@ uint8_t detect_active_column()
     switch ((data ^ 0xff) & 0x0f)
     {
     case 8:
-        col = 1;
+        col = 4;
         break;
     case 4:
-        col = 2;
-        break;
-    case 2:
         col = 3;
         break;
+    case 2:
+        col = 2;
+        break;
     case 1:
-        col = 4;
+        col = 1;
         break;
     }
     return col;
@@ -117,7 +117,7 @@ void keypad_handler(void *params)
     uint8_t clear_pullup = 0xff;
     double prev_time = 0;
     double curr_time = 0;
-    ESP_ERROR_CHECK(i2c_master_transmit(pcf8574n_i2c_handle, &clear_pullup, 1, 50));
+    i2c_master_transmit(pcf8574n_i2c_handle, &clear_pullup, 1, 50);
     init_timer();
 
     while (1)
