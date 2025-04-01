@@ -1,9 +1,12 @@
 #include "mqtt.h"
 
-static const char *TAG = "mqtts";
+static const char *TAG = "MQTT";
 
 extern const uint8_t hivemq_server_cert_pem_start[] asm("_binary_hivemq_cert_pem_start");
 extern const uint8_t hivemq_server_cert_pem_end[] asm("_binary_hivemq_cert_pem_end");
+
+const char *mqtt_username = "ccba97fffee1dd80";
+const char *mqtt_password = "Pass1234";
 
 //
 // Note: this function is for testing purposes only publishing part of the active partition
@@ -16,7 +19,7 @@ static void send_binary(esp_mqtt_client_handle_t client)
     const esp_partition_t *partition = esp_ota_get_running_partition();
     esp_partition_mmap(partition, 0, partition->size, ESP_PARTITION_MMAP_DATA, &binary_address, &out_handle);
     // sending only the configured portion of the partition (if it's less than the partition size)
-    int binary_size = MIN(CONFIG_BROKER_BIN_SIZE_TO_SEND, partition->size);
+    int binary_size = MIN(20000, partition->size);
     int msg_id = esp_mqtt_client_publish(client, "/topic/binary", binary_address, binary_size, 0, 0);
     ESP_LOGI(TAG, "binary sent with msg_id=%d", msg_id);
 }
@@ -92,35 +95,28 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     }
 }
 
-static void mqtt_app_start(void)
+void mqtt_init(void)
 {
+    vTaskDelay(25000 / portTICK_PERIOD_MS);
+    
     const esp_mqtt_client_config_t mqtt_cfg = {
         .broker = {
             .address.uri = CONFIG_BROKER_URI,
             .verification.certificate = (const char *)hivemq_server_cert_pem_start
         },
+
+        .credentials = {
+            .username = mqtt_username,
+
+            .authentication = {
+                .password = mqtt_password,
+            },
+        },
+
     };
 
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
     /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(client);
-}
-
-void app_main(void)
-{
-    ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
-
-    esp_log_level_set("*", ESP_LOG_INFO);
-    esp_log_level_set("esp-tls", ESP_LOG_VERBOSE);
-    esp_log_level_set("mqtt_client", ESP_LOG_VERBOSE);
-    esp_log_level_set("mqtt_example", ESP_LOG_VERBOSE);
-    esp_log_level_set("transport_base", ESP_LOG_VERBOSE);
-    esp_log_level_set("transport", ESP_LOG_VERBOSE);
-    esp_log_level_set("outbox", ESP_LOG_VERBOSE);
-
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-
-    mqtt_app_start();
 }

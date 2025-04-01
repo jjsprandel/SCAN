@@ -7,7 +7,6 @@
 #include "nvs_flash.h"
 #include "esp_event.h"
 #include "esp_netif.h"
-#include "protocol_examples_common.h"
 
 #include "esp_log.h"
 #include "mqtt_client.h"
@@ -16,4 +15,6 @@
 #include <sys/param.h>
 
 #define CONFIG_BROKER_URI "mqtts://0ec065087cf84d309f1c73b00c9441f8.s1.eu.hivemq.cloud:8883"
+
+extern void mqtt_init(void);
 

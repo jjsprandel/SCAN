@@ -466,6 +466,8 @@ void app_main(void)
     // ESP_MAIN_DEBUG("STARTING FREE HEAP SIZE: %lu bytes", (long unsigned int)esp_get_free_heap_size());
     /* Configure the peripheral according to the LED type */
 
+    ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
+
     // GPIO config
     gpio_config(&cypd3177_intr_config);
     
@@ -502,6 +504,8 @@ void app_main(void)
     //xTaskCreate(power_check, "cypd3177_task", 4096, NULL, 3, &cypd3177_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
+
+    mqtt_init();
 
 #ifdef MAIN_DEBUG
     check_task_creation("State control", state_control_task_handle);
