@@ -18,5 +18,5 @@ For hivemq_cert.pem, the certificate came from running:
 openssl s_client -showcerts -connect 0ec065087cf84d309f1c73b00c9441f8.s1.eu.hivemq.cloud:8883
 
 Then select the certificate corresponding to:
- 0 s:CN = *.s1.eu.hivemq.cloud
-   i:C = US, O = Let's Encrypt, CN = R11
+ 1 s:/C=US/O=Let's Encrypt/CN=R11
+   i:/C=US/O=Internet Security Research Group/CN=ISRG Root X1
