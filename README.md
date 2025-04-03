@@ -41,11 +41,7 @@ Here are the current statuses of our GitHub workflows:
   Below is the schematic of the hardware design:
 
   ![Schematic](docs/schematic-preview/schematic-preview.png)
-  
-  **Key Features**:
-  - Feature 1
-  - Feature 2
-  - Feature 3
+
 
   Additional hardware files can be found in the [hardware directory](hardware_design).
 
