@@ -1,4 +1,5 @@
 #include "main.h"
+#include "global.h"
 
 static state_t current_state = STATE_HARDWARE_INIT, prev_state = STATE_ERROR;
 
@@ -470,6 +471,9 @@ void app_main(void)
 {
     MAIN_DEBUG_LOG("App Main Start");
     ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
+
+    // Initialize device info
+    init_device_info();
 
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
