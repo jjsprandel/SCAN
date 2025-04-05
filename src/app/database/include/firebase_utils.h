@@ -3,6 +3,7 @@
 bool get_user_info(const char* user_id);
 bool check_in_user(const char* user_id);
 bool check_out_user(const char* user_id);
+void obtain_time(void);
 
 // Struct to store user information
 typedef struct {

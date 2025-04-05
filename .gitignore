@@ -1,5 +1,6 @@
 build/
 managed_components/
+scan-app/node_modules/
 
 # Ignore Python bytecode and cache files
 __pycache__/

@@ -280,6 +280,9 @@ void state_control_task(void *pvParameter)
 #ifdef MAIN_DEBUG
             MAIN_DEBUG_LOG("Wi-Fi Initialized. Ready!");
 #endif
+
+            // Obtain the current time from the NTP server
+            obtain_time();
             
             /*
                             if (ota_update_task_handle == NULL) {
