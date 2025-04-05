@@ -4,7 +4,8 @@ static Buzzer* kiosk_buzzer = NULL;
 static const char* TAG = "status_buzzer";
 
 // Define music note frequencies (in Hz)
-// C4 through B5
+// C3 through B5
+static const int NOTE_C3 = 131;
 static const int NOTE_C4 = 262;
 // static const int NOTE_CS4 = 277;
 // static const int NOTE_D4 = 294;
@@ -89,9 +90,33 @@ void play_kiosk_buzzer(state_t current_state)
     
     switch (current_state)
     {
-        case STATE_WIFI_INIT:
+        case STATE_HARDWARE_INIT:
         {
-            // Startup chime - ascending pattern
+            // Hardware initialization sound - low frequency beep
+            int frequencies[] = {NOTE_C3};
+            int durations[] = {200};
+            notes = create_melody_with_gaps(frequencies, durations, VOLUME_LOW, 1, &total_notes);
+            break;
+        }
+        case STATE_WIFI_CONNECTING:
+        {
+            // WiFi connecting sound - rising pattern
+            int frequencies[] = {NOTE_C4, NOTE_E4, NOTE_G4};
+            int durations[] = {100, 100, 200};
+            notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 3, &total_notes);
+            break;
+        }
+        case STATE_SOFTWARE_INIT:
+        {
+            // Software initialization sound - descending pattern
+            int frequencies[] = {NOTE_G4, NOTE_E4, NOTE_C4};
+            int durations[] = {100, 100, 200};
+            notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 3, &total_notes);
+            break;
+        }
+        case STATE_SYSTEM_READY:
+        {
+            // System ready sound - startup chime
             int frequencies[] = {NOTE_C4, NOTE_E4, NOTE_G4, NOTE_C5};
             int durations[] = {100, 100, 100, 250};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 4, &total_notes);

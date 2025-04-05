@@ -1,9 +1,13 @@
 #include "mqtt.h"
+#include "../ota_update/include/ota.h"
 
 static const char *TAG = "MQTT";
 
 extern const uint8_t hivemq_server_cert_pem_start[] asm("_binary_hivemq_cert_pem_start");
 extern const uint8_t hivemq_server_cert_pem_end[] asm("_binary_hivemq_cert_pem_end");
+
+// Declare external OTA task handle
+extern TaskHandle_t ota_update_task_handle;
 
 const char *mqtt_username = "ccba97fffee1dd80";
 const char *mqtt_password = "Pass1234";
@@ -22,6 +26,62 @@ static void send_binary(esp_mqtt_client_handle_t client)
     int binary_size = MIN(20000, partition->size);
     int msg_id = esp_mqtt_client_publish(client, "/topic/binary", binary_address, binary_size, 0, 0);
     ESP_LOGI(TAG, "binary sent with msg_id=%d", msg_id);
+}
+
+static void handle_update_topic(esp_mqtt_event_handle_t event, esp_mqtt_client_handle_t client)
+{
+    ESP_LOGI(TAG, "Handling update topic message");
+    
+    // Create a null-terminated copy of the data for easier parsing
+    char *data = malloc(event->data_len + 1);
+    if (data == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for message data");
+        return;
+    }
+    memcpy(data, event->data, event->data_len);
+    data[event->data_len] = '\0';
+
+    // Find the download_url field
+    char *url_start = strstr(data, "download_url:");
+    if (url_start != NULL) {
+        url_start += strlen("download_url:"); // Move past the field name
+        char *url_end = strchr(url_start, '}');
+        if (url_end != NULL) {
+            // Calculate URL length and create a string for it
+            size_t url_len = url_end - url_start;
+            char *url = malloc(url_len + 1);
+            if (url != NULL) {
+                memcpy(url, url_start, url_len);
+                url[url_len] = '\0';
+                ESP_LOGI(TAG, "Received update URL: %s", url);
+                
+                // Create OTA task with the received URL
+                if (ota_update_task_handle == NULL) {
+                    ESP_LOGI(TAG, "Creating OTA update task");
+                    xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 8, url, 8, &ota_update_task_handle);
+                } else {
+                    ESP_LOGW(TAG, "OTA task already running");
+                }
+                
+                free(url);
+            }
+        }
+    }
+
+    free(data);
+}
+
+static void handle_mqtt_event_data(esp_mqtt_event_handle_t event, esp_mqtt_client_handle_t client)
+{
+    ESP_LOGI(TAG, "MQTT_EVENT_DATA");
+    printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+    printf("DATA=%.*s\r\n", event->data_len, event->data);
+
+    // Check topic and route to appropriate handler
+    if (strncmp(event->topic, "kiosks/ccba97fffee1dd80/update", event->topic_len) == 0) {
+        handle_update_topic(event, client);
+    }
+    // Add more topic handlers here as needed
 }
 
 /*
@@ -62,14 +122,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
         break;
     case MQTT_EVENT_DATA:
-        ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-        printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-        printf("DATA=%.*s\r\n", event->data_len, event->data);
-        ESP_LOGI(TAG, "DATA=[%.*s]", event->data_len, event->data);
-        if (strncmp(event->data, "send binary please", event->data_len) == 0) {
-            ESP_LOGI(TAG, "Sending the binary");
-            send_binary(client);
-        }
+        handle_mqtt_event_data(event, client);
         break;
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
@@ -92,7 +145,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 void mqtt_init(void)
 {
-    vTaskDelay(25000 / portTICK_PERIOD_MS);
     
     const esp_mqtt_client_config_t mqtt_cfg = {
         .broker = {
