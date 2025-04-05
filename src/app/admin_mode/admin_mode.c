@@ -2,6 +2,7 @@
 
 static const char *ADMIN_TAG = "admin_mode";
 admin_state_t current_admin_state = ADMIN_STATE_BEGIN, prev_admin_state = ADMIN_STATE_ERROR;
+static uint8_t invalid_id_attempts = 0;
 
 void admin_mode_control_task(void *param)
 {
@@ -40,20 +41,34 @@ void admin_mode_control_task(void *param)
             if (!get_user_info(user_id_to_write))
             {
                 ESP_LOGE(ADMIN_TAG, "Error validating ID in database. Try again.");
-                current_admin_state = ADMIN_STATE_ENTER_ID_ERROR;
+                invalid_id_attempts++;
+                if (invalid_id_attempts >= 3) {
+                    ESP_LOGE(ADMIN_TAG, "Maximum number of invalid ID attempts reached. Exiting admin mode.");
+                    current_admin_state = ADMIN_STATE_ERROR;
+                } else {
+                    current_admin_state = ADMIN_STATE_ENTER_ID_ERROR;
+                }
             }
             else if (strcmp(user_info->active_student, "Yes") == 0)
             {
                 ESP_LOGI(ADMIN_TAG, "ID validated in database");
+                invalid_id_attempts = 0;
                 current_admin_state = ADMIN_STATE_TAP_CARD;
             }
             else
             {
                 ESP_LOGE(ADMIN_TAG, "User is not an active student. Try again.");
-                current_admin_state = ADMIN_STATE_ENTER_ID_ERROR;
+                invalid_id_attempts++;
+                if (invalid_id_attempts >= 3) {
+                    ESP_LOGE(ADMIN_TAG, "Maximum number of invalid ID attempts reached. Exiting admin mode.");
+                    current_admin_state = ADMIN_STATE_ERROR;
+                } else {
+                    current_admin_state = ADMIN_STATE_ENTER_ID_ERROR;
+                }
             }
 #else
             ESP_LOGI(ADMIN_TAG, "ID validated in database");
+            vTaskDelay(pdMS_TO_TICKS(5000));
             current_admin_state = ADMIN_STATE_TAP_CARD;
 #endif
             break;
@@ -76,7 +91,7 @@ void admin_mode_control_task(void *param)
 #ifdef ADMIN_DEBUG
             ESP_LOGI(ADMIN_TAG, "ID Successfully Written to Card");
 #endif
-            vTaskDelay(pdMS_TO_TICKS(2000));
+            vTaskDelay(pdMS_TO_TICKS(5000));
             current_admin_state = ADMIN_STATE_BEGIN;
             xTaskNotifyGive(state_control_task_handle);
             break;
@@ -84,29 +99,31 @@ void admin_mode_control_task(void *param)
 #ifdef ADMIN_DEBUG
             ESP_LOGE(ADMIN_TAG, "Error writing ID to card. Try again.");
 #endif
-            vTaskDelay(pdMS_TO_TICKS(2000));
+            vTaskDelay(pdMS_TO_TICKS(5000));
             current_admin_state = ADMIN_STATE_TAP_CARD;
             break;
         case ADMIN_STATE_ENTER_ID_ERROR:
 #ifdef ADMIN_DEBUG
             ESP_LOGE(ADMIN_TAG, "Error validating ID in database. Try again.");
 #endif
-            vTaskDelay(pdMS_TO_TICKS(2000));
+            xTaskNotifyGive(keypad_task_handle);
+            vTaskDelay(pdMS_TO_TICKS(5000));
             current_admin_state = ADMIN_STATE_ENTER_ID;
             break;
         case ADMIN_STATE_ERROR:
 #ifdef ADMIN_DEBUG
             ESP_LOGE(ADMIN_TAG, "Error encountered in Admin Mode. Returning to STATE_ADMIN_BEGIN");
 #endif
-            vTaskDelay(pdMS_TO_TICKS(2000));
+            vTaskDelay(pdMS_TO_TICKS(5000));
             current_admin_state = ADMIN_STATE_BEGIN;
+            xTaskNotifyGive(state_control_task_handle);
             break;
 
         default:
 #ifdef ADMIN_DEBUG
             ESP_LOGE(ADMIN_TAG, "Unknown state encountered: %d. Exiting admin mode.", current_admin_state);
 #endif
-            vTaskDelay(pdMS_TO_TICKS(2000));
+            vTaskDelay(pdMS_TO_TICKS(5000));
             vTaskDelete(NULL);
             break;
         }

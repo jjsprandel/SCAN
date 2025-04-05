@@ -4,19 +4,18 @@
 #include "pn532.h"
 #include <esp_log.h>
 #include <esp_log_buffer.h>
-#define USING_MAIN_PCB
 
 // SPI Pin Configuration
 #ifdef USING_MAIN_PCB
-    #define PN532_SCK 19
-    #define PN532_MOSI 21 // 7
-    #define PN532_SS 22
-    #define PN532_MISO 20
+#define PN532_SCK 19
+#define PN532_MOSI 21 // 7
+#define PN532_SS 22
+#define PN532_MISO 20
 #else
-    #define PN532_SCK 10
-    #define PN532_MOSI 7
-    #define PN532_SS 20
-    #define PN532_MISO 2
+#define PN532_SCK 10
+#define PN532_MOSI 7
+#define PN532_SS 20
+#define PN532_MISO 2
 #endif
 
 // NTAG213 Memory Layout

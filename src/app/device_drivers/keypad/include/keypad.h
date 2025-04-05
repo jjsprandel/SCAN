@@ -1,7 +1,6 @@
 #ifndef keypad_driver_h
 #define keypad_driver_h
 
-
 #include "freertos/FreeRTOS.h"
 #include <freertos/task.h>
 #include <esp_log.h>
@@ -13,7 +12,6 @@
 
 #include "pcf8574n.h"
 
-
 #define _KP
 #define DEBOUNCE_PERIOD_MS 150
 #define MAX_BUFFER_SIZE 21
@@ -23,14 +21,13 @@
 #define KEYPAD_DEBUG 1
 
 #define ID_LEN 10
-#define USING_MAIN_PCB
 
 #ifdef USING_MAIN_PCB
-    #define KEYPAD_I2C_SDA GPIO_NUM_4
-    #define KEYPAD_I2C_SCL GPIO_NUM_5
+#define KEYPAD_I2C_SDA GPIO_NUM_4
+#define KEYPAD_I2C_SCL GPIO_NUM_5
 #else
-    #define KEYPAD_I2C_SDA GPIO_NUM_1
-    #define KEYPAD_I2C_SCL GPIO_NUM_0
+#define KEYPAD_I2C_SDA GPIO_NUM_1
+#define KEYPAD_I2C_SCL GPIO_NUM_0
 #endif
 
 typedef struct
@@ -38,7 +35,6 @@ typedef struct
     char elements[MAX_BUFFER_SIZE];
     uint8_t occupied;
 } keypad_buffer_t;
-
 
 extern keypad_buffer_t keypad_buffer;
 extern EventGroupHandle_t event_group;
@@ -48,7 +44,6 @@ extern TaskHandle_t admin_mode_control_task_handle;
 extern void set_pcf_pins(uint8_t pin_config);
 
 extern void read_pcf_pins(uint8_t *pin_states);
-
 
 void init_timer();
 

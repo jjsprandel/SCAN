@@ -1,18 +1,20 @@
 #include "main.h"
 
+// State variables
 static state_t current_state = STATE_WIFI_INIT, prev_state = STATE_ERROR;
+static admin_state_t prev_admin_state_internal = ADMIN_STATE_ERROR;
 
 // Task Handles
-TaskHandle_t state_control_task_handle = NULL;
 static TaskHandle_t wifi_init_task_handle = NULL;
 static TaskHandle_t ota_update_task_handle = NULL;
-static TaskHandle_t keypad_task_handle = NULL;
+TaskHandle_t keypad_task_handle = NULL;
 extern TaskHandle_t cypd3177_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
 static TaskHandle_t blink_led_task_handle = NULL;
 TaskHandle_t admin_mode_control_task_handle = NULL;
+TaskHandle_t state_control_task_handle = NULL;
 
-// not static because it is being used in wifi_init.c as extern variable
+// Semaphore Handles
 SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init completion
 
 static const char *TAG = "MAIN";
@@ -103,14 +105,6 @@ void blink_led_task(void *pvParameter)
     }
 }
 
-// Add this function to log the elapsed time in seconds
-static void log_elapsed_time(char *auth_type)
-{
-    end_time = esp_timer_get_time();
-    double elapsed_time_sec = (end_time - start_time) / 1000000.0;
-    MAIN_DEBUG_LOG("Time taken for %s: %.6f seconds", auth_type, elapsed_time_sec);
-}
-
 static void configure_led(void)
 {
     MAIN_DEBUG_LOG("Configured to blink addressable LED!");
@@ -128,25 +122,6 @@ static void configure_led(void)
 
     /* Set all LED off to clear all pixels */
     led_strip_clear(led_strip);
-}
-
-// Load all display screens into memory
-static void heap_monitor_task(void *pvParameters)
-{
-    while (1)
-    {
-        long unsigned int free_heap = (long unsigned int)esp_get_free_heap_size();
-        // ESP_LOGI(MAIN_TAG, "Free heap size: %lu bytes", free_heap);
-
-        if (free_heap < HEAP_WARNING_THRESHOLD)
-        {
-            MAIN_ERROR_LOG("CRITICAL: Heap size below safe limit! Free heap: %lu bytes", free_heap);
-            // Optional: Restart the system if necessary
-            // esp_restart();
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(5000)); // Check every 5 seconds
-    }
 }
 
 static void create_screens()
@@ -201,48 +176,11 @@ static void display_screen(state_t display_state)
     }
 }
 
-// Check if a task has been successfully created. For debug purposes
-static void check_task_creation(char *taskName, TaskHandle_t taskHandle)
-{
-    if (state_control_task_handle == NULL)
-    {
-        MAIN_ERROR_LOG("State Control Task creation failed!");
-    }
-    else
-    {
-        MAIN_DEBUG_LOG("State Control Task created successfully!");
-    }
-    if (keypad_task_handle == NULL)
-    {
-        MAIN_ERROR_LOG("Keypad Task creation failed!");
-    }
-    else
-    {
-        MAIN_DEBUG_LOG("Keypad Task created successfully!");
-    }
-    if (lvgl_port_task_handle == NULL)
-    {
-        MAIN_ERROR_LOG("LVGL Port Task creation failed!");
-    }
-    else
-    {
-        MAIN_DEBUG_LOG("LVGL Port Task created successfully!");
-    }
-    if (admin_mode_control_task_handle == NULL)
-    {
-        MAIN_ERROR_LOG("Admin Mode Control Task creation failed!");
-    }
-    else
-    {
-        MAIN_DEBUG_LOG("Admin Mode Control Task created successfully!");
-    }
-}
-
 // Function to control state transitions and task management
 void state_control_task(void *pvParameter)
 {
     char user_id[ID_LEN];
-    while (1) 
+    while (1)
     {
         // MAIN_DEBUG_LOG("Free heap size: %lu bytes", (unsigned long)esp_get_free_heap_size());
         switch (current_state)
@@ -280,7 +218,7 @@ void state_control_task(void *pvParameter)
 #ifdef MAIN_DEBUG
             MAIN_DEBUG_LOG("Wi-Fi Initialized. Ready!");
 #endif
-            
+
             /*
                             if (ota_update_task_handle == NULL) {
                                 MAIN_DEBUG_LOG("Creating OTA update task");
@@ -290,6 +228,7 @@ void state_control_task(void *pvParameter)
 
             current_state = STATE_IDLE;
             break;
+
         case STATE_IDLE: // Wait until proximity is detected
             if (gpio_get_level(PIR_GPIO))
             {
@@ -301,6 +240,7 @@ void state_control_task(void *pvParameter)
                 current_state = STATE_USER_DETECTED;
             }
             break;
+
         case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
             char nfcUserID[ID_LEN] = {'\0'};
 
@@ -312,10 +252,39 @@ void state_control_task(void *pvParameter)
 
             if ((nfcReadFlag) || (keypadNotify > 0))
             {
-#ifdef MAIN_DEBUG
                 MAIN_DEBUG_LOG("User ID entered by %s", nfcReadFlag ? "NFC Transceiver" : "Keypad");
-#endif
+
+                if (nfcReadFlag)
+                {
+                    bool valid_id = true;
+                    for (int i = 0; i < ID_LEN && nfcUserID[i] != '\0'; i++)
+                    {
+                        if (!isprint((unsigned char)nfcUserID[i]))
+                        {
+                            MAIN_ERROR_LOG("Invalid character in NFC ID at position %d", i);
+                            valid_id = false;
+                            break;
+                        }
+                    }
+
+                    if (!valid_id)
+                    {
+                        MAIN_ERROR_LOG("Rejecting invalid NFC ID");
+                        current_state = STATE_ERROR;
+                        break;
+                    }
+                }
                 memcpy(user_id, nfcReadFlag ? nfcUserID : keypad_buffer.elements, ID_LEN);
+
+                MAIN_DEBUG_LOG("Processing user ID: %s", user_id);
+
+                if (!is_numeric_string(user_id, ID_LEN))
+                {
+                    MAIN_ERROR_LOG("Invalid user ID: '%s'. Contains non-numeric characters", user_id);
+                    current_state = STATE_VALIDATION_FAILURE;
+                    break;
+                }
+
                 current_state = STATE_DATABASE_VALIDATION;
             }
             break;
@@ -323,7 +292,7 @@ void state_control_task(void *pvParameter)
         case STATE_DATABASE_VALIDATION: // Wait until validation is complete
 #ifdef DATABASE_QUERY_ENABLED
             if (!get_user_info(user_id))
-            { //1314151617
+            {
                 MAIN_ERROR_LOG("Invalid user detected");
                 current_state = STATE_VALIDATION_FAILURE;
                 break;
@@ -353,19 +322,21 @@ void state_control_task(void *pvParameter)
             current_state = STATE_ADMIN_MODE;
 #endif
             break;
+
         case STATE_CHECK_IN:
-            log_elapsed_time("check in authentication");
+            log_elapsed_time("check in authentication", start_time);
             MAIN_DEBUG_LOG("ID %s found in database. Checking in.", user_id);
-            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
-            current_state = STATE_IDLE;
+            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
             current_state = STATE_IDLE;
             break;
+
         case STATE_CHECK_OUT:
-            log_elapsed_time("check out authentication");
+            log_elapsed_time("check out authentication", start_time);
             MAIN_DEBUG_LOG("ID %s found in database. Checking out.", user_id);
-            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
             current_state = STATE_IDLE;
             break;
+
         case STATE_ADMIN_MODE:
             BaseType_t adminNotify = ulTaskNotifyTake(pdTRUE, 0);
 
@@ -375,13 +346,13 @@ void state_control_task(void *pvParameter)
                 current_state = STATE_IDLE;
             }
             break;
+
         case STATE_VALIDATION_FAILURE:
-#ifdef MAIN_DEBUG
             MAIN_DEBUG_LOG("ID %s not found in database. Try again.", user_id);
-#endif
-            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
             current_state = STATE_USER_DETECTED;
             break;
+
         case STATE_ERROR:
             // Handle error state - for now just stopping all tasks
             if (wifi_init_task_handle != NULL)
@@ -411,41 +382,6 @@ void state_control_task(void *pvParameter)
     }
     MAIN_DEBUG_LOG("State control task finished"); // Should not reach here unless task is deleted
 }
-
-static void teardown_tasks()
-{
-    if (state_control_task_handle != NULL)
-    {
-        vTaskDelete(state_control_task_handle);
-        state_control_task_handle = NULL;
-    }
-    if (keypad_task_handle != NULL)
-    {
-        vTaskDelete(keypad_task_handle);
-        keypad_task_handle = NULL;
-    }
-    if (lvgl_port_task_handle != NULL)
-    {
-        vTaskDelete(lvgl_port_task_handle);
-        lvgl_port_task_handle = NULL;
-    }
-    if (admin_mode_control_task_handle != NULL)
-    {
-        vTaskDelete(admin_mode_control_task_handle);
-        admin_mode_control_task_handle = NULL;
-    }
-    if (blink_led_task_handle != NULL)
-    {
-        vTaskDelete(blink_led_task_handle);
-        blink_led_task_handle = NULL;
-    }
-    if (wifi_init_task_handle != NULL)
-    {
-        vTaskDelete(wifi_init_task_handle);
-        wifi_init_task_handle = NULL;
-    }
-}
-
 void app_main(void)
 {
     MAIN_DEBUG_LOG("App Main Start");
@@ -468,18 +404,16 @@ void app_main(void)
 
     // GPIO config
     gpio_config(&cypd3177_intr_config);
-    
+
     // Install the ISR service and attach handlers
     gpio_install_isr_service(0);
-    //gpio_isr_handler_add(CYPD3177_INTR_PIN, cypd3177_isr_handler, NULL);
-    
+    // gpio_isr_handler_add(CYPD3177_INTR_PIN, cypd3177_isr_handler, NULL);
+
     // Initialize I2C bus
     i2c_master_init(&master_handle);
     i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
     i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
     ESP_LOGI(TAG, "I2C initialized successfully");
-
-
 
     // Initialize peripherals
     configure_led();
@@ -499,7 +433,7 @@ void app_main(void)
 
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
-    //xTaskCreate(power_check, "cypd3177_task", 4096, NULL, 3, &cypd3177_task_handle);
+    // xTaskCreate(power_check, "cypd3177_task", 4096, NULL, 3, &cypd3177_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
 
@@ -507,6 +441,7 @@ void app_main(void)
     check_task_creation("State control", state_control_task_handle);
     check_task_creation("Keypad", keypad_task_handle);
     check_task_creation("LVGL", lvgl_port_task_handle);
+    check_task_creation("Admin mode control", admin_mode_control_task_handle);
 #endif
 
     while (1)
@@ -514,6 +449,12 @@ void app_main(void)
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 
-    teardown_tasks();
+    teardown_task(&state_control_task_handle);
+    teardown_task(&keypad_task_handle);
+    teardown_task(&lvgl_port_task_handle);
+    teardown_task(&admin_mode_control_task_handle);
+    teardown_task(&blink_led_task_handle);
+    teardown_task(&wifi_init_task_handle);
+
     MAIN_DEBUG_LOG("App Main End");
 }
