@@ -129,26 +129,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 
 int firebase_https_request_get(char *url, char *response, size_t response_size)
 {
-    int http_code = -1;  // Default to error code
-    
-    // Basic URL validation - ensure url is not NULL and has reasonable length
-    if (url == NULL || strlen(url) < 10 || strlen(url) > 512) {
-        ESP_LOGE(TAG, "Invalid URL: %s", url ? url : "NULL");
-        if (response && response_size > 0) {
-            response[0] = '\0'; // Set response to an empty string on failure
-        }
-        return http_code;
-    }
-    
-    // Check if URL starts with https://
-    if (strncmp(url, "https://", 8) != 0) {
-        ESP_LOGE(TAG, "URL must start with https://");
-        if (response && response_size > 0) {
-            response[0] = '\0';
-        }
-        return http_code;
-    }
-    
+    int http_code;
     char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER + 1] = {0};
 
     esp_http_client_config_t config = {
@@ -158,85 +139,114 @@ int firebase_https_request_get(char *url, char *response, size_t response_size)
         .disable_auto_redirect = true,
         .cert_pem = (char *)firebase_server_cert_pem_start,
     };
-    
-    esp_http_client_handle_t client = NULL;
-    
-    // Initialize client with error handling
-    client = esp_http_client_init(&config);
-    if (client == NULL) {
-        ESP_LOGE(TAG, "Failed to initialize HTTP client");
-        if (response && response_size > 0) {
-            response[0] = '\0';
-        }
-        return http_code;
-    }
+    esp_http_client_handle_t client = esp_http_client_init(&config);
 
-    // GET with error handling
+    // GET
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
-        http_code = esp_http_client_get_status_code(client);
         ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %"PRId64,
-                http_code, esp_http_client_get_content_length(client));
+                esp_http_client_get_status_code(client),
+                esp_http_client_get_content_length(client));
 
         // Safely copy the response to the user-provided buffer
-        if (response && response_size > 0) {
-            strncpy(response, local_response_buffer, response_size - 1);
-            response[response_size - 1] = '\0';
+        strncpy(response, local_response_buffer, response_size - 1);
+        response[response_size - 1] = '\0';
 
-            // Parse and print the JSON response
-            cJSON *json = cJSON_Parse(response);
-            if (json == NULL) {
-                ESP_LOGE(TAG, "Failed to parse JSON response");
+        // Parse and print the JSON response
+        cJSON *json = cJSON_Parse(response);
+        if (json == NULL) {
+            ESP_LOGE(TAG, "Failed to parse JSON response");
+        } else {
+            char *json_string = cJSON_Print(json);
+            if (json_string == NULL) {
+                ESP_LOGE(TAG, "Failed to print JSON response");
             } else {
-                char *json_string = cJSON_Print(json);
-                if (json_string == NULL) {
-                    ESP_LOGE(TAG, "Failed to print JSON response");
-                } else {
-                    ESP_LOGI(TAG, "JSON Response:\n%s", json_string);
-                    free(json_string);
-                }
-                cJSON_Delete(json);
+                ESP_LOGI(TAG, "JSON Response:\n%s", json_string);
+                free(json_string);
             }
+            cJSON_Delete(json);
         }
+
     } else {
         ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
-        if (response && response_size > 0) {
-            response[0] = '\0'; // Set response to an empty string on failure
-        }
+        response[0] = '\0'; // Set response to an empty string on failure
     }
 
-    // Always clean up client if created
-    if (client != NULL) {
-        esp_http_client_cleanup(client);
+    http_code = esp_http_client_get_status_code(client);
+
+/*
+    // POST
+    const char *post_data = "{\"field1\":\"value1\"}";
+    esp_http_client_set_url(client, "http://"CONFIG_EXAMPLE_HTTP_ENDPOINT"/post");
+    esp_http_client_set_method(client, HTTP_METHOD_POST);
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+    esp_http_client_set_post_field(client, post_data, strlen(post_data));
+    err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "HTTP POST Status = %d, content_length = %"PRId64,
+                esp_http_client_get_status_code(client),
+                esp_http_client_get_content_length(client));
+    } else {
+        ESP_LOGE(TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
     }
-    
+
+    //PUT
+    esp_http_client_set_url(client, "http://"CONFIG_EXAMPLE_HTTP_ENDPOINT"/put");
+    esp_http_client_set_method(client, HTTP_METHOD_PUT);
+    err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "HTTP PUT Status = %d, content_length = %"PRId64,
+                esp_http_client_get_status_code(client),
+                esp_http_client_get_content_length(client));
+    } else {
+        ESP_LOGE(TAG, "HTTP PUT request failed: %s", esp_err_to_name(err));
+    }
+
+    //PATCH
+    esp_http_client_set_url(client, "http://"CONFIG_EXAMPLE_HTTP_ENDPOINT"/patch");
+    esp_http_client_set_method(client, HTTP_METHOD_PATCH);
+    esp_http_client_set_post_field(client, NULL, 0);
+    err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "HTTP PATCH Status = %d, content_length = %"PRId64,
+                esp_http_client_get_status_code(client),
+                esp_http_client_get_content_length(client));
+    } else {
+        ESP_LOGE(TAG, "HTTP PATCH request failed: %s", esp_err_to_name(err));
+    }
+
+    //DELETE
+    esp_http_client_set_url(client, "http://"CONFIG_EXAMPLE_HTTP_ENDPOINT"/delete");
+    esp_http_client_set_method(client, HTTP_METHOD_DELETE);
+    err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "HTTP DELETE Status = %d, content_length = %"PRId64,
+                esp_http_client_get_status_code(client),
+                esp_http_client_get_content_length(client));
+    } else {
+        ESP_LOGE(TAG, "HTTP DELETE request failed: %s", esp_err_to_name(err));
+    }
+
+    //HEAD
+    esp_http_client_set_url(client, "http://"CONFIG_EXAMPLE_HTTP_ENDPOINT"/get");
+    esp_http_client_set_method(client, HTTP_METHOD_HEAD);
+    err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "HTTP HEAD Status = %d, content_length = %"PRId64,
+                esp_http_client_get_status_code(client),
+                esp_http_client_get_content_length(client));
+    } else {
+        ESP_LOGE(TAG, "HTTP HEAD request failed: %s", esp_err_to_name(err));
+    }
+*/
+    esp_http_client_cleanup(client);
     return http_code;
 }
 
 int firebase_https_request_put(char *url, char *data, size_t data_size)
 {
-    int http_code = -1;  // Default to error code
-    
-    // Basic URL validation - ensure url is not NULL and has reasonable length
-    if (url == NULL || strlen(url) < 10 || strlen(url) > 512) {
-        ESP_LOGE(TAG, "Invalid URL: %s", url ? url : "NULL");
-        return http_code;
-    }
-    
-    // Check if URL starts with https://
-    if (strncmp(url, "https://", 8) != 0) {
-        ESP_LOGE(TAG, "URL must start with https://");
-        return http_code;
-    }
-    
-    // Validate data
-    if (data == NULL) {
-        ESP_LOGE(TAG, "PUT data is NULL");
-        return http_code;
-    }
-    
+    int http_code;
     char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER + 1] = {0};
-    size_t local_response_buffer_size = sizeof(local_response_buffer);
 
     esp_http_client_config_t config = {
         .url = url,
@@ -246,36 +256,24 @@ int firebase_https_request_put(char *url, char *data, size_t data_size)
         .cert_pem = (char *)firebase_server_cert_pem_start,
         .method = HTTP_METHOD_PUT
     };
-    
-    esp_http_client_handle_t client = NULL;
-    
-    // Initialize client with error handling
-    client = esp_http_client_init(&config);
-    if (client == NULL) {
-        ESP_LOGE(TAG, "Failed to initialize HTTP client");
-        return http_code;
-    }
-    
-    // Use strlen rather than size_t parameter for actual string length
-    size_t actual_data_len = strlen(data);
-    esp_http_client_set_post_field(client, data, actual_data_len);
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_http_client_set_post_field(client, data, strlen(data));
     esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
 
-    // PUT with error handling
+
+    //PUT
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
-        http_code = esp_http_client_get_status_code(client);
         ESP_LOGI(TAG, "HTTP PUT Status = %d, content_length = %"PRId64,
-                http_code, esp_http_client_get_content_length(client));
-        ESP_LOGI(TAG, "Response: %s", local_response_buffer);
+                esp_http_client_get_status_code(client),
+                esp_http_client_get_content_length(client));
+        ESP_LOGI(TAG, "%s", local_response_buffer);
     } else {
         ESP_LOGE(TAG, "HTTP PUT request failed: %s", esp_err_to_name(err));
     }
 
-    // Always clean up client if created
-    if (client != NULL) {
-        esp_http_client_cleanup(client);
-    }
-    
+    http_code = esp_http_client_get_status_code(client);
+
+    esp_http_client_cleanup(client);
     return http_code;
 }

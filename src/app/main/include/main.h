@@ -15,14 +15,15 @@
 #include "wifi_init.h"
 #include "ota.h"
 #include "firebase_http_client.h"
-#include "display_config.h"
-#include "display_frames.h"
-#include "admin_frames.h"
-#include "admin_mode.h"
 #include "pir.h"
+#include "firebase_utils.h"
+#include "ntag_reader.h"
 #include "esp_timer.h"
 #include "ui_screens.h"
 #include "ui_styles.h"
+#include "admin_mode.h"
+#include "keypad_driver.h"
+#include "display_config.h"
 
 #define ID_LEN 10
 #define BLINK_GPIO 8
@@ -73,14 +74,12 @@ lv_display_t *display; // Defined in display_config.h
 lv_obj_t *screen_objects[STATE_ERROR + 1] = {NULL};
 lv_obj_t *admin_screen_objects[ADMIN_STATE_ERROR + 1] = {NULL};
 
-extern UserInfo user_info_instance;
-extern UserInfo *user_info;
 extern TaskHandle_t state_control_task_handle;
 extern TaskHandle_t admin_mode_control_task_handle;
 extern TaskHandle_t keypad_task_handle;
 extern admin_state_t current_admin_state, prev_admin_state;
 
-char user_id[ID_LEN+1];
+char user_id[ID_LEN + 1];
 void state_control_task(void *pvParameter);
 void blink_led_1_task(void *pvParameter);
 void blink_led_2_task(void *pvParameter);

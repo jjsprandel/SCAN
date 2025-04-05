@@ -1,22 +1,10 @@
-#include <stdio.h>
 #include <string.h>
-#include <ctype.h>
+#include <sys/param.h>
 #include <stdlib.h>
-#include <time.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-#include "esp_system.h"
-#include "esp_http_client.h"
+#include <ctype.h>
 #include "esp_log.h"
+#include "esp_event.h"
 #include "esp_tls.h"
-#include "lwip/err.h"
-#include "lwip/sys.h"
-#include "cJSON.h"
-#include "esp_crt_bundle.h"
-#include "esp_timer.h"
-#include "esp_sntp.h"
-#include "firebase_http_client.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -30,9 +18,8 @@
 
 #include "esp_sntp.h"
 #include <time.h>
-#include <ctype.h>
+
 #define KIOSK_LOCATION "UCF RWC"
-#define ID_LEN 10
 
 // #define FIREBASE_BASE_URL "https://scan-9ee0b-default-rtdb.firebaseio.com"
 
@@ -117,23 +104,6 @@ bool get_user_info(const char* user_id)
         return false; // Delete task if input is invalid
     }
 
-    // Check for valid user_id (ensure it's not binary garbage)
-    for (size_t i = 0; i < ID_LEN && user_id[i] != '\0'; i++) {
-        if (!isprint((unsigned char)user_id[i])) {
-            ESP_LOGE("Get User Info", "Invalid user_id contains non-printable characters");
-            return false;
-        }
-        // Check if all characters are digits
-        if (!isdigit((unsigned char)user_id[i])) {
-            ESP_LOGE("Get User Info", "Invalid user_id contains non-numeric characters");
-            return false;
-        }
-    }
-
-    // Create a sanitized copy with null termination
-    char sanitized_id[ID_LEN + 1] = {0};
-    strlcpy(sanitized_id, user_id, sizeof(sanitized_id));
-
     // Obtain time from NTP server
     obtain_time();
 
@@ -141,17 +111,8 @@ bool get_user_info(const char* user_id)
     char response_buffer[1024 + 1];
     int http_code;
 
-    // Use sanitized, guaranteed null-terminated ID
-    if (snprintf(url, sizeof(url), "https://scan-9ee0b-default-rtdb.firebaseio.com/users/%s.json", sanitized_id) >= sizeof(url)) {
-        ESP_LOGE("Get User Info", "URL too long, buffer overflow prevented");
-        return false;
-    }
-
-    ESP_LOGI(TAG, "Retrieving user info for ID: %s", sanitized_id);
-    ESP_LOGI(TAG, "URL: %s", url);
-    
-    // Add error handling around HTTP request
-    esp_err_t err = ESP_OK;
+    ESP_LOGI(TAG, "dre 1");
+    snprintf(url, sizeof(url), "https://scan-9ee0b-default-rtdb.firebaseio.com/users/%s.json", user_id);
     http_code = firebase_https_request_get(url, response_buffer, sizeof(response_buffer));
 
     // Check if the HTTP request was successful
@@ -223,23 +184,6 @@ bool check_in_user(const char* user_id)
         return false; // Delete task if input is invalid
     }
 
-    // Check for valid user_id (ensure it's not binary garbage)
-    for (size_t i = 0; i < ID_LEN && user_id[i] != '\0'; i++) {
-        if (!isprint((unsigned char)user_id[i])) {
-            ESP_LOGE("Check-In", "Invalid user_id contains non-printable characters");
-            return false;
-        }
-        // Check if all characters are digits
-        if (!isdigit((unsigned char)user_id[i])) {
-            ESP_LOGE("Check-In", "Invalid user_id contains non-numeric characters");
-            return false;
-        }
-    }
-
-    // Create a sanitized copy with null termination
-    char sanitized_id[ID_LEN + 1] = {0};
-    strlcpy(sanitized_id, user_id, sizeof(sanitized_id));
-
     // Obtain time from NTP server
     obtain_time();
 
@@ -264,7 +208,7 @@ bool check_in_user(const char* user_id)
         cJSON_AddStringToObject(activity_log_json, "action", "Check-In");
         cJSON_AddStringToObject(activity_log_json, "location", KIOSK_LOCATION);  // Replace with actual location
         cJSON_AddStringToObject(activity_log_json, "timestamp", timestamp); // Replace with actual timestamp
-        cJSON_AddStringToObject(activity_log_json, "userId", sanitized_id); // Use sanitized id
+        cJSON_AddStringToObject(activity_log_json, "userId", user_id);
 
         // Convert the JSON object to a string
         char *activity_log_string = cJSON_Print(activity_log_json);
@@ -274,24 +218,15 @@ bool check_in_user(const char* user_id)
             return false;
         }
 
-        // Format the URL with overflow check
-        if (snprintf(url, sizeof(url), "https://scan-9ee0b-default-rtdb.firebaseio.com/activityLog/%s.json", activityLogIndex) >= sizeof(url)) {
-            ESP_LOGE(TAG, "ActivityLog URL too long, buffer overflow prevented");
-            cJSON_Delete(activity_log_json);
-            free(activity_log_string);
-            return false;
-        }
-        
+        // Format the URL
+        snprintf(url, sizeof(url), "https://scan-9ee0b-default-rtdb.firebaseio.com/activityLog/%s.json", activityLogIndex);
         ESP_LOGI(TAG, "ActivityLog URL: %s", url);
         ESP_LOGI(TAG, "Activity Log JSON: %s", activity_log_string);
 
-        // Perform the PUT request with error handling
-        http_code = firebase_https_request_put(url, activity_log_string, strlen(activity_log_string));
-        free(activity_log_string); // Free the string once used
-        cJSON_Delete(activity_log_json); // Clean up JSON object
-        
+        // Perform the PUT request
+        http_code = firebase_https_request_put(url, activity_log_string, sizeof(activity_log_string));
         if (http_code != 200) {
-            ESP_LOGE("Check-In", "Failed to check-in user %s. HTTP Code: %d", sanitized_id, http_code);
+            ESP_LOGE("Check-In", "Failed to check-in user %s. HTTP Code: %d", user_id, http_code);
             return false; // Exit the task if any field request fails
         }
 
@@ -300,7 +235,7 @@ bool check_in_user(const char* user_id)
         return false; // Exit the task if user is not active
     }
 
-    ESP_LOGI(TAG, "User check-in successful for user %s.", sanitized_id);
+    ESP_LOGI(TAG, "User check-in successful for user %s.", user_id);
 
     // Delete task when done
     return true;
@@ -313,23 +248,6 @@ bool check_out_user(const char* user_id)
         ESP_LOGE("Check-Out", "Invalid input: user_id is NULL.");
         return false; // Delete task if input is invalid
     }
-
-    // Check for valid user_id (ensure it's not binary garbage)
-    for (size_t i = 0; i < ID_LEN && user_id[i] != '\0'; i++) {
-        if (!isprint((unsigned char)user_id[i])) {
-            ESP_LOGE("Check-Out", "Invalid user_id contains non-printable characters");
-            return false;
-        }
-        // Check if all characters are digits
-        if (!isdigit((unsigned char)user_id[i])) {
-            ESP_LOGE("Check-Out", "Invalid user_id contains non-numeric characters");
-            return false;
-        }
-    }
-
-    // Create a sanitized copy with null termination
-    char sanitized_id[ID_LEN + 1] = {0};
-    strlcpy(sanitized_id, user_id, sizeof(sanitized_id));
 
     // Obtain time from NTP server
     obtain_time();
@@ -355,7 +273,7 @@ bool check_out_user(const char* user_id)
         cJSON_AddStringToObject(activity_log_json, "action", "Check-Out");
         cJSON_AddStringToObject(activity_log_json, "location", KIOSK_LOCATION);  // Replace with actual location
         cJSON_AddStringToObject(activity_log_json, "timestamp", timestamp); // Replace with actual timestamp
-        cJSON_AddStringToObject(activity_log_json, "userId", sanitized_id); // Use sanitized id
+        cJSON_AddStringToObject(activity_log_json, "userId", user_id);
 
         // Convert the JSON object to a string
         char *activity_log_string = cJSON_Print(activity_log_json);
@@ -365,24 +283,15 @@ bool check_out_user(const char* user_id)
             return false;
         }
 
-        // Format the URL with overflow check
-        if (snprintf(url, sizeof(url), "https://scan-9ee0b-default-rtdb.firebaseio.com/activityLog/%s.json", activityLogIndex) >= sizeof(url)) {
-            ESP_LOGE(TAG, "ActivityLog URL too long, buffer overflow prevented");
-            cJSON_Delete(activity_log_json);
-            free(activity_log_string);
-            return false;
-        }
-        
+        // Format the URL
+        snprintf(url, sizeof(url), "https://scan-9ee0b-default-rtdb.firebaseio.com/activityLog/%s.json", activityLogIndex);
         ESP_LOGI(TAG, "ActivityLog URL: %s", url);
         ESP_LOGI(TAG, "Activity Log JSON: %s", activity_log_string);
 
-        // Perform the PUT request with error handling
-        http_code = firebase_https_request_put(url, activity_log_string, strlen(activity_log_string));
-        free(activity_log_string); // Free the string once used
-        cJSON_Delete(activity_log_json); // Clean up JSON object
-        
+        // Perform the PUT request
+        http_code = firebase_https_request_put(url, activity_log_string, sizeof(activity_log_string));
         if (http_code != 200) {
-            ESP_LOGE("Check-Out", "Failed to check-out user %s. HTTP Code: %d", sanitized_id, http_code);
+            ESP_LOGE("Check-Out", "Failed to check-out user %s. HTTP Code: %d", user_id, http_code);
             return false; // Exit the task if any field request fails
         }
 
@@ -391,7 +300,7 @@ bool check_out_user(const char* user_id)
         return false; // Exit the task if user is not active
     }
 
-    ESP_LOGI(TAG, "User check-out successful for user %s.", sanitized_id);
+    ESP_LOGI(TAG, "User check-out successful for user %s.", user_id);
 
     // Delete task when done
     return true;

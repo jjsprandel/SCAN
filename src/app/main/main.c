@@ -1,47 +1,16 @@
 #include "main.h"
-#include <ctype.h>
-
-// Helper function to check for non-printable characters
-static bool is_valid_id_string(const char* str, size_t max_len) {
-    for (size_t i = 0; i < max_len && str[i] != '\0'; i++) {
-        unsigned char c = (unsigned char)str[i];
-        if (!isprint(c)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-// Helper function to check if a string contains only numeric characters
-static bool is_numeric_string(const char* str, size_t max_len) {
-    if (str == NULL) {
-        return false;
-    }
-    
-    if (str[0] == '\0') {
-        return false;
-    }
-    
-    for (size_t i = 0; i < max_len && str[i] != '\0'; i++) {
-        if (!isdigit((unsigned char)str[i])) {
-            return false;
-        }
-    }
-    return true;
-}
 
 static state_t current_state = STATE_WIFI_INIT, prev_state = STATE_ERROR;
 static admin_state_t prev_admin_state_internal = ADMIN_STATE_ERROR;
 
 // Task Handles
-static TaskHandle_t blink_led_task_handle = NULL;
+TaskHandle_t state_control_task_handle = NULL;
 static TaskHandle_t wifi_init_task_handle = NULL;
 static TaskHandle_t ota_update_task_handle = NULL;
-static TaskHandle_t database_task_handle = NULL;
 TaskHandle_t keypad_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
+static TaskHandle_t blink_led_task_handle = NULL;
 TaskHandle_t admin_mode_control_task_handle = NULL;
-TaskHandle_t state_control_task_handle = NULL;
 
 // not static because it is being used in wifi_init.c as extern variable
 SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init completion
@@ -52,6 +21,8 @@ static uint8_t s_led_state = 0;
 static int64_t start_time, end_time;
 
 static led_strip_handle_t led_strip;
+
+extern int usb_connected = 1;
 
 void blink_led_task(void *pvParameter)
 {
@@ -119,6 +90,14 @@ void blink_led_task(void *pvParameter)
         {
             led_strip_clear(led_strip);
         }
+
+        if (usb_connected == 0)
+        {
+            led_strip_set_pixel(led_strip, 0, 50, 75, 60);
+            led_strip_set_pixel(led_strip, 1, 50, 75, 60);
+            led_strip_set_pixel(led_strip, 2, 50, 75, 60);
+        }
+
         led_strip_refresh(led_strip);
         vTaskDelay(250 / portTICK_PERIOD_MS);
     }
@@ -151,6 +130,7 @@ static void configure_led(void)
     led_strip_clear(led_strip);
 }
 
+// Load all display screens into memory
 static void heap_monitor_task(void *pvParameters)
 {
     while (1)
@@ -171,7 +151,6 @@ static void heap_monitor_task(void *pvParameters)
 
 static void create_screens()
 {
-    // Use new UI screens instead of the old display functions
     screen_objects[STATE_IDLE] = ui_screen_idle();
     screen_objects[STATE_USER_DETECTED] = ui_screen_user_detected();
     screen_objects[STATE_CHECK_IN] = ui_screen_check_in_success();
@@ -191,21 +170,55 @@ static void create_screens()
 
 static void display_screen(state_t display_state)
 {
-    if (current_state != STATE_ADMIN_MODE)
+    if (current_state == STATE_ADMIN_MODE)
+    {
+        if (admin_screen_objects[current_admin_state] != NULL)
+        {
+            // Only update the admin screen if it's different from the previous one
+            if (prev_admin_state_internal != current_admin_state)
+            {
+                MAIN_DEBUG_LOG("Displaying admin screen for state %d", current_admin_state);
+
+                // In admin mode, update the user ID or user info if needed
+                if (current_admin_state == ADMIN_STATE_VALIDATE_ID)
+                {
+                    ui_update_user_info(NULL, keypad_buffer.elements);
+                }
+                else if (current_admin_state == ADMIN_STATE_TAP_CARD ||
+                         current_admin_state == ADMIN_STATE_CARD_WRITE_SUCCESS)
+                {
+                    if (user_info != NULL)
+                    {
+                        char full_name[64];
+                        snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
+                        ui_update_user_info(full_name, keypad_buffer.elements);
+                    }
+                }
+
+                _lock_acquire(&lvgl_api_lock);
+                ui_set_screen_transition(admin_screen_objects[current_admin_state], current_admin_state > prev_admin_state);
+                _lock_release(&lvgl_api_lock);
+
+                prev_admin_state_internal = current_admin_state;
+            }
+        }
+    }
+    else
     {
         if (screen_objects[current_state] != NULL)
         {
             MAIN_DEBUG_LOG("Displaying screen for state %d", current_state);
-            
-            // Update user info for screens that need it
-            if (current_state == STATE_CHECK_IN || current_state == STATE_CHECK_OUT) {
-                if (user_info != NULL) {
+
+            if (current_state == STATE_CHECK_IN || current_state == STATE_CHECK_OUT)
+            {
+                if (user_info != NULL)
+                {
                     char full_name[64];
                     snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
                     ui_update_user_info(full_name, user_id);
                 }
             }
-            
+
             _lock_acquire(&lvgl_api_lock);
             ui_set_screen_transition(screen_objects[current_state], current_state > prev_state);
             _lock_release(&lvgl_api_lock);
@@ -215,37 +228,10 @@ static void display_screen(state_t display_state)
             MAIN_ERROR_LOG("Screen object not found for state %d", current_state);
         }
     }
-    else
-    {
-        if (admin_screen_objects[current_admin_state] != NULL)
-        {
-            // Only update the admin screen if it's different from the previous one
-            if (prev_admin_state_internal != current_admin_state) {
-                MAIN_DEBUG_LOG("Displaying admin screen for state %d", current_admin_state);
-                
-                // In admin mode, update the user ID or user info if needed
-                if (current_admin_state == ADMIN_STATE_VALIDATE_ID) {
-                    ui_update_user_info(NULL, keypad_buffer.elements);
-                } else if (current_admin_state == ADMIN_STATE_TAP_CARD || 
-                          current_admin_state == ADMIN_STATE_CARD_WRITE_SUCCESS) {
-                    if (user_info != NULL) {
-                        char full_name[64];
-                        snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
-                        ui_update_user_info(full_name, keypad_buffer.elements);
-                    }
-                }
-                
-                _lock_acquire(&lvgl_api_lock);
-                ui_set_screen_transition(admin_screen_objects[current_admin_state], current_admin_state > prev_admin_state);
-                _lock_release(&lvgl_api_lock);
-                
-                prev_admin_state_internal = current_admin_state;
-            }
-        }
-    }
 }
 
-static void check_task_creation()
+// Check if a task has been successfully created. For debug purposes
+static void check_task_creation(char *taskName, TaskHandle_t taskHandle)
 {
     if (state_control_task_handle == NULL)
     {
@@ -284,7 +270,7 @@ static void check_task_creation()
 // Function to control state transitions and task management
 void state_control_task(void *pvParameter)
 {
-    // char user_id[ID_LEN+1];
+    char user_id[ID_LEN];
     while (1)
     {
         // MAIN_DEBUG_LOG("Free heap size: %lu bytes", (unsigned long)esp_get_free_heap_size());
@@ -323,11 +309,7 @@ void state_control_task(void *pvParameter)
 #ifdef MAIN_DEBUG
             MAIN_DEBUG_LOG("Wi-Fi Initialized. Ready!");
 #endif
-            // if (blink_led_task_handle != NULL)
-            // {
-            //     vTaskDelete(blink_led_task_handle);
-            //     blink_led_task_handle = NULL;
-            // }
+
             /*
                             if (ota_update_task_handle == NULL) {
                                 MAIN_DEBUG_LOG("Creating OTA update task");
@@ -349,7 +331,7 @@ void state_control_task(void *pvParameter)
             }
             break;
         case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
-            char nfcUserID[ID_LEN+1] = {'\0'};
+            char nfcUserID[ID_LEN] = {'\0'};
 
             bool nfcReadFlag = false;
 
@@ -362,36 +344,7 @@ void state_control_task(void *pvParameter)
 #ifdef MAIN_DEBUG
                 MAIN_DEBUG_LOG("User ID entered by %s", nfcReadFlag ? "NFC Transceiver" : "Keypad");
 #endif
-                
-                // Validate the user ID before using it
-                if (nfcReadFlag) {
-                    bool valid_id = true;
-                    for (int i = 0; i < ID_LEN && nfcUserID[i] != '\0'; i++) {
-                        if (!isprint((unsigned char)nfcUserID[i])) {
-                            MAIN_ERROR_LOG("Invalid character in NFC ID at position %d", i);
-                            valid_id = false;
-                            break;
-                        }
-                    }
-                    
-                    if (!valid_id) {
-                        MAIN_ERROR_LOG("Rejecting invalid NFC ID");
-                        current_state = STATE_ERROR;
-                        break;
-                    }
-                } 
-                
                 memcpy(user_id, nfcReadFlag ? nfcUserID : keypad_buffer.elements, ID_LEN);
-                user_id[ID_LEN] = '\0';
-                
-                MAIN_DEBUG_LOG("Processing user ID: %s", user_id);
-                
-                if (!is_numeric_string(user_id, ID_LEN)) {
-                    MAIN_ERROR_LOG("Invalid user ID: '%s'. Contains non-numeric characters", user_id);
-                    current_state = STATE_VALIDATION_FAILURE;
-                    break;
-                }
-                
                 current_state = STATE_DATABASE_VALIDATION;
             }
             break;
@@ -399,7 +352,7 @@ void state_control_task(void *pvParameter)
         case STATE_DATABASE_VALIDATION: // Wait until validation is complete
 #ifdef DATABASE_QUERY_ENABLED
             if (!get_user_info(user_id))
-            {
+            { // 1314151617
                 MAIN_ERROR_LOG("Invalid user detected");
                 current_state = STATE_VALIDATION_FAILURE;
                 break;
@@ -426,25 +379,22 @@ void state_control_task(void *pvParameter)
             MAIN_DEBUG_LOG("Entering Admin Mode");
             xTaskNotifyGive(keypad_task_handle);
             xTaskNotifyGive(admin_mode_control_task_handle);
-            vTaskDelay(pdMS_TO_TICKS(5000));
             current_state = STATE_ADMIN_MODE;
 #endif
             break;
-
         case STATE_CHECK_IN:
             log_elapsed_time("check in authentication");
             MAIN_DEBUG_LOG("ID %s found in database. Checking in.", user_id);
-            vTaskDelay(pdMS_TO_TICKS(5000));
+            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
+            current_state = STATE_IDLE;
             current_state = STATE_IDLE;
             break;
-
         case STATE_CHECK_OUT:
             log_elapsed_time("check out authentication");
             MAIN_DEBUG_LOG("ID %s found in database. Checking out.", user_id);
-            vTaskDelay(pdMS_TO_TICKS(5000));
+            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
             current_state = STATE_IDLE;
             break;
-
         case STATE_ADMIN_MODE:
             BaseType_t adminNotify = ulTaskNotifyTake(pdTRUE, 0);
 
@@ -454,16 +404,15 @@ void state_control_task(void *pvParameter)
                 current_state = STATE_IDLE;
             }
             break;
-
         case STATE_VALIDATION_FAILURE:
 #ifdef MAIN_DEBUG
-            MAIN_DEBUG_LOG("ID '%s' not found in database. Try again.", user_id);
+            MAIN_DEBUG_LOG("ID %s not found in database. Try again.", user_id);
 #endif
-            vTaskDelay(pdMS_TO_TICKS(5000));
+            vTaskDelay(pdMS_TO_TICKS(2000)); // Display result for 5 seconds
             current_state = STATE_USER_DETECTED;
             break;
-
         case STATE_ERROR:
+            // Handle error state - for now just stopping all tasks
             if (wifi_init_task_handle != NULL)
             {
                 vTaskDelete(wifi_init_task_handle);
@@ -475,8 +424,6 @@ void state_control_task(void *pvParameter)
                 blink_led_task_handle = NULL;
             }
             MAIN_ERROR_LOG("Error state reached!");
-            vTaskDelay(pdMS_TO_TICKS(5000));
-            current_state = STATE_IDLE;
             break;
 
         default:
@@ -558,7 +505,6 @@ void app_main(void)
     xTaskCreate(heap_monitor_task, "HeapMonitor", MONITOR_TASK_STACK_SIZE, NULL, 1, NULL);
 #endif
 
-    ui_init();
     create_screens();
 
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
@@ -567,7 +513,9 @@ void app_main(void)
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
 
 #ifdef MAIN_DEBUG
-    check_task_creation();
+    check_task_creation("State control", state_control_task_handle);
+    check_task_creation("Keypad", keypad_task_handle);
+    check_task_creation("LVGL", lvgl_port_task_handle);
 #endif
 
     while (1)
