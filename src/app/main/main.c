@@ -232,9 +232,7 @@ void state_control_task(void *pvParameter)
         case STATE_IDLE: // Wait until proximity is detected
             if (gpio_get_level(PIR_GPIO))
             {
-#ifdef MAIN_DEBUG
                 MAIN_DEBUG_LOG("Proximity Detected");
-#endif
                 clear_buffer();
                 xTaskNotify(state_control_task_handle, 0, eSetValueWithOverwrite);
                 current_state = STATE_USER_DETECTED;
@@ -403,15 +401,15 @@ void app_main(void)
     /* Configure the peripheral according to the LED type */
 
     // GPIO config
-    gpio_config(&cypd3177_intr_config);
+    // gpio_config(&cypd3177_intr_config);
 
     // Install the ISR service and attach handlers
-    gpio_install_isr_service(0);
+    // gpio_install_isr_service(0);
     // gpio_isr_handler_add(CYPD3177_INTR_PIN, cypd3177_isr_handler, NULL);
 
     // Initialize I2C bus
     i2c_master_init(&master_handle);
-    i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
+    // i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
     i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
     ESP_LOGI(TAG, "I2C initialized successfully");
 
@@ -421,6 +419,7 @@ void app_main(void)
     nfc_init();
     buzzer_init();
     configure_led();
+    sensor_init();
 
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();

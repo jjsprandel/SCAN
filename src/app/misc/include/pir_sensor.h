@@ -10,4 +10,5 @@
 #endif
 
 void sensor_init();
+
 #endif // PIR_H

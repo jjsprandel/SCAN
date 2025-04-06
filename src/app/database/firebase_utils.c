@@ -163,11 +163,10 @@ bool get_user_info(const char* user_id)
     // cJSON *lastCheckInId_json = cJSON_GetObjectItem(json, "lastCheckInId");
     // cJSON *lastCheckOutId_json= cJSON_GetObjectItem(json, "lastCheckOutId");
     // cJSON *location_json = cJSON_GetObjectItem(json, "location");
-    cJSON *passkey_json = cJSON_GetObjectItem(json, "passkey");
     cJSON *role_json = cJSON_GetObjectItem(json, "role");
 
     // Check if the fields exist in the JSON response
-    if (activeStudent_json == NULL || checkInStatus_json == NULL || firstName_json == NULL || lastName_json == NULL || passkey_json == NULL || role_json == NULL) {
+    if (activeStudent_json == NULL || checkInStatus_json == NULL || firstName_json == NULL || lastName_json == NULL || role_json == NULL) {
         ESP_LOGE(TAG, "Required fields not found in JSON response");
         cJSON_Delete(json); // Clean up JSON object
         return false; // Exit the task if any field is missing
@@ -180,7 +179,6 @@ bool get_user_info(const char* user_id)
     strncpy(user_info->last_name, cJSON_GetStringValue(lastName_json), sizeof(user_info->last_name) - 1);
     // strncpy(user_info->location, cJSON_GetStringValue(location_json), sizeof(user_info->location) - 1);
     strncpy(user_info->role, cJSON_GetStringValue(role_json), sizeof(user_info->role) - 1);
-    strncpy(user_info->passkey, cJSON_GetStringValue(passkey_json), sizeof(user_info->passkey) - 1);
 
     // Ensure NULL termination
     // user_info->location[sizeof(user_info->location) - 1] = '\0'; // Ensure null termination
@@ -189,7 +187,6 @@ bool get_user_info(const char* user_id)
     user_info->first_name[sizeof(user_info->first_name) - 1] = '\0'; // Ensure null termination
     user_info->last_name[sizeof(user_info->last_name) - 1] = '\0'; // Ensure null termination
     user_info->role[sizeof(user_info->role) - 1] = '\0'; // Ensure null termination
-    user_info->passkey[sizeof(user_info->passkey) - 1] = '\0'; // Ensure null termination
 
     // Print user information
     ESP_LOGI(TAG, "user_info.active_student: %s", user_info->active_student);
@@ -198,7 +195,6 @@ bool get_user_info(const char* user_id)
     ESP_LOGI(TAG, "user_info.last_name: %s", user_info->last_name);
     ESP_LOGI(TAG, "user_info.location: %s", user_info->location);
     ESP_LOGI(TAG, "user_info.role: %s", user_info->role);
-    ESP_LOGI(TAG, "user_info.passkey: %s", user_info->passkey);
 
     return true;
 }
