@@ -232,7 +232,7 @@ bool check_in_user(const char* user_id)
     obtain_time();
 
     char url[256];
-    char response_buffer[1024 + 1];
+    // char response_buffer[1024 + 1];
     int http_code;
 
     if (strcmp(user_info->active_student, "Yes") == 0)
@@ -322,7 +322,7 @@ bool check_out_user(const char* user_id)
     obtain_time();
 
     char url[256];
-    char response_buffer[1024 + 1];
+    // char response_buffer[1024 + 1];
     int http_code;
 
     if (strcmp(user_info->active_student, "Yes") == 0)
