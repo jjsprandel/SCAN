@@ -4,7 +4,7 @@
 #include "pn532.h"
 #include <esp_log.h>
 #include <esp_log_buffer.h>
-// #define USING_MAIN_PCB
+#define USING_MAIN_PCB
 
 // SPI Pin Configuration
 #ifdef USING_MAIN_PCB

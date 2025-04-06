@@ -19,7 +19,8 @@
         "i2c_master.h": "c",
         "esp_event.h": "c",
         "main.h": "c",
-        "err.h": "c"
+        "err.h": "c",
+        "esp_log.h": "c"
     },
     "idf.pythonInstallPath": "/usr/bin/python3",
 }

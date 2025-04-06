@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include "esp_log.h"
 #include "driver/i2c_master.h"
-// #define USING_MAIN_PCB
+#define USING_MAIN_PCB
 
 #ifdef USING_MAIN_PCB
     #define I2C_SDA_PIN                 GPIO_NUM_4

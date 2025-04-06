@@ -23,7 +23,7 @@
 #define KEYPAD_DEBUG 1
 
 #define ID_LEN 10
-// #define USING_MAIN_PCB
+#define USING_MAIN_PCB
 
 #ifdef USING_MAIN_PCB
     #define KEYPAD_I2C_SDA GPIO_NUM_4
