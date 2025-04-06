@@ -39,7 +39,7 @@
 #define MONITOR_TASK_PRIORITY 5      // Task priority
 #define MAIN_HEAP_DEBUG 1
 #define DATABASE_QUERY_ENABLED 1
-#define USING_MAIN_PCB 1
+// #define USING_MAIN_PCB 1
 
 #ifdef MAIN_DEBUG
 #define MAIN_DEBUG_LOG(fmt, ...)           \

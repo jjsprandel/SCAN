@@ -14,7 +14,12 @@
         "board/esp32c6-builtin.cfg"
     ],
     "files.associations": {
-        "cstdint": "c"
+        "cstdint": "c",
+        "pn532.h": "c",
+        "i2c_master.h": "c",
+        "esp_event.h": "c",
+        "main.h": "c",
+        "err.h": "c"
     },
     "idf.pythonInstallPath": "/usr/bin/python3",
 }

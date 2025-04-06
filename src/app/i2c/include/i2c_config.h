@@ -5,12 +5,16 @@
 #include <stdint.h>
 #include "esp_log.h"
 #include "driver/i2c_master.h"
+// #define USING_MAIN_PCB
 
-
+#ifdef USING_MAIN_PCB
+    #define I2C_SDA_PIN                 GPIO_NUM_4
+    #define I2C_SCL_PIN                 GPIO_NUM_5
+#else
+    #define I2C_SCL_PIN                 GPIO_NUM_0
+    #define I2C_SDA_PIN                 GPIO_NUM_1
+#endif
 #define I2C_MASTER_NUM              I2C_NUM_0
-
-#define I2C_SDA_PIN                 GPIO_NUM_4
-#define I2C_SCL_PIN                 GPIO_NUM_5
 #define I2C_CLK_SRC                 I2C_CLK_SRC_DEFAULT
 #define I2C_GLITCH_IGNORE_CNT       7
 #define I2C_MASTER_FREQ_HZ          100000 // standard mode; limited by max SCL speed for PCF8574

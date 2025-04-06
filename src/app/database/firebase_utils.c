@@ -63,7 +63,8 @@ void obtain_time(void) {
     struct tm timeinfo = { 0 };
     int retry = 0;
     const int retry_count = 10;
-    while (timeinfo.tm_year < (2016 - 1900) && ++retry < retry_count) {
+    // while (timeinfo.tm_year < (2016 - 1900) && ++retry < retry_count)
+    while (timeinfo.tm_year < (2016 - 1900)) {
         ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
         vTaskDelay(2000 / portTICK_PERIOD_MS);
         time(&now);
@@ -104,14 +105,14 @@ bool get_user_info(const char* user_id)
         return false; // Delete task if input is invalid
     }
 
-    // Obtain time from NTP server
-    obtain_time();
+    // // Obtain time from NTP server
+    // obtain_time();
 
     char url[256];
     char response_buffer[1024 + 1];
     int http_code;
 
-    ESP_LOGI(TAG, "dre 1");
+    // ESP_LOGI(TAG, "dre 1");
     snprintf(url, sizeof(url), "https://scan-9ee0b-default-rtdb.firebaseio.com/users/%s.json", user_id);
     http_code = firebase_https_request_get(url, response_buffer, sizeof(response_buffer));
 
@@ -184,8 +185,8 @@ bool check_in_user(const char* user_id)
         return false; // Delete task if input is invalid
     }
 
-    // Obtain time from NTP server
-    obtain_time();
+    // // Obtain time from NTP server
+    // obtain_time();
 
     char url[256];
     char response_buffer[1024 + 1];
@@ -249,8 +250,8 @@ bool check_out_user(const char* user_id)
         return false; // Delete task if input is invalid
     }
 
-    // Obtain time from NTP server
-    obtain_time();
+    // // Obtain time from NTP server
+    // obtain_time();
 
     char url[256];
     char response_buffer[1024 + 1];
