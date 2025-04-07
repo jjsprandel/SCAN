@@ -1,20 +1,22 @@
 #ifndef UI_SCREENS_H
 #define UI_SCREENS_H
 
-#include "lvgl.h"
 #include "ui_styles.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "ui_assets.h"
+#include "string.h"
+#include "lvgl.h"
 
 // Initialize all UI components
 void ui_init(void);
 
 // Update user information on screens
-void ui_update_user_info(const char* name, const char* id);
+void ui_update_user_info(const char *name, const char *id);
 
 // Main state screens
+lv_obj_t *ui_screen_hardware_init(void);
+lv_obj_t *ui_screen_wifi_connecting(void);
+lv_obj_t *ui_screen_software_init(void);
+lv_obj_t *ui_screen_system_ready(void);
 lv_obj_t *ui_screen_idle(void);
 lv_obj_t *ui_screen_user_detected(void);
 lv_obj_t *ui_screen_database_validation(void);
@@ -32,8 +34,4 @@ lv_obj_t *ui_screen_id_enter_error(void);
 lv_obj_t *ui_screen_card_write_error(void);
 lv_obj_t *ui_screen_admin_error(void);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif // UI_SCREENS_H 
+#endif // UI_SCREENS_H

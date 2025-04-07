@@ -135,11 +135,15 @@ static void heap_monitor_task(void *pvParameters)
 
 static void create_screens()
 {
+    screen_objects[STATE_HARDWARE_INIT] = ui_screen_hardware_init();
+    screen_objects[STATE_WIFI_CONNECTING] = ui_screen_wifi_connecting();
+    screen_objects[STATE_SOFTWARE_INIT] = ui_screen_software_init();
+    screen_objects[STATE_SYSTEM_READY] = ui_screen_system_ready();
     screen_objects[STATE_IDLE] = ui_screen_idle();
     screen_objects[STATE_USER_DETECTED] = ui_screen_user_detected();
+    screen_objects[STATE_DATABASE_VALIDATION] = ui_screen_database_validation();
     screen_objects[STATE_CHECK_IN] = ui_screen_check_in_success();
     screen_objects[STATE_CHECK_OUT] = ui_screen_check_out_success();
-    screen_objects[STATE_DATABASE_VALIDATION] = ui_screen_database_validation();
     screen_objects[STATE_VALIDATION_FAILURE] = ui_screen_validation_failure();
     screen_objects[STATE_ERROR] = ui_screen_error();
 
@@ -181,7 +185,7 @@ static void display_screen(state_t display_state)
                 }
 
                 _lock_acquire(&lvgl_api_lock);
-                ui_set_screen_transition(admin_screen_objects[current_admin_state], current_admin_state > prev_admin_state);
+                ui_set_screen_transition(admin_screen_objects[current_admin_state]);
                 _lock_release(&lvgl_api_lock);
 
                 prev_admin_state_internal = current_admin_state;
@@ -205,7 +209,7 @@ static void display_screen(state_t display_state)
             }
 
             _lock_acquire(&lvgl_api_lock);
-            ui_set_screen_transition(screen_objects[current_state], current_state > prev_state);
+            ui_set_screen_transition(screen_objects[current_state]);
             _lock_release(&lvgl_api_lock);
         }
         else
@@ -256,7 +260,7 @@ static void check_task_creation(char *taskName, TaskHandle_t taskHandle)
 void state_control_task(void *pvParameter)
 {
     char user_id[ID_LEN];
-    while (1) 
+    while (1)
     {
         switch (current_state)
         {
@@ -299,12 +303,12 @@ void state_control_task(void *pvParameter)
         case STATE_SOFTWARE_INIT:
             // Initialize software services that need WiFi
             ESP_LOGI(TAG, "Starting software initialization. Free heap: %lu bytes", esp_get_free_heap_size());
-            
+
             // Initialize MQTT first
             ESP_LOGI(TAG, "Initializing MQTT...");
             mqtt_init();
             ESP_LOGI(TAG, "MQTT initialized. Free heap: %lu bytes", esp_get_free_heap_size());
-            
+
             // Stop Wi-Fi task when ready
             if (wifi_init_task_handle != NULL)
             {
@@ -490,6 +494,52 @@ static void teardown_tasks()
     }
 }
 
+void display_test_task(void *pvParameter)
+{
+    while (1)
+    {
+        // First cycle through main states
+        for (state_t test_state = STATE_HARDWARE_INIT; test_state <= STATE_ERROR; test_state++)
+        {
+            current_state = test_state;
+            if (screen_objects[current_state] != NULL)
+            {
+                ESP_LOGI(TAG, "Testing state: %d", test_state);
+                _lock_acquire(&lvgl_api_lock);
+                ui_set_screen_transition(screen_objects[current_state]);
+                _lock_release(&lvgl_api_lock);
+            }
+            else
+            {
+                ESP_LOGI(TAG, "Screen does not exist for state %d", test_state);
+            }
+            vTaskDelay(pdMS_TO_TICKS(5000)); // Wait 5 seconds
+        }
+
+        // Then cycle through admin states
+        for (admin_state_t test_admin_state = ADMIN_STATE_BEGIN; test_admin_state <= ADMIN_STATE_ERROR; test_admin_state++)
+        {
+            current_admin_state = test_admin_state;
+            if (admin_screen_objects[current_admin_state] != NULL)
+            {
+                ESP_LOGI(TAG, "Testing admin state: %d", test_admin_state);
+                _lock_acquire(&lvgl_api_lock);
+                ui_set_screen_transition(admin_screen_objects[current_admin_state]);
+                _lock_release(&lvgl_api_lock);
+            }
+            else
+            {
+                ESP_LOGI(TAG, "Screen does not exist for admin state %d", current_admin_state);
+            }
+            vTaskDelay(pdMS_TO_TICKS(5000)); // Wait 5 seconds
+        }
+
+        // Return to idle state
+        current_state = STATE_IDLE;
+        current_admin_state = ADMIN_STATE_BEGIN;
+    }
+}
+
 void app_main(void)
 {
     MAIN_DEBUG_LOG("App Main Start");
@@ -512,10 +562,10 @@ void app_main(void)
 
     // GPIO config
     gpio_config(&cypd3177_intr_config);
-    
+
     // Install the ISR service and attach handlers
     gpio_install_isr_service(0);
-    
+
     // Initialize I2C bus
     i2c_master_init(&master_handle);
     i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
@@ -527,16 +577,16 @@ void app_main(void)
 
     // Initialize hardware components that don't need WiFi
     ESP_LOGI(TAG, "Starting hardware initialization. Free heap: %lu bytes", esp_get_free_heap_size());
-    
+
     configure_led();
     ESP_LOGI(TAG, "LED configured. Free heap: %lu bytes", esp_get_free_heap_size());
-    
+
     gc9a01_init();
     ESP_LOGI(TAG, "Display initialized. Free heap: %lu bytes", esp_get_free_heap_size());
-    
+
     nfc_init();
     ESP_LOGI(TAG, "NFC initialized. Free heap: %lu bytes", esp_get_free_heap_size());
-    
+
     buzzer_init();
     ESP_LOGI(TAG, "Buzzer initialized. Free heap: %lu bytes", esp_get_free_heap_size());
 
@@ -554,18 +604,21 @@ void app_main(void)
 
     // Create tasks with increased stack sizes and priorities
     ESP_LOGI(TAG, "Creating tasks...");
-    xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
-    xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
+    // xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
+    // xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
-    xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
+    // xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
 
     ESP_LOGI(TAG, "Free heap after task creation: %lu bytes", esp_get_free_heap_size());
 
-#ifdef MAIN_DEBUG
-    check_task_creation("State control", state_control_task_handle);
-    check_task_creation("Keypad", keypad_task_handle);
-    check_task_creation("LVGL", lvgl_port_task_handle);
-#endif
+    // #ifdef MAIN_DEBUG
+    //     check_task_creation("State control", state_control_task_handle);
+    //     check_task_creation("Keypad", keypad_task_handle);
+    //     check_task_creation("LVGL", lvgl_port_task_handle);
+    // #endif
+
+    // Create display test task
+    xTaskCreate(display_test_task, "display_test", 4096, NULL, 5, NULL);
 
     while (1)
     {
