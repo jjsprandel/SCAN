@@ -1,13 +1,16 @@
 #include "main.h"
+#include "global.h"
 
-static state_t current_state = STATE_WIFI_INIT, prev_state = STATE_ERROR;
+// State variables
+static state_t current_state = STATE_HARDWARE_INIT, prev_state = STATE_ERROR;
 static admin_state_t prev_admin_state_internal = ADMIN_STATE_ERROR;
 
 // Task Handles
 TaskHandle_t state_control_task_handle = NULL;
 static TaskHandle_t wifi_init_task_handle = NULL;
-static TaskHandle_t ota_update_task_handle = NULL;
+TaskHandle_t ota_update_task_handle = NULL;
 TaskHandle_t keypad_task_handle = NULL;
+extern TaskHandle_t cypd3177_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
 static TaskHandle_t blink_led_task_handle = NULL;
 TaskHandle_t admin_mode_control_task_handle = NULL;
@@ -30,33 +33,14 @@ void blink_led_task(void *pvParameter)
     {
         s_led_state = !s_led_state;
 
-        // if (current_state == STATE_WIFI_INIT)
-        // {
-        //     vTaskDelay(200 / portTICK_PERIOD_MS);
-        // }
-        // else
-        // {
-        //     vTaskDelay(1200 / portTICK_PERIOD_MS);
-        // }
-
         /* If the addressable LED is enabled */
-        if (s_led_state && current_state == STATE_WIFI_INIT)
+        if (s_led_state && current_state == STATE_WIFI_CONNECTING)
         {
             /* Set the LED pixel using RGB from 0 (0%) to 255 (100%) for each color */
-            // if (current_state == STATE_WIFI_INIT)
-            // {
             for (int i = 0; i < NUM_LEDS; i++)
             {
                 led_strip_set_pixel(led_strip, i, 100, 0, 0);
             }
-            // }
-            // else
-            // {
-            //     for (int i = 0; i < NUM_LEDS; i++)
-            //     {
-            //         led_strip_set_pixel(led_strip, i, 0, 0, 50);
-            //     }
-            // }
             /* Refresh the strip to send data */
             led_strip_refresh(led_strip);
         }
@@ -168,6 +152,7 @@ static void create_screens()
     admin_screen_objects[ADMIN_STATE_ERROR] = ui_screen_admin_error();
 }
 
+// Load screen onto display as a function of current state
 static void display_screen(state_t display_state)
 {
     if (current_state == STATE_ADMIN_MODE)
@@ -271,54 +256,84 @@ static void check_task_creation(char *taskName, TaskHandle_t taskHandle)
 void state_control_task(void *pvParameter)
 {
     char user_id[ID_LEN];
-    while (1)
+    while (1) 
     {
-        // MAIN_DEBUG_LOG("Free heap size: %lu bytes", (unsigned long)esp_get_free_heap_size());
         switch (current_state)
         {
-        case STATE_WIFI_INIT:
-            // Start Wi-Fi init task if not already started
-            if (wifi_init_task_handle == NULL)
-            {
-                MAIN_DEBUG_LOG("Starting Wi-Fi Init Task");
-                xTaskCreate(wifi_init_task, "wifi_init_task", 4096, NULL, 4, &wifi_init_task_handle);
-            }
-
-            // Start LED blinking task if not already running
+        case STATE_HARDWARE_INIT:
+            // Hardware is already initialized in app_main
+            // Just start LED blinking task if not already running
             if (blink_led_task_handle == NULL)
             {
                 MAIN_DEBUG_LOG("Starting Blink LED Task");
                 xTaskCreate(blink_led_task, "blink_led_task", 1024, NULL, 2, &blink_led_task_handle);
             }
 
+            // Move to WiFi connecting state
+            current_state = STATE_WIFI_CONNECTING;
+            break;
+
+        case STATE_WIFI_CONNECTING:
+            // Start Wi-Fi init task if not already started
+            if (wifi_init_task_handle == NULL)
+            {
+                ESP_LOGI(TAG, "Starting Wi-Fi Init Task. Free heap: %lu bytes", esp_get_free_heap_size());
+                BaseType_t xReturned = xTaskCreate(wifi_init_task, "wifi_init_task", 8192, NULL, 4, &wifi_init_task_handle);
+                if (xReturned != pdPASS)
+                {
+                    ESP_LOGE(TAG, "Failed to create WiFi task!");
+                    current_state = STATE_ERROR;
+                    break;
+                }
+                ESP_LOGI(TAG, "WiFi task created successfully");
+            }
+
             // Check if Wi-Fi init is completed (signaled by semaphore)
             if (xSemaphoreTake(wifi_init_semaphore, portMAX_DELAY) == pdTRUE)
             {
-                current_state = STATE_WIFI_READY; // Transition state outside of the task
+                ESP_LOGI(TAG, "WiFi initialization completed");
+                current_state = STATE_SOFTWARE_INIT;
             }
-
             break;
 
-        case STATE_WIFI_READY:
+        case STATE_SOFTWARE_INIT:
+            // Initialize software services that need WiFi
+            ESP_LOGI(TAG, "Starting software initialization. Free heap: %lu bytes", esp_get_free_heap_size());
+            
+            // Initialize MQTT first
+            ESP_LOGI(TAG, "Initializing MQTT...");
+            mqtt_init();
+            ESP_LOGI(TAG, "MQTT initialized. Free heap: %lu bytes", esp_get_free_heap_size());
+            
             // Stop Wi-Fi task when ready
             if (wifi_init_task_handle != NULL)
             {
+                ESP_LOGI(TAG, "Stopping WiFi task...");
                 vTaskDelete(wifi_init_task_handle);
                 wifi_init_task_handle = NULL;
+                ESP_LOGI(TAG, "WiFi task stopped. Free heap: %lu bytes", esp_get_free_heap_size());
             }
-#ifdef MAIN_DEBUG
-            MAIN_DEBUG_LOG("Wi-Fi Initialized. Ready!");
-#endif
+            else
+            {
+                ESP_LOGI(TAG, "WiFi task handle is NULL");
+            }
 
             /*
-                            if (ota_update_task_handle == NULL) {
-                                MAIN_DEBUG_LOG("Creating OTA update task");
-                                xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 4, NULL, 8, &ota_update_task_handle);
-                            }
+            if (ota_update_task_handle == NULL) {
+                MAIN_DEBUG_LOG("Creating OTA update task");
+                xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 4, NULL, 8, &ota_update_task_handle);
+            }
             */
 
+            MAIN_DEBUG_LOG("Software services initialized");
+            current_state = STATE_SYSTEM_READY;
+            break;
+
+        case STATE_SYSTEM_READY:
+            MAIN_DEBUG_LOG("System fully initialized");
             current_state = STATE_IDLE;
             break;
+
         case STATE_IDLE: // Wait until proximity is detected
             if (gpio_get_level(PIR_GPIO))
             {
@@ -432,6 +447,7 @@ void state_control_task(void *pvParameter)
         }
         if ((current_state != prev_state) || current_state == STATE_ADMIN_MODE)
         {
+            play_kiosk_buzzer(current_state);
             display_screen(current_state);
             prev_state = current_state;
         }
@@ -477,40 +493,73 @@ static void teardown_tasks()
 void app_main(void)
 {
     MAIN_DEBUG_LOG("App Main Start");
+    ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
+
+    // Initialize device info
+    init_device_info();
 
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {
-        // 1.OTA app partition table has a smaller NVS partition size than the non-OTA
-        // partition table. This size mismatch may cause NVS initialization to fail.
-        // 2.NVS partition contains data in new format and cannot be recognized by this version of code.
-        // If this happens, we erase NVS partition and initialize NVS again.
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
 
-    // Initialize peripherals
-    i2c_master_init();
-    configure_led();
-    gc9a01_init();
-    nfc_init();
-    configure_led();
+    // Log initial heap size
+    ESP_LOGI(TAG, "Initial free heap: %lu bytes", esp_get_free_heap_size());
+
+    // GPIO config
+    gpio_config(&cypd3177_intr_config);
+    
+    // Install the ISR service and attach handlers
+    gpio_install_isr_service(0);
+    
+    // Initialize I2C bus
+    i2c_master_init(&master_handle);
+    i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
+    i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
+    ESP_LOGI(TAG, "I2C initialized successfully");
 
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
+
+    // Initialize hardware components that don't need WiFi
+    ESP_LOGI(TAG, "Starting hardware initialization. Free heap: %lu bytes", esp_get_free_heap_size());
+    
+    configure_led();
+    ESP_LOGI(TAG, "LED configured. Free heap: %lu bytes", esp_get_free_heap_size());
+    
+    gc9a01_init();
+    ESP_LOGI(TAG, "Display initialized. Free heap: %lu bytes", esp_get_free_heap_size());
+    
+    nfc_init();
+    ESP_LOGI(TAG, "NFC initialized. Free heap: %lu bytes", esp_get_free_heap_size());
+    
+    buzzer_init();
+    ESP_LOGI(TAG, "Buzzer initialized. Free heap: %lu bytes", esp_get_free_heap_size());
+
+    // Log heap size before screen creation
+    ESP_LOGI(TAG, "Free heap before screen creation: %lu bytes", esp_get_free_heap_size());
+
+    // Create screens with memory monitoring
+    ESP_LOGI(TAG, "Creating display screens...");
+    create_screens();
+    ESP_LOGI(TAG, "Free heap after screen creation: %lu bytes", esp_get_free_heap_size());
 
 #ifdef MAIN_HEAP_DEBUG
     xTaskCreate(heap_monitor_task, "HeapMonitor", MONITOR_TASK_STACK_SIZE, NULL, 1, NULL);
 #endif
 
-    create_screens();
-
+    // Create tasks with increased stack sizes and priorities
+    ESP_LOGI(TAG, "Creating tasks...");
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
+
+    ESP_LOGI(TAG, "Free heap after task creation: %lu bytes", esp_get_free_heap_size());
 
 #ifdef MAIN_DEBUG
     check_task_creation("State control", state_control_task_handle);

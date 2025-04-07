@@ -2,8 +2,10 @@
     "configurations": [
         {
             "name": "ESP32",
-            "compilerPath": "/usr/bin/gcc",
+            "compilerPath": "${config:idf.toolsPath}/tools/riscv32-esp-elf/esp-14.2.0_20241119/riscv32-esp-elf/bin/riscv32-esp-elf-gcc",
             "includePath": [
+                "${workspaceFolder}/src/app/**/include",
+                "${workspaceFolder}/src/app/device_drivers/**/include",
                 "${workspaceFolder}/**",
                 "/opt/esp/idf/components/**",
                 "/opt/esp/idf//tools/cmake/**",

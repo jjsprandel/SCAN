@@ -1,3 +1,4 @@
+// ESP-IDF header files
 #include <stdio.h>
 #include <ctype.h>
 #include "freertos/FreeRTOS.h"
@@ -12,18 +13,24 @@
 #include "led_strip.h"
 #include "sdkconfig.h"
 #include "nvs_flash.h"
+
+// project component header files
 #include "wifi_init.h"
 #include "ota.h"
 #include "firebase_http_client.h"
-#include "pir.h"
-#include "firebase_utils.h"
-#include "ntag_reader.h"
-#include "esp_timer.h"
+#include "display_config.h"
 #include "ui_screens.h"
 #include "ui_styles.h"
+#include "pir_sensor.h"
+#include "state_enum.h"
+#include "status_buzzer.h"
 #include "admin_mode.h"
-#include "keypad_driver.h"
-#include "display_config.h"
+#include "esp_timer.h"
+#include "mqtt.h"
+
+#include "i2c_config.h"
+#include "cypd3177.h"
+#include "pcf8574n.h"
 
 #define ID_LEN 10
 #define BLINK_GPIO 8
@@ -34,6 +41,8 @@
 #define MONITOR_TASK_PRIORITY 5      // Task priority
 #define MAIN_HEAP_DEBUG 1
 #define DATABASE_QUERY_ENABLED 1
+#define USING_MAIN_PCB 1
+
 #ifdef MAIN_DEBUG
 #define MAIN_DEBUG_LOG(fmt, ...)           \
     do                                     \
@@ -54,20 +63,6 @@
 #define MAIN_ERROR_LOG(fmt, ...) ((void)0)
 #endif
 
-typedef enum
-{
-    STATE_WIFI_INIT,
-    STATE_WIFI_READY,
-    STATE_IDLE,
-    STATE_USER_DETECTED,
-    STATE_DATABASE_VALIDATION,
-    STATE_CHECK_IN,
-    STATE_CHECK_OUT,
-    STATE_ADMIN_MODE,
-    STATE_VALIDATION_FAILURE,
-    STATE_ERROR
-} state_t;
-
 pn532_t nfc;           // Defined in ntag_reader.h
 _lock_t lvgl_api_lock; // Defined in display_config.h
 lv_display_t *display; // Defined in display_config.h
@@ -76,10 +71,12 @@ lv_obj_t *admin_screen_objects[ADMIN_STATE_ERROR + 1] = {NULL};
 
 extern TaskHandle_t state_control_task_handle;
 extern TaskHandle_t admin_mode_control_task_handle;
-extern TaskHandle_t keypad_task_handle;
+extern TaskHandle_t cypd3177_task_handle;
 extern admin_state_t current_admin_state, prev_admin_state;
 
-char user_id[ID_LEN + 1];
+extern int usb_connected;
+
+char user_id[ID_LEN+1];
 void state_control_task(void *pvParameter);
 void blink_led_1_task(void *pvParameter);
 void blink_led_2_task(void *pvParameter);

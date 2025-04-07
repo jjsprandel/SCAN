@@ -1,4 +1,4 @@
-#include "pir.h"
+#include "pir_sensor.h"
 
 void sensor_init()
 {

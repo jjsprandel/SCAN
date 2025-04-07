@@ -3,17 +3,18 @@
     "idf.flashType": "UART",
     "idf.enableCCache": true,
     "idf.saveBeforeBuild": true,
+
+    "idf.pythonInstallPath": "/usr/bin/python3",
+    "idf.customExtraVars": {
+        "OPENOCD_SCRIPTS": "/opt/esp/tools/openocd-esp32/v0.12.0-esp32-20241016/openocd-esp32/share/openocd/scripts",
+        "ESP_ROM_ELF_DIR": "/opt/esp/tools/esp-rom-elfs/20241011/",
+        "IDF_TARGET": "esp32c6"
+    },
+    "idf.openOcdConfigs": [
+        "board/esp32c6-builtin.cfg"
+    ],
     "files.associations": {
-        "esp_efuse.h": "c",
-        "wifi_init.h": "c",
-        "event_groups.h": "c",
-        "string.h": "c",
-        "sdkconfig.h": "c",
-        "stdio.h": "c",
-        "semphr.h": "c",
-        "firebase_http_client.h": "c",
-        "firebase_utils.h": "c",
-        "cjson_utils.h": "c"
+        "cstdint": "c"
     },
     "idf.pythonInstallPath": "/usr/bin/python3",
 }
