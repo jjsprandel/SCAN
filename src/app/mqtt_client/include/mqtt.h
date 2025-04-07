@@ -21,6 +21,7 @@
 
 void mqtt_init(void);
 void mqtt_start_ping_task(void);
+void mqtt_publish_status(const char *status);
 
 #endif // MQTT_H
 

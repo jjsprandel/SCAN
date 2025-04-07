@@ -29,6 +29,7 @@
 
 #include "i2c_config.h"
 #include "cypd3177.h"
+#include "bq25798.h"
 #include "pcf8574n.h"
 
 #define ID_LEN 10

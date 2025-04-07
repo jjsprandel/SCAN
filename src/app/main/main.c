@@ -1,6 +1,7 @@
 #include "main.h"
 #include "global.h"
 
+
 static state_t current_state = STATE_HARDWARE_INIT, prev_state = STATE_ERROR;
 
 // Task Handles
@@ -282,23 +283,14 @@ void state_control_task(void *pvParameter)
             mqtt_init();
             ESP_LOGI(TAG, "MQTT initialized. Free heap: %lu bytes", esp_get_free_heap_size());
             
+            // Publish connected status
+            mqtt_publish_status("connected");
+            ESP_LOGI(TAG, "Published connected status");
+            
             // Start MQTT ping task
             ESP_LOGI(TAG, "Starting MQTT ping task...");
             mqtt_start_ping_task();
             ESP_LOGI(TAG, "MQTT ping task started. Free heap: %lu bytes", esp_get_free_heap_size());
-            
-            // Stop Wi-Fi task when ready
-            if (wifi_init_task_handle != NULL)
-            {
-                ESP_LOGI(TAG, "Stopping WiFi task...");
-                vTaskDelete(wifi_init_task_handle);
-                wifi_init_task_handle = NULL;
-                ESP_LOGI(TAG, "WiFi task stopped. Free heap: %lu bytes", esp_get_free_heap_size());
-            }
-            else
-            {
-                ESP_LOGI(TAG, "WiFi task handle is NULL");
-            }
 
             /*
             if (ota_update_task_handle == NULL) {
@@ -502,6 +494,7 @@ void app_main(void)
     i2c_master_init(&master_handle);
     i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
     i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
+    i2c_master_add_device(&master_handle, &bq25798_i2c_handle, &bq25798_i2c_config);
     ESP_LOGI(TAG, "I2C initialized successfully");
 
     // Create semaphore for signaling Wi-Fi init completion
@@ -540,6 +533,8 @@ void app_main(void)
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
+    xTaskCreate(bq25798_monitor_task, "bq25798_monitor", 4096, NULL, 2, NULL);
+    ESP_LOGI(TAG, "BQ25798 monitoring task started");
 
     ESP_LOGI(TAG, "Free heap after task creation: %lu bytes", esp_get_free_heap_size());
 

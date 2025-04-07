@@ -18,21 +18,6 @@ const char *mqtt_password = "Pass1234";
 // Static MQTT client handle for ping task
 static esp_mqtt_client_handle_t mqtt_client = NULL;
 
-//
-// Note: this function is for testing purposes only publishing part of the active partition
-//       (to be checked against the original binary)
-//
-static void send_binary(esp_mqtt_client_handle_t client)
-{
-    esp_partition_mmap_handle_t out_handle;
-    const void *binary_address;
-    const esp_partition_t *partition = esp_ota_get_running_partition();
-    esp_partition_mmap(partition, 0, partition->size, ESP_PARTITION_MMAP_DATA, &binary_address, &out_handle);
-    // sending only the configured portion of the partition (if it's less than the partition size)
-    int binary_size = MIN(20000, partition->size);
-    int msg_id = esp_mqtt_client_publish(client, "/topic/binary", binary_address, binary_size, 0, 0);
-    ESP_LOGI(TAG, "binary sent with msg_id=%d", msg_id);
-}
 
 static void handle_update_topic(esp_mqtt_event_handle_t event, esp_mqtt_client_handle_t client)
 {
@@ -205,5 +190,22 @@ void mqtt_start_ping_task(void)
         ESP_LOGI(TAG, "MQTT ping task started");
     } else {
         ESP_LOGE(TAG, "Cannot start ping task: MQTT client not initialized");
+    }
+}
+
+// Function to publish a status message to the device-specific topic
+void mqtt_publish_status(const char *status)
+{
+    if (mqtt_client != NULL) {
+        char topic[64];
+        snprintf(topic, sizeof(topic), "kiosks/%s/status", device_info.mac_addr);
+        int msg_id = esp_mqtt_client_publish(mqtt_client, topic, status, 0, 0, 0);
+        if (msg_id < 0) {
+            ESP_LOGE(TAG, "Failed to publish status message");
+        } else {
+            ESP_LOGI(TAG, "Published status message with msg_id=%d", msg_id);
+        }
+    } else {
+        ESP_LOGE(TAG, "Cannot publish status: MQTT client not initialized");
     }
 }
