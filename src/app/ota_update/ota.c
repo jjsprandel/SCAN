@@ -108,16 +108,31 @@ static esp_err_t _http_client_init_cb(esp_http_client_handle_t http_client)
 
 void advanced_ota_example_task(void *pvParameter)
 {
-    ESP_LOGI(TAG, "Starting Advanced OTA example");
+    char *update_url = (char *)pvParameter;
+    if (update_url == NULL) {
+        ESP_LOGE(TAG, "No update URL provided");
+        vTaskDelete(NULL);
+        return;
+    }
+
+    ESP_LOGI(TAG, "Starting Advanced OTA example with URL: %s", update_url);
+    
+    // Log detailed heap information
+    ESP_LOGI(TAG, "Free heap before OTA config: %u bytes", (unsigned int)esp_get_free_heap_size());
+    ESP_LOGI(TAG, "Largest free block: %u bytes", (unsigned int)heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
+    ESP_LOGI(TAG, "Total free: %u bytes", (unsigned int)heap_caps_get_free_size(MALLOC_CAP_DEFAULT));
+    ESP_LOGI(TAG, "Total allocated: %u bytes", (unsigned int)(heap_caps_get_total_size(MALLOC_CAP_DEFAULT) - heap_caps_get_free_size(MALLOC_CAP_DEFAULT)));
 
     esp_err_t ota_finish_err = ESP_OK;
     esp_http_client_config_t config = {
-        .url = "https://github.com/jjsprandel/SCAN/releases/download/v0.1.0/SCAN.bin",
+        .url = update_url,
         .cert_pem = (char *)github_server_cert_pem_start,
-        .timeout_ms = 5000,
+        .timeout_ms = 20000,  // Keep the increased timeout
         .keep_alive_enable = true,
-        .buffer_size = 8 * 1024,
-        .buffer_size_tx = 4 * 1024,
+        .buffer_size = 4 * 1024,  // Reduced from 16KB to 4KB
+        .buffer_size_tx = 2 * 1024,  // Reduced from 8KB to 2KB
+        .transport_type = HTTP_TRANSPORT_OVER_SSL,
+        .is_async = false,  // Keep synchronous mode
     };
 
 #ifdef CONFIG_EXAMPLE_SKIP_COMMON_NAME_CHECK
@@ -126,16 +141,22 @@ void advanced_ota_example_task(void *pvParameter)
 
     esp_https_ota_config_t ota_config = {
         .http_config = &config,
-        .http_client_init_cb = _http_client_init_cb, // Register a callback to be invoked after esp_http_client is initialized
+        .http_client_init_cb = _http_client_init_cb,
         .partial_http_download = true,
-        .max_http_request_size = 16 * 1024,
+        .max_http_request_size = 8 * 1024,  // Reduced from 32KB to 8KB
         .bulk_flash_erase = true,
     };
+
+    // Log heap info after config creation
+    ESP_LOGI(TAG, "Free heap after OTA config: %u bytes", (unsigned int)esp_get_free_heap_size());
+    ESP_LOGI(TAG, "Largest free block after config: %u bytes", (unsigned int)heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
 
     esp_https_ota_handle_t https_ota_handle = NULL;
     esp_err_t err = esp_https_ota_begin(&ota_config, &https_ota_handle);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "ESP HTTPS OTA Begin failed");
+        ESP_LOGE(TAG, "Error code: 0x%x", err);
+        ESP_LOGE(TAG, "Free heap at failure: %u bytes", (unsigned int)esp_get_free_heap_size());
         vTaskDelete(NULL);
     }
 
@@ -189,8 +210,12 @@ ota_end:
 
 void ota_update_fw_task(void *pvParameter)
 {
-    // ESP_ERROR_CHECK(esp_netif_init());
-    // ESP_ERROR_CHECK(esp_event_loop_create_default());
+    char *update_url = (char *)pvParameter;
+    if (update_url == NULL) {
+        ESP_LOGE(TAG, "No update URL provided");
+        vTaskDelete(NULL);
+        return;
+    }
 
     ESP_ERROR_CHECK(esp_event_handler_register(ESP_HTTPS_OTA_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
 
@@ -220,6 +245,6 @@ void ota_update_fw_task(void *pvParameter)
     esp_wifi_set_ps(WIFI_PS_NONE);
 #endif // CONFIG_EXAMPLE_CONNECT_WIFI
 
-    xTaskCreate(&advanced_ota_example_task, "OTA TASK", 1024 * 12, NULL, 12, NULL);
+    xTaskCreate(&advanced_ota_example_task, "OTA TASK", 1024 * 8, update_url, 10, NULL);
     vTaskDelete(NULL);
 }

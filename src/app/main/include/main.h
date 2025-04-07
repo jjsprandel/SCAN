@@ -21,6 +21,8 @@
 #include "firebase_http_client.h"
 #include "pir_sensor.h"
 #include "status_buzzer.h"
+#include "esp_timer.h"
+#include "mqtt.h"
 #include "i2c_config.h"
 #include "cypd3177.h"
 #include "pcf8574n.h"
