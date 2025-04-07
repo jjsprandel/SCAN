@@ -375,6 +375,5 @@ bool check_out_user(const char* user_id)
 
     ESP_LOGI(TAG, "User check-out successful for user %s.", sanitized_id);
 
-    // Delete task when done
     return true;
 }
