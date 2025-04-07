@@ -15,6 +15,8 @@
 #include "nvs_flash.h"
 
 // project component header files
+#include "main_utils.h"
+#include "state_enum.h"
 #include "wifi_init.h"
 #include "ota.h"
 #include "firebase_http_client.h"
@@ -22,15 +24,16 @@
 #include "ui_screens.h"
 #include "ui_styles.h"
 #include "pir_sensor.h"
-#include "state_enum.h"
 #include "status_buzzer.h"
-#include "admin_mode.h"
 #include "esp_timer.h"
 #include "mqtt.h"
-
 #include "i2c_config.h"
 #include "cypd3177.h"
 #include "pcf8574n.h"
+#include "display_config.h"
+#include "display_frames.h"
+#include "admin_frames.h"
+#include "admin_mode.h"
 
 #define ID_LEN 10
 #define BLINK_GPIO 8
@@ -76,7 +79,7 @@ extern admin_state_t current_admin_state, prev_admin_state;
 
 extern int usb_connected;
 
-char user_id[ID_LEN+1];
+char user_id[ID_LEN + 1];
 void state_control_task(void *pvParameter);
 void blink_led_1_task(void *pvParameter);
 void blink_led_2_task(void *pvParameter);
