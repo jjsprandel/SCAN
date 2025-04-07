@@ -1,5 +1,6 @@
 #include "mqtt.h"
 #include "../ota_update/include/ota.h"
+#include "../main/include/global.h"
 
 static const char *TAG = "MQTT";
 
@@ -9,8 +10,13 @@ extern const uint8_t hivemq_server_cert_pem_end[] asm("_binary_hivemq_cert_pem_e
 // Declare external OTA task handle
 extern TaskHandle_t ota_update_task_handle;
 
-const char *mqtt_username = "ccba97fffee1dd80";
+// MQTT credentials using device MAC address
+const char *mqtt_username;
+
 const char *mqtt_password = "Pass1234";
+
+// Static MQTT client handle for ping task
+static esp_mqtt_client_handle_t mqtt_client = NULL;
 
 //
 // Note: this function is for testing purposes only publishing part of the active partition
@@ -78,7 +84,9 @@ static void handle_mqtt_event_data(esp_mqtt_event_handle_t event, esp_mqtt_clien
     printf("DATA=%.*s\r\n", event->data_len, event->data);
 
     // Check topic and route to appropriate handler
-    if (strncmp(event->topic, "kiosks/ccba97fffee1dd80/update", event->topic_len) == 0) {
+    char topic[64];
+    snprintf(topic, sizeof(topic), "kiosks/%s/update", device_info.mac_addr);
+    if (strncmp(event->topic, topic, event->topic_len) == 0) {
         handle_update_topic(event, client);
     }
     // Add more topic handlers here as needed
@@ -103,7 +111,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-        msg_id = esp_mqtt_client_subscribe(client, "kiosks/ccba97fffee1dd80/update", 0);
+        char topic[64];
+        snprintf(topic, sizeof(topic), "kiosks/%s/update", device_info.mac_addr);
+        msg_id = esp_mqtt_client_subscribe(client, topic, 0);
         ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_DISCONNECTED:
@@ -143,8 +153,27 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     }
 }
 
+static void mqtt_ping_task(void *pvParameters)
+{
+    while (1) {
+        if (mqtt_client != NULL) {
+            char topic[64];
+            snprintf(topic, sizeof(topic), "kiosks/%s/ping", device_info.mac_addr);
+            int msg_id = esp_mqtt_client_publish(mqtt_client, topic, "ping", 0, 0, 0);
+            if (msg_id < 0) {
+                ESP_LOGE(TAG, "Failed to send ping message");
+            } else {
+                ESP_LOGI(TAG, "Sent ping message with msg_id=%d", msg_id);
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(10000)); // Send ping every 10 seconds
+    }
+}
+
 void mqtt_init(void)
 {
+    // Set MQTT username to device MAC address
+    mqtt_username = device_info.mac_addr;
     
     const esp_mqtt_client_config_t mqtt_cfg = {
         .broker = {
@@ -162,8 +191,19 @@ void mqtt_init(void)
 
     };
 
-    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+    mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
     /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
-    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-    esp_mqtt_client_start(client);
+    esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+    esp_mqtt_client_start(mqtt_client);
+}
+
+// Function to start the ping task
+void mqtt_start_ping_task(void)
+{
+    if (mqtt_client != NULL) {
+        xTaskCreate(mqtt_ping_task, "mqtt_ping_task", 4096, NULL, 3, NULL);
+        ESP_LOGI(TAG, "MQTT ping task started");
+    } else {
+        ESP_LOGE(TAG, "Cannot start ping task: MQTT client not initialized");
+    }
 }

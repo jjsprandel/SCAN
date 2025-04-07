@@ -282,6 +282,11 @@ void state_control_task(void *pvParameter)
             mqtt_init();
             ESP_LOGI(TAG, "MQTT initialized. Free heap: %lu bytes", esp_get_free_heap_size());
             
+            // Start MQTT ping task
+            ESP_LOGI(TAG, "Starting MQTT ping task...");
+            mqtt_start_ping_task();
+            ESP_LOGI(TAG, "MQTT ping task started. Free heap: %lu bytes", esp_get_free_heap_size());
+            
             // Stop Wi-Fi task when ready
             if (wifi_init_task_handle != NULL)
             {
