@@ -14,6 +14,6 @@
 #define VOLUME_OFF 0.0f
 
 void buzzer_init();
-void play_kiosk_buzzer(state_t current_state);
+void play_kiosk_buzzer(state_t current_state, admin_state_t current_admin_state);
 
 #endif // STATUS_BUZZER_Hs

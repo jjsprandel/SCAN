@@ -3,10 +3,10 @@
 
 typedef enum
 {
-    STATE_HARDWARE_INIT,    // Initialize hardware components (GPIO, I2C, etc.)
-    STATE_WIFI_CONNECTING,  // Connect to WiFi
-    STATE_SOFTWARE_INIT,    // Initialize software services that need WiFi
-    STATE_SYSTEM_READY,     // System is fully initialized
+    STATE_HARDWARE_INIT,   // Initialize hardware components (GPIO, I2C, etc.)
+    STATE_WIFI_CONNECTING, // Connect to WiFi
+    STATE_SOFTWARE_INIT,   // Initialize software services that need WiFi
+    STATE_SYSTEM_READY,    // System is fully initialized
     STATE_IDLE,
     STATE_USER_DETECTED,
     STATE_DATABASE_VALIDATION,
