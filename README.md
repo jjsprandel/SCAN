@@ -1,173 +1,200 @@
-# ![Project Logo](docs/logo/logo.png)
+# <img src="docs/logo/logo.png" width="400" alt="Project Logo">
 
-Welcome to the **SCAN** repository! Below, you will find all the necessary information, from hardware design to software documentation.
+Welcome to the **SCAN ESP32 Firmware** repository! This repository contains the firmware for the ESP32 microcontroller that powers the SCAN kiosk system. For the complete project, you'll also need:
 
----
-
-## GitHub Workflows Status 🔧
-
-Here are the current statuses of our GitHub workflows:
-
-| Workflow Name            | Status                                  |
-| ------------------------ | --------------------------------------- |
-| **CI - Build**            | ![Build Status](https://github.com/jjsprandel/SCAN/actions/workflows/build.yml/badge.svg?branch=main&event=pull_request) |
-| **Docker - Test Build**   | ![Deployment Status](https://github.com/jjsprandel/UCF-Senior-Design/actions/workflows/docker-build.yml/badge.svg) |
-
-- **CI - Build**: Ensures the project builds successfully.
-- **CI - Tests**: Runs all unit and integration tests to ensure everything is working as expected.
-- **Docker - Test Build**: Attempts Docker Build upon changes to the Dockerfile.
+- [SCAN_PCB](https://github.com/jjsprandel/SCAN_PCB) - Hardware design files (schematic, PCB layout)
+  - [Full Schematic (PDF)](https://github.com/jjsprandel/SCAN_PCB/blob/main/hardware_design/exports/schematic/SCAN.pdf)
+  - [Top Layer Layout (PDF)](https://github.com/jjsprandel/SCAN_PCB/blob/main/hardware_design/exports/layout/multi-layer/top_gnd1.pdf)
+  - [Bill of Materials (Excel)](https://github.com/jjsprandel/SCAN_PCB/blob/main/hardware_design/manufacturing/jlcpcb_upload/bom.xlsx)
+- [SCAN_APP](https://github.com/jjsprandel/SCAN_APP) - React web application for admin interface
 
 ---
 
-## Table of Contents 📚
-- [💡 Overview](#overview)
-- [🔧 Hardware Design](#hardware-design)
-- [💻 Software](#software)
-- [🔨 Build Instructions](#build-instructions)
-- [📑 Documentation](#documentation)
-- [⚙️ License](#license)
+## 📋 Overview
+
+The SCAN ESP32 firmware provides:
+- [NFC-based user authentication](src/app/nfc) with secure card emulation
+- [Real-time power monitoring via BQ25798 charger](src/app/device_drivers/bq25798) with dynamic power management
+- [USB-C power negotiation via CYPD3177](src/app/device_drivers/cypd3177) supporting PD 3.0
+- [MQTT-based cloud connectivity](src/app/mqtt_client) with TLS encryption
+- [OTA firmware updates](src/app/ota_update) with rollback capability
+- [LVGL-based display interface](src/app/display) with custom UI components
+- [Firebase Realtime Database integration](src/app/firebase) for real-time data synchronization
+- [FreeRTOS-based real-time operating system](src/app/main) for concurrent task management and priority scheduling
 
 ---
 
-## 💡 Overview
- **SCAN** is a low-cost, IoT-driven kiosk system designed to provide real-time analytics based on check-in and check-out information. By integrating NFC-based authentication, real-time data processing, and a user-friendly interface, SCAN provides users with a near-effortless check-in experience and provides facilities with actionable insights for improving operations. SCAN is able to track attendance and provide detailed analytics on occupancy trends, peak usage hours, and visit durations. These insights are accessible to administrator and facility managers via SCAN’s web application, which can provide them with the necessary statistics to allocate resources efficiently, optimize staffing, and improve user experiences.
+## 🛠️ Hardware Features
+
+The firmware supports the following hardware components:
+- [ESP32-C6 microcontroller](src/app/main) featuring RISC-V architecture and WiFi 6
+- [GC9A01 circular display](src/app/display) with custom LVGL widgets
+- [PN532 NFC module](src/app/nfc) supporting multiple protocols
+- [BQ25798 battery charger](src/app/device_drivers/bq25798) with advanced power management
+- [CYPD3177 USB-C controller](src/app/device_drivers/cypd3177) with PD 3.0 support
+- [PCF8574N I2C expander](src/app/device_drivers/pcf8574n) for GPIO expansion
+- [Addressable RGB LEDs](src/app/led) with custom animations
+- [Buzzer](src/app/buzzer) for user feedback
+- [PIR motion sensor](src/app/sensor) for proximity detection
 
 ---
 
-## 🔧 Hardware Design
-<details>
-  <summary><strong>📡 Schematic</strong></summary>
+## 🖼️ [PCB 3D Rendering](https://github.com/jjsprandel/SCAN_PCB/tree/main/hardware_design/exports/3d_models)
 
-  Below is the schematic of the hardware design:
-
-  ![Schematic](docs/schematic-preview/schematic-preview.png)
-
-
-  Additional hardware files can be found in the [hardware directory](hardware_design).
-
-</details>
-
-<details>
-  <summary><strong>🔌 PCB Design</strong></summary>
-
-  Here's the PCB design layout:
-
-  ![PCB](docs/pcb-design/pcb_layout.png)
-
-  **Important Notes**:
-  - Note about the PCB.
-  - Power considerations.
-  - Any important design choices.
-
-</details>
+<table>
+<tr>
+<td width="150"><h3>Front View</h3></td>
+<td><img src="https://github.com/jjsprandel/SCAN_PCB/raw/main/hardware_design/exports/3d_models/full_front_zoomed.png" width="500" alt="Front View"></td>
+</tr>
+<tr>
+<td width="150"><h3>Back View</h3></td>
+<td><img src="https://github.com/jjsprandel/SCAN_PCB/raw/main/hardware_design/exports/3d_models/full_back_zoomed.png" width="500" alt="Back View"></td>
+</tr>
+</table>
 
 ---
 
-## 💻 Software
-<details>
-  <summary><strong>💾 Firmware Overview</strong></summary>
+## 🏗️ Build System
 
-  The firmware is designed to work with the hardware for controlling the device. You can find the code [here](path/to/firmware).
+The project uses a modern, containerized build system:
+- **ESP-IDF Framework**: Built on CMake and Ninja for fast, parallel builds
+  - CMake for project configuration and dependency management
+  - Ninja as the build backend for efficient parallel compilation
+  - CMakeLists.txt files for each component
+  - FreeRTOS integration for real-time task management
+  - Custom build configurations for different deployment targets
+- **Docker Containerization**: Ensures consistent build environments across platforms
+  - Pre-built image available at [jjsprandel/scan](https://hub.docker.com/repository/docker/jjsprandel/scan/general)
+  - Dockerfile included in repository for custom builds
+  - Volume mounting for persistent development data
+  - Custom entrypoint scripts for environment setup
+- **CI/CD Integration**: Automated build checks and verification
+  - GitHub Actions for continuous integration
+  - Automated testing and validation
+  - Build artifact management
+- **Cross-Platform Support**: Builds on Windows, Linux, and macOS through Docker
+  - Platform-specific optimizations
+  - Consistent development experience
+  - Automated dependency resolution
 
-  **Key Libraries Used**:
-  - Library 1
-  - Library 2
-
-</details>
-
-<details>
-  <summary><strong>📦 Installation Guide</strong></summary>
-
-  Follow these steps to install the firmware:
-  
-  1. Step 1
-  2. Step 2
-  3. Step 3
-
-  Detailed instructions are available in the [installation guide](link_to_guide).
-
-</details>
-
----
-
-## 🔨 Build Instructions
-
-<details>
-  <summary><strong>🛠️ Build Setup</strong></summary>
-
-  To build the project, follow these steps:
-
-  1. Clone the repository:
-     ```bash
-     git clone https://github.com/jjsprandel/SCAN.git
-     ```
-  2. Connect your ESP32 to your computer using USB-C. The Docker container is designed to automatically recognize the device and use port 4000 to communicate to the ESP32 for flashing.
-  3. Reopen Visual Studio Code in Container. This step requires having the Docker VS Code extension installed on your host machine. 
-  4. Within the container, on first run, configure the ESP-IDF extension from the list of commands that come with the ESP-IDF extension.
-     4a. Select "Use existing setup."
-     4b. The extension should automatically find the right tool paths and folders. Select the configuration option with the auto-filled paths.
-  5. Compile the firmware:
-     ```bash
-     idf.py build
-     ```  
-      5a. Alternatively, click the wrench button at the bottom of VS Code to build.
-  6. Flash the firmware:
-     ```bash
-     idf.py --port 'rfc2217://host.docker.internal:4000?ign_set_control' flash
-     ```
-      6a. Alternatively, click the lightning button at the bottom of VS Code to flash.
-
-  **Tips**:
-  - Ensure your system meets the requirements listed in the [build prerequisites](link_to_prerequisites).
-  - If you encounter issues, check the [troubleshooting guide](link_to_troubleshooting).
-
-</details>
+### Build Verification
+- Docker container builds verified through GitHub Actions
+- Project builds verified through automated CI/CD pipeline
+- Memory leak detection and optimization
 
 ---
 
-## 📑 Documentation
-<details>
-  <summary><strong>📝 API Documentation</strong></summary>
+## 📦 Dependencies
 
-  - **[API Reference](link_to_api_reference)**: Detailed API usage and function descriptions.
-  - **[Hardware Docs](link_to_hardware_docs)**: Documentation on hardware design.
+### 🔧 Software Dependencies:
+- **USB Drivers**: For proper communication with the hardware
+  - Windows: [CP210x USB to UART Bridge VCP drivers](https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads)
+  - Linux: Built into kernel (check [driver documentation](https://www.silabs.com/community/interface/usb-bridges) for troubleshooting)
 
-</details>
+- **Docker Desktop**: Required to run the ESP-IDF containerized environment
+  - Download from [Docker Desktop website](https://www.docker.com/products/docker-desktop)
 
-<details>
-  <summary><strong>📚 Additional Resources</strong></summary>
-
-  - **[Project Wiki](link_to_wiki)**: Explore the project wiki for more in-depth articles.
-  - **[User Manual](link_to_user_manual)**: Comprehensive user guide for operation.
-
-</details>
-
----
-
-## 🔌 Dependencies
-
-This project has the following dependencies that need to be installed:
-
-### **Hardware Dependencies:**
-- **KiCad Version**: 8.0.6 (required for schematic and PCB design)
-  - Download from [KiCad official website](https://kicad.org/download/).
-  
-### **Software Dependencies:**
-- **USB Drivers**: For proper communication with the hardware, ensure that the appropriate USB drivers are installed.
-  - For Windows, you can download and install the **[CP210x USB to UART Bridge VCP drivers](https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads)**.
-  - For Linux, you should have the necessary drivers already built into the kernel, but check the [driver documentation](https://www.silabs.com/community/interface/usb-bridges) for troubleshooting.
-
-- **Docker Desktop**: Required to run the ESP-IDF containerized environment.
-  - Download from **[Docker Desktop website](https://www.docker.com/products/docker-desktop)**.
-  - Follow the installation instructions for your operating system.
-  
-### **Development Tools:**
-- **[Visual Studio Code](https://code.visualstudio.com/)**: Recommended IDE for editing the firmware code.
-
-- **[Git](https://git-scm.com/)**: Version control system.
+### 🛠️ Development Tools:
+- [Visual Studio Code](https://code.visualstudio.com/): Recommended IDE with ESP-IDF extension
+- [Git](https://git-scm.com/): Version control system
+- [CMake](https://cmake.org/): Build system generator
+- [Ninja](https://ninja-build.org/): Fast build system
+- [FreeRTOS](https://www.freertos.org/): Real-time operating system
 
 ---
 
-## ⚙️ License
+## 📁 Project Structure
+
+```
+.
+├── .devcontainer/                    # VS Code dev container configuration
+├── .github/                         # GitHub Actions workflows and templates
+├── .vscode/                         # VS Code settings and extensions
+├── build/                           # Build output directory
+├── docs/                            # Project documentation and assets
+├── esp_rfc2217_server/              # Serial port redirection server
+├── managed_components/              # ESP-IDF managed components
+├── server_certs/                    # SSL certificates
+├── src/                             # Main source code
+│   ├── app/
+│   │   ├── admin_mode/             # Admin mode interface and control
+│   │   ├── buzzer/                 # Buzzer control and feedback
+│   │   ├── database/               # Database operations and queries
+│   │   ├── device_drivers/         # Hardware driver implementations
+│   │   │   ├── bq25798/           # Battery charger driver
+│   │   │   ├── cypd3177/          # USB-C controller driver
+│   │   │   ├── keypad/            # Keypad input handling
+│   │   │   └── pcf8574n/          # I2C expander driver
+│   │   ├── display/               # Display interface and LVGL widgets
+│   │   ├── i2c/                   # I2C bus configuration
+│   │   ├── main/                  # Main application code
+│   │   ├── misc/                  # Miscellaneous utilities
+│   │   ├── mqtt_client/           # MQTT communication
+│   │   ├── NDEF/                  # NFC data format handling
+│   │   ├── ota_update/            # Over-the-air updates
+│   │   └── wifi/                  # WiFi configuration and management
+│   └── bootloader/                # ESP32 bootloader
+├── tools/                          # Build and development tools
+├── CMakeLists.txt                  # Main CMake configuration
+├── Dockerfile                      # Container build configuration
+├── entrypoint.sh                   # Container entrypoint script
+├── esp_rfc2217_server.py          # Python script for serial port redirection
+├── sdkconfig                       # ESP-IDF project configuration
+└── sdkconfig.defaults             # Default ESP-IDF configuration
+```
+
+---
+
+## 👥 Contributors
+
+- [Jonah Sprandel](https://github.com/jjsprandel)
+  - Hardware Design:
+    - Designed 6-layer PCB with advanced power management and battery charging
+    - Completed full PCB development cycle including component selection, schematic design, layout, routing, and manufacturing
+    - Performed comprehensive hardware testing and validation of final PCB
+  - ESP32 Firmware Development:
+    - Set up ESP-IDF development environment with Docker and CMake
+    - Implemented MQTT communication for real-time device status
+    - Developed USB PD and power management firmware
+    - Implemented I2C drivers for power-related components
+    - Implemented FreeRTOS task management and scheduling
+    - Developed HTTP clients for all external services (Firebase, HiveMQ, GitHub)
+    - Implemented comprehensive OTA update system with GitHub release integration
+    - Developed WiFi client firmware with secure connection handling
+    - Implemented RGB LED driver
+  - Web Application Development:
+    - Implemented CI/CD pipeline for web app deployments
+    - Developed real-time kiosk monitoring with power metrics, MQTT status logs, and OTA updates
+
+- [Cory Brynds](https://github.com/cbrynds)
+  - Hardware Design:
+    - Developed breadboard-based prototypes
+    - Designed prototype PCB for early peripheral integration testing
+    - Hand-soldered and tested prototype PCBs
+  - ESP32 Firmware Development:
+    - Implemented buzzer control and feedback system
+    - Developed NFC module driver and communication protocols
+    - Created LVGL-based TFT display interface and custom widgets
+    - Implemented FreeRTOS task management and scheduling
+    - Developed admin mode firmware and interface
+    - Contributed to system architecture and design
+    - Implemented user interface state management
+    - Implemented I2C driver for PCF8574N IO expander
+    - Integrated RGB LED control with system state machine
+    - Implemented PIR sensor GPIO interface for proximity detection
+    - Developed comprehensive error handling firmware
+
+- [DeAndre Hendrix](https://github.com/deandrehendrix)
+  - Web Application Development:
+    - Set up Firebase database structure and web app integration
+    - Developed analytics dashboard
+    - Created user management interface for database administration
+  - ESP32 Firmware Development:
+    - Implemented JSON parsing for Firebase data structures
+
+---
+
+## 📄 License
+
 SCAN © 2025 is licensed under Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International. To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0/ or see the [LICENSE](LICENSE) file.
 
