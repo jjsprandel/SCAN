@@ -1,6 +1,5 @@
 #include "ui_styles.h"
 
-// Create a screen with appropriate background based on state
 lv_obj_t *scan_ui_create_screen(void)
 {
     lv_obj_t *screen = lv_obj_create(NULL);
@@ -15,13 +14,12 @@ lv_obj_t *create_image(lv_obj_t *parent, const void *src)
     return img;
 }
 
-// Create a centered container for content
 lv_obj_t *scan_ui_create_content_container(lv_obj_t *parent)
 {
     lv_obj_t *container = lv_obj_create(parent);
     lv_obj_remove_style_all(container);
-    lv_obj_set_size(container, LV_PCT(90), LV_PCT(90)); // changed from 80 to 90
-    lv_obj_set_style_pad_all(container, 8, 0);          // Increased padding to 8
+    lv_obj_set_size(container, LV_PCT(90), LV_PCT(90));
+    lv_obj_set_style_pad_all(container, 8, 0); 
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_style_bg_opa(container, LV_OPA_0, 0);
     lv_obj_center(container);
@@ -32,7 +30,6 @@ lv_obj_t *scan_ui_create_content_container(lv_obj_t *parent)
     return container;
 }
 
-// Create a standard title label
 lv_obj_t *scan_ui_create_title(lv_obj_t *parent, const char *text, lv_color_t text_color, const lv_font_t *font)
 {
     lv_obj_t *title = lv_label_create(parent);
@@ -85,7 +82,6 @@ void scan_ui_style_text(lv_obj_t *text, lv_color_t color, const lv_font_t *font,
     lv_obj_set_style_text_align(text, align, 0);
 }
 
-// Set up screen transition animation
 void scan_ui_set_screen_transition(lv_obj_t *new_screen)
 {
     lv_obj_t *current_screen = lv_scr_act();

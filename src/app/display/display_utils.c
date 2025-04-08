@@ -26,19 +26,15 @@ void create_screens()
     admin_screen_objects[ADMIN_STATE_ERROR] = ui_screen_admin_error();
 }
 
-// Load screen onto display as a function of current state
 void display_screen(state_t display_state, admin_state_t display_admin_state)
 {
-    // Log current state and user info for debugging
     ESP_LOGI(TAG, "DISPLAY: Current state=%d, Current admin state=%d", display_state, display_admin_state);
 
-    // Set screen based on current state
     if (display_state == STATE_ADMIN_MODE)
     {
         if (admin_screen_objects[display_admin_state] != NULL)
         {
             ESP_LOGI(TAG, "Displaying admin screen for state %d", display_admin_state);
-            // In admin mode, update the user ID or user info if needed
             if (user_info != NULL)
             {
                 char full_name[64];
