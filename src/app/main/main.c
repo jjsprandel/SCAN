@@ -3,7 +3,7 @@
 
 // State variables
 static state_t current_state = STATE_HARDWARE_INIT, prev_state = STATE_ERROR;
-static admin_state_t prev_admin_state_internal = ADMIN_STATE_ERROR;
+static admin_state_t prev_admin_state = ADMIN_STATE_ERROR;
 
 // Task Handles
 TaskHandle_t state_control_task_handle = NULL;
@@ -26,6 +26,7 @@ static int64_t start_time, end_time;
 static led_strip_handle_t led_strip;
 
 int usb_connected = 1;
+char user_id[ID_LEN + 1];
 
 void blink_led_task(void *pvParameter)
 {
@@ -104,92 +105,6 @@ static void configure_led(void)
 
     /* Set all LED off to clear all pixels */
     led_strip_clear(led_strip);
-}
-
-static void create_screens()
-{
-    screen_objects[STATE_HARDWARE_INIT] = ui_screen_hardware_init();
-    screen_objects[STATE_WIFI_CONNECTING] = ui_screen_wifi_connecting();
-    screen_objects[STATE_SOFTWARE_INIT] = ui_screen_software_init();
-    screen_objects[STATE_SYSTEM_READY] = ui_screen_system_ready();
-    screen_objects[STATE_IDLE] = ui_screen_idle();
-    screen_objects[STATE_USER_DETECTED] = ui_screen_user_detected();
-    screen_objects[STATE_DATABASE_VALIDATION] = ui_screen_database_validation();
-    screen_objects[STATE_CHECK_IN] = ui_screen_check_in_success();
-    screen_objects[STATE_CHECK_OUT] = ui_screen_check_out_success();
-    screen_objects[STATE_VALIDATION_FAILURE] = ui_screen_validation_failure();
-    screen_objects[STATE_ERROR] = ui_screen_error();
-
-    admin_screen_objects[ADMIN_STATE_ENTER_ID] = ui_screen_admin_enter_id();
-    admin_screen_objects[ADMIN_STATE_VALIDATE_ID] = ui_screen_admin_id_validating();
-    admin_screen_objects[ADMIN_STATE_TAP_CARD] = ui_screen_admin_tap_card();
-    admin_screen_objects[ADMIN_STATE_CARD_WRITE_SUCCESS] = ui_screen_card_write_success();
-    admin_screen_objects[ADMIN_STATE_ENTER_ID_ERROR] = ui_screen_id_enter_error();
-    admin_screen_objects[ADMIN_STATE_CARD_WRITE_ERROR] = ui_screen_card_write_error();
-    admin_screen_objects[ADMIN_STATE_ERROR] = ui_screen_admin_error();
-}
-
-// Load screen onto display as a function of current state
-static void display_screen(state_t display_state)
-{
-    if (current_state == STATE_ADMIN_MODE)
-    {
-        if (admin_screen_objects[current_admin_state] != NULL)
-        {
-            // Only update the admin screen if it's different from the previous one
-            if (prev_admin_state_internal != current_admin_state)
-            {
-                MAIN_DEBUG_LOG("Displaying admin screen for state %d", current_admin_state);
-
-                // In admin mode, update the user ID or user info if needed
-                if (current_admin_state == ADMIN_STATE_VALIDATE_ID)
-                {
-                    ui_update_user_info(NULL, keypad_buffer.elements);
-                }
-                else if (current_admin_state == ADMIN_STATE_TAP_CARD ||
-                         current_admin_state == ADMIN_STATE_CARD_WRITE_SUCCESS)
-                {
-                    if (user_info != NULL)
-                    {
-                        char full_name[64];
-                        snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
-                        ui_update_user_info(full_name, keypad_buffer.elements);
-                    }
-                }
-
-                _lock_acquire(&lvgl_api_lock);
-                scan_ui_set_screen_transition(admin_screen_objects[current_admin_state]);
-                _lock_release(&lvgl_api_lock);
-
-                prev_admin_state_internal = current_admin_state;
-            }
-        }
-    }
-    else
-    {
-        if (screen_objects[current_state] != NULL)
-        {
-            MAIN_DEBUG_LOG("Displaying screen for state %d", current_state);
-
-            if (current_state == STATE_CHECK_IN || current_state == STATE_CHECK_OUT)
-            {
-                if (user_info != NULL)
-                {
-                    char full_name[64];
-                    snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
-                    ui_update_user_info(full_name, user_id);
-                }
-            }
-
-            _lock_acquire(&lvgl_api_lock);
-            scan_ui_set_screen_transition(screen_objects[current_state]);
-            _lock_release(&lvgl_api_lock);
-        }
-        else
-        {
-            MAIN_ERROR_LOG("Screen object not found for state %d", current_state);
-        }
-    }
 }
 
 // Function to control state transitions and task management
@@ -351,9 +266,25 @@ void state_control_task(void *pvParameter)
             {
                 start_time = esp_timer_get_time();
                 if (strcmp(user_info->check_in_status, "Checked In") == 0)
+                {
+                    // Update user info before state change
+                    // char full_name[64];
+                    // snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
+                    // ui_update_user_info(full_name, user_id);
+                    // MAIN_DEBUG_LOG("Updated UI with name: %s, ID: %s", full_name, user_id);
+
                     current_state = check_out_user(user_id) ? STATE_CHECK_OUT : STATE_VALIDATION_FAILURE;
+                }
                 else
+                {
+                    // Update user info before state change
+                    // char full_name[64];
+                    // snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
+                    // ui_update_user_info(full_name, user_id);
+                    // MAIN_DEBUG_LOG("Updated UI with name: %s, ID: %s", full_name, user_id);
+
                     current_state = check_in_user(user_id) ? STATE_CHECK_IN : STATE_VALIDATION_FAILURE;
+                }
             }
             else
             {
@@ -370,9 +301,20 @@ void state_control_task(void *pvParameter)
             break;
         case STATE_CHECK_IN:
             log_elapsed_time("check in authentication", start_time);
+
+            // Debug logs for user info
+            if (user_info != NULL)
+            {
+                MAIN_DEBUG_LOG("CHECK-IN: User info available - Name: %s %s, ID: %s",
+                               user_info->first_name, user_info->last_name, user_id);
+            }
+            else
+            {
+                MAIN_DEBUG_LOG("CHECK-IN: No user info available. ID: %s", user_id);
+            }
+
             MAIN_DEBUG_LOG("ID %s found in database. Checking in.", user_id);
             vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
-            current_state = STATE_IDLE;
             current_state = STATE_IDLE;
             break;
         case STATE_CHECK_OUT:
@@ -416,63 +358,18 @@ void state_control_task(void *pvParameter)
             ESP_LOGW(TAG, "Unknown state encountered: %d", current_state);
             break;
         }
-        if ((current_state != prev_state) || (current_state == STATE_ADMIN_MODE && (current_admin_state != prev_admin_state)))
+        if ((current_state != prev_state) || ((current_state == STATE_ADMIN_MODE) && (current_admin_state != prev_admin_state)))
         {
             play_kiosk_buzzer(current_state, current_admin_state);
-            display_screen(current_state);
+            display_screen(current_state, current_admin_state);
             prev_state = current_state;
+
+            if (current_state == STATE_ADMIN_MODE)
+                prev_admin_state = current_admin_state;
         }
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
     MAIN_DEBUG_LOG("State control task finished"); // Should not reach here unless task is deleted
-}
-
-void display_test_task(void *pvParameter)
-{
-    while (1)
-    {
-        // First cycle through main states
-        for (state_t test_state = STATE_HARDWARE_INIT; test_state <= STATE_ERROR; test_state++)
-        {
-            current_state = test_state;
-            if (screen_objects[current_state] != NULL)
-            {
-                ESP_LOGI(TAG, "Testing state: %d", test_state);
-                ui_update_user_info("Cory Brynds", "1234567890");
-                _lock_acquire(&lvgl_api_lock);
-                scan_ui_set_screen_transition(screen_objects[current_state]);
-                _lock_release(&lvgl_api_lock);
-            }
-            else
-            {
-                ESP_LOGI(TAG, "Screen does not exist for state %d", test_state);
-            }
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Wait 5 seconds
-        }
-
-        // Then cycle through admin states
-        for (admin_state_t test_admin_state = ADMIN_STATE_BEGIN; test_admin_state <= ADMIN_STATE_ERROR; test_admin_state++)
-        {
-            current_admin_state = test_admin_state;
-            if (admin_screen_objects[current_admin_state] != NULL)
-            {
-                ESP_LOGI(TAG, "Testing admin state: %d", test_admin_state);
-                ui_update_user_info("Dr. Mike", "0987654321");
-                _lock_acquire(&lvgl_api_lock);
-                scan_ui_set_screen_transition(admin_screen_objects[current_admin_state]);
-                _lock_release(&lvgl_api_lock);
-            }
-            else
-            {
-                ESP_LOGI(TAG, "Screen does not exist for admin state %d", current_admin_state);
-            }
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Wait 5 seconds
-        }
-
-        // Return to idle state
-        current_state = STATE_IDLE;
-        current_admin_state = ADMIN_STATE_BEGIN;
-    }
 }
 
 void app_main(void)

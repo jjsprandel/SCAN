@@ -8,6 +8,7 @@
 #include "admin_mode.h"
 #include "string.h"
 
+#define NUM_SCREENS (STATE_ERROR + ADMIN_STATE_ERROR + 2)
 // Function declarations
 void ui_init(void);
 void ui_update_user_info(const char *name, const char *id);
@@ -32,5 +33,6 @@ lv_obj_t *ui_screen_id_enter_error(void);
 lv_obj_t *ui_screen_card_write_error(void);
 lv_obj_t *ui_screen_admin_error(void);
 lv_obj_t *ui_screen_admin_card_write_error(void);
+extern _lock_t lvgl_api_lock;
 
 #endif // UI_SCREENS_H

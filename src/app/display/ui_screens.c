@@ -4,8 +4,11 @@
 static char user_name_buffer[32] = "User";
 static char user_id_buffer[16] = "Unknown";
 // Single pointers for current screen's labels
-static lv_obj_t *current_user_name_label = NULL;
-static lv_obj_t *current_user_id_label = NULL;
+// Arrays to store label pointers for each screen
+static lv_obj_t *user_name_labels[NUM_SCREENS] = {NULL}; // Array size should match number of screens
+static lv_obj_t *user_id_labels[NUM_SCREENS] = {NULL};   // Array size should match number of screens
+// static lv_obj_t *current_user_name_label = NULL;
+// static lv_obj_t *current_user_id_label = NULL;
 static lv_obj_t *error_label = NULL;
 
 void ui_init(void)
@@ -13,30 +16,69 @@ void ui_init(void)
     ui_styles_init();
 }
 
-void ui_update_user_info(const char *name, const char *id)
-{
-    if (name != NULL)
-    {
+// void ui_update_user_info(const char *name, const char *id)
+// {
+//     // Update buffers with new information if provided
+//     if (name != NULL)
+//     {
+//         strncpy(user_name_buffer, name, sizeof(user_name_buffer) - 1);
+//         user_name_buffer[sizeof(user_name_buffer) - 1] = '\0';
+//         ESP_LOGI("UI", "Updated name buffer: %s", user_name_buffer);
+//     }
+
+//     if (id != NULL)
+//     {
+//         strncpy(user_id_buffer, id, sizeof(user_id_buffer) - 1);
+//         user_id_buffer[sizeof(user_id_buffer) - 1] = '\0';
+//         ESP_LOGI("UI", "Updated ID buffer: %s", user_id_buffer);
+//     }
+
+//     // Only update labels if they exist
+//     if (current_user_name_label != NULL)
+//     {
+//         _lock_acquire(&lvgl_api_lock);
+//         lv_label_set_text(current_user_name_label, user_name_buffer);
+//         _lock_release(&lvgl_api_lock);
+//         ESP_LOGI("UI", "Updated name label with: %s", user_name_buffer);
+//     }
+//     else
+//     {
+//         ESP_LOGW("UI", "Name label is NULL, cannot update text");
+//     }
+
+//     if (current_user_id_label != NULL)
+//     {
+//         _lock_acquire(&lvgl_api_lock);
+//         lv_label_set_text(current_user_id_label, user_id_buffer);
+//         _lock_release(&lvgl_api_lock);
+//         ESP_LOGI("UI", "Updated ID label with: %s", user_id_buffer);
+//     }
+//     else
+//     {
+//         ESP_LOGW("UI", "ID label is NULL, cannot update text");
+//     }
+// }
+
+void ui_update_user_info(const char* name, const char* id) {
+    if (name != NULL) {
         strncpy(user_name_buffer, name, sizeof(user_name_buffer) - 1);
         user_name_buffer[sizeof(user_name_buffer) - 1] = '\0';
     }
-
-    if (id != NULL)
-    {
+    
+    if (id != NULL) {
         strncpy(user_id_buffer, id, sizeof(user_id_buffer) - 1);
         user_id_buffer[sizeof(user_id_buffer) - 1] = '\0';
     }
 
-    // Update only the current screen's labels
-    lv_label_set_text(current_user_name_label, user_name_buffer);
-    // if (current_user_name_label != NULL)
-    // {
-    // }
-
-    lv_label_set_text(current_user_id_label, user_id_buffer);
-    // if (current_user_id_label != NULL)
-    // {
-    // }
+    for (int i = 0; i < 10; i++) {
+        if (user_name_labels[i] != NULL) {
+            lv_label_set_text(user_name_labels[i], user_name_buffer);
+        }
+        
+        if (user_id_labels[i] != NULL) {
+            lv_label_set_text(user_id_labels[i], user_id_buffer);
+        }
+    }
 }
 
 lv_obj_t *ui_screen_hardware_init(void)
@@ -216,7 +258,7 @@ lv_obj_t *ui_screen_check_in_success(void)
     lv_obj_t *scr = scan_ui_create_screen();
 
     // Add background color gradient
-    scan_ui_set_background_color(scr, lv_color_hex(0x27AE60), lv_color_hex(0x196F3D));
+    scan_ui_set_background_color(scr, UI_COLOR_GREEN, UI_COLOR_GREEN_DARK);
 
     lv_obj_t *cont = scan_ui_create_content_container(scr);
 
@@ -231,15 +273,28 @@ lv_obj_t *ui_screen_check_in_success(void)
     lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(card, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-    current_user_name_label = lv_label_create(card);
-    lv_obj_set_style_text_color(current_user_name_label, UI_COLOR_BLACK, 0);
-    lv_obj_set_style_text_font(current_user_name_label, UI_FONT_TINY, 0);
-    lv_label_set_text(current_user_name_label, user_name_buffer);
+    // current_user_name_label = lv_label_create(card);
+    // lv_obj_set_style_text_color(current_user_name_label, UI_COLOR_BLACK, 0);
+    // lv_obj_set_style_text_font(current_user_name_label, UI_FONT_TINY, 0);
+    // lv_label_set_text(current_user_name_label, user_name_buffer);
+    // ESP_LOGI("SCREEN", "Created check-in success name label with: %s", user_name_buffer);
 
-    current_user_id_label = lv_label_create(card);
-    lv_obj_set_style_text_color(current_user_id_label, UI_COLOR_BLACK, 0);
-    lv_obj_set_style_text_font(current_user_id_label, UI_FONT_TINY, 0);
-    lv_label_set_text(current_user_id_label, user_id_buffer);
+    // current_user_id_label = lv_label_create(card);
+    // lv_obj_set_style_text_color(current_user_id_label, UI_COLOR_BLACK, 0);
+    // lv_obj_set_style_text_font(current_user_id_label, UI_FONT_TINY, 0);
+    // lv_label_set_text(current_user_id_label, user_id_buffer);
+    // ESP_LOGI("SCREEN", "Created check-in success ID label with: %s", user_id_buffer);
+    user_name_labels[STATE_CHECK_IN] = lv_label_create(card);
+    lv_obj_set_style_text_color(user_name_labels[STATE_CHECK_IN], UI_COLOR_BLACK, 0);
+    lv_obj_set_style_text_font(user_name_labels[STATE_CHECK_IN], UI_FONT_TINY, 0);
+    lv_label_set_text(user_name_labels[STATE_CHECK_IN], user_name_buffer);
+    ESP_LOGI("SCREEN", "Created check-in success name label with: %s", user_name_buffer);
+
+    user_id_labels[STATE_CHECK_IN] = lv_label_create(card);
+    lv_obj_set_style_text_color(user_id_labels[STATE_CHECK_IN], UI_COLOR_BLACK, 0);
+    lv_obj_set_style_text_font(user_id_labels[STATE_CHECK_IN], UI_FONT_TINY, 0);
+    lv_label_set_text(user_id_labels[STATE_CHECK_IN], user_id_buffer);
+    ESP_LOGI("SCREEN", "Created check-in success ID label with: %s", user_id_buffer);
 
     return scr;
 }
@@ -249,7 +304,7 @@ lv_obj_t *ui_screen_check_out_success(void)
     lv_obj_t *scr = scan_ui_create_screen();
 
     // Add background color gradient
-    scan_ui_set_background_color(scr, lv_color_hex(0x27AE60), lv_color_hex(0x196F3D));
+    scan_ui_set_background_color(scr, UI_COLOR_GREEN, UI_COLOR_GREEN_DARK);
 
     lv_obj_t *cont = scan_ui_create_content_container(scr);
 
@@ -264,15 +319,15 @@ lv_obj_t *ui_screen_check_out_success(void)
     lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(card, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-    current_user_name_label = lv_label_create(card);
-    lv_obj_set_style_text_color(current_user_name_label, UI_COLOR_BLACK, 0);
-    lv_obj_set_style_text_font(current_user_name_label, UI_FONT_TINY, 0);
-    lv_label_set_text(current_user_name_label, user_name_buffer);
+    user_name_labels[STATE_CHECK_OUT] = lv_label_create(card);
+    lv_obj_set_style_text_color(user_name_labels[STATE_CHECK_OUT], UI_COLOR_BLACK, 0);
+    lv_obj_set_style_text_font(user_name_labels[STATE_CHECK_OUT], UI_FONT_TINY, 0);
+    lv_label_set_text(user_name_labels[STATE_CHECK_OUT], user_name_buffer);
 
-    current_user_id_label = lv_label_create(card);
-    lv_obj_set_style_text_color(current_user_id_label, UI_COLOR_BLACK, 0);
-    lv_obj_set_style_text_font(current_user_id_label, UI_FONT_TINY, 0);
-    lv_label_set_text(current_user_id_label, user_id_buffer);
+    user_id_labels[STATE_CHECK_OUT] = lv_label_create(card);
+    lv_obj_set_style_text_color(user_id_labels[STATE_CHECK_OUT], UI_COLOR_BLACK, 0);
+    lv_obj_set_style_text_font(user_id_labels[STATE_CHECK_OUT], UI_FONT_TINY, 0);
+    lv_label_set_text(user_id_labels[STATE_CHECK_OUT], user_id_buffer);
 
     return scr;
 }
@@ -351,7 +406,7 @@ lv_obj_t *ui_screen_admin_id_validating(void)
 
     lv_obj_t *center_container = lv_obj_create(cont);
     lv_obj_remove_style_all(center_container);
-    lv_obj_set_size(center_container, 100, 100);
+    lv_obj_set_size(center_container, 100, 800);
     lv_obj_set_style_pad_all(center_container, 0, 0);
 
     lv_obj_t *spinner = lv_spinner_create(center_container);
@@ -364,11 +419,11 @@ lv_obj_t *ui_screen_admin_id_validating(void)
     // lv_obj_add_style(card, ui_get_style(UI_STYLE_CARD, UI_STATE_ADMIN), 0);
     lv_obj_set_size(card, 170, 50);
 
-    current_user_id_label = lv_label_create(card);
-    lv_obj_set_style_text_color(current_user_id_label, UI_COLOR_BLACK, 0);
-    lv_obj_set_style_text_font(current_user_id_label, UI_FONT_TINY, 0);
-    lv_label_set_text(current_user_id_label, user_id_buffer);
-    lv_obj_center(current_user_id_label);
+    user_id_labels[ADMIN_STATE_VALIDATE_ID] = lv_label_create(card);
+    lv_obj_set_style_text_color(user_id_labels[ADMIN_STATE_VALIDATE_ID], UI_COLOR_BLACK, 0);
+    lv_obj_set_style_text_font(user_id_labels[ADMIN_STATE_VALIDATE_ID], UI_FONT_TINY, 0);
+    lv_label_set_text(user_id_labels[ADMIN_STATE_VALIDATE_ID], user_id_buffer);
+    lv_obj_center(user_id_labels[ADMIN_STATE_VALIDATE_ID]);
 
     return scr;
 }
@@ -393,15 +448,15 @@ lv_obj_t *ui_screen_admin_tap_card(void)
     lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(card, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-    current_user_name_label = lv_label_create(card);
-    lv_obj_set_style_text_color(current_user_name_label, UI_COLOR_BLACK, 0);
-    lv_obj_set_style_text_font(current_user_name_label, UI_FONT_TINY, 0);
-    lv_label_set_text(current_user_name_label, user_name_buffer);
+    user_name_labels[ADMIN_STATE_TAP_CARD] = lv_label_create(card);
+    lv_obj_set_style_text_color(user_name_labels[ADMIN_STATE_TAP_CARD], UI_COLOR_BLACK, 0);
+    lv_obj_set_style_text_font(user_name_labels[ADMIN_STATE_TAP_CARD], UI_FONT_TINY, 0);
+    lv_label_set_text(user_name_labels[ADMIN_STATE_TAP_CARD], user_name_buffer);
 
-    current_user_id_label = lv_label_create(card);
-    lv_obj_set_style_text_color(current_user_id_label, UI_COLOR_BLACK, 0);
-    lv_obj_set_style_text_font(current_user_id_label, UI_FONT_TINY, 0);
-    lv_label_set_text(current_user_id_label, user_id_buffer);
+    user_id_labels[ADMIN_STATE_TAP_CARD] = lv_label_create(card);
+    lv_obj_set_style_text_color(user_id_labels[ADMIN_STATE_TAP_CARD], UI_COLOR_BLACK, 0);
+    lv_obj_set_style_text_font(user_id_labels[ADMIN_STATE_TAP_CARD], UI_FONT_TINY, 0);
+    lv_label_set_text(user_id_labels[ADMIN_STATE_TAP_CARD], user_id_buffer);
 
     return scr;
 }
@@ -424,15 +479,15 @@ lv_obj_t *ui_screen_card_write_success(void)
     lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(card, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-    current_user_name_label = lv_label_create(card);
-    lv_obj_set_style_text_color(current_user_name_label, UI_COLOR_BLACK, 0);
-    lv_obj_set_style_text_font(current_user_name_label, UI_FONT_TINY, 0);
-    lv_label_set_text(current_user_name_label, user_name_buffer);
+    user_name_labels[ADMIN_STATE_CARD_WRITE_SUCCESS] = lv_label_create(card);
+    lv_obj_set_style_text_color(user_name_labels[ADMIN_STATE_CARD_WRITE_SUCCESS], UI_COLOR_BLACK, 0);
+    lv_obj_set_style_text_font(user_name_labels[ADMIN_STATE_CARD_WRITE_SUCCESS], UI_FONT_TINY, 0);
+    lv_label_set_text(user_name_labels[ADMIN_STATE_CARD_WRITE_SUCCESS], user_name_buffer);
 
-    current_user_id_label = lv_label_create(card);
-    lv_obj_set_style_text_color(current_user_id_label, UI_COLOR_BLACK, 0);
-    lv_obj_set_style_text_font(current_user_id_label, UI_FONT_TINY, 0);
-    lv_label_set_text(current_user_id_label, user_id_buffer);
+    user_id_labels[ADMIN_STATE_CARD_WRITE_SUCCESS] = lv_label_create(card);
+    lv_obj_set_style_text_color(user_id_labels[ADMIN_STATE_CARD_WRITE_SUCCESS], UI_COLOR_BLACK, 0);
+    lv_obj_set_style_text_font(user_id_labels[ADMIN_STATE_CARD_WRITE_SUCCESS], UI_FONT_TINY, 0);
+    lv_label_set_text(user_id_labels[ADMIN_STATE_CARD_WRITE_SUCCESS], user_id_buffer);
 
     return scr;
 }

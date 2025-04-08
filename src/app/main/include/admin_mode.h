@@ -29,7 +29,6 @@ extern keypad_buffer_t keypad_buffer; // Defined in keypad_driver.c
 extern TaskHandle_t state_control_task_handle;
 extern TaskHandle_t keypad_task_handle;
 extern admin_state_t current_admin_state;
-extern admin_state_t prev_admin_state;
 
 void admin_mode_control_task(void *param);
 #endif // ADMIN_MODE_H

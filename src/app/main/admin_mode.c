@@ -1,7 +1,7 @@
 #include "admin_mode.h"
 
 static const char *ADMIN_TAG = "admin_mode";
-admin_state_t current_admin_state = ADMIN_STATE_BEGIN, prev_admin_state = ADMIN_STATE_ERROR;
+admin_state_t current_admin_state = ADMIN_STATE_BEGIN;
 static uint8_t invalid_id_attempts = 0;
 
 void admin_mode_control_task(void *param)
@@ -56,6 +56,13 @@ void admin_mode_control_task(void *param)
             {
                 ESP_LOGI(ADMIN_TAG, "ID validated in database");
                 invalid_id_attempts = 0;
+
+                // Update user info display
+                char full_name[64];
+                snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
+                ui_update_user_info(full_name, user_id_to_write);
+                ESP_LOGI(ADMIN_TAG, "Updated UI with name: %s, ID: %s", full_name, user_id_to_write);
+
                 current_admin_state = ADMIN_STATE_TAP_CARD;
             }
             else
@@ -133,7 +140,6 @@ void admin_mode_control_task(void *param)
             vTaskDelete(NULL);
             break;
         }
-        prev_admin_state = current_admin_state;
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 }

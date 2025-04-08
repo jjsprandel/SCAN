@@ -1,3 +1,6 @@
+#ifndef FIREBASE_UTILS_H
+#define FIREBASE_UTILS_H
+
 // Struct to store user information
 
 typedef struct
@@ -17,3 +20,5 @@ extern UserInfo *user_info;
 bool get_user_info(const char *user_id);
 bool check_in_user(const char *user_id);
 bool check_out_user(const char *user_id);
+
+#endif /* FIREBASE_UTILS_H */

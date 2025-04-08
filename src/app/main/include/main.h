@@ -1,3 +1,6 @@
+#ifndef MAIN_H
+#define MAIN_H
+
 // ESP-IDF header files
 #include <stdio.h>
 #include <ctype.h>
@@ -30,8 +33,9 @@
 #include "i2c_config.h"
 #include "cypd3177.h"
 #include "pcf8574n.h"
-#include "display_config.h"
 #include "admin_mode.h"
+#include "firebase_utils.h"
+#include "display_utils.h"
 
 #define ID_LEN 10
 #define BLINK_GPIO 8
@@ -67,17 +71,19 @@
 pn532_t nfc;           // Defined in ntag_reader.h
 _lock_t lvgl_api_lock; // Defined in display_config.h
 lv_display_t *display; // Defined in display_config.h
-lv_obj_t *screen_objects[STATE_ERROR + 1] = {NULL};
-lv_obj_t *admin_screen_objects[ADMIN_STATE_ERROR + 1] = {NULL};
+extern lv_obj_t *screen_objects[STATE_ERROR + 1];
+extern lv_obj_t *admin_screen_objects[ADMIN_STATE_ERROR + 1];
 
 extern TaskHandle_t state_control_task_handle;
 extern TaskHandle_t admin_mode_control_task_handle;
 extern TaskHandle_t cypd3177_task_handle;
-extern admin_state_t current_admin_state, prev_admin_state;
+extern admin_state_t current_admin_state;
 
 extern int usb_connected;
 
-char user_id[ID_LEN + 1];
+extern char user_id[ID_LEN + 1];
 void state_control_task(void *pvParameter);
 void blink_led_1_task(void *pvParameter);
 void blink_led_2_task(void *pvParameter);
+
+#endif // MAIN_H
