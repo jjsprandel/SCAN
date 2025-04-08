@@ -38,7 +38,6 @@ bool is_numeric_string(const char *str, size_t max_len)
     return true;
 }
 
-// Add this function to log the elapsed time in seconds
 void log_elapsed_time(char *auth_type, int64_t start_time)
 {
     int64_t end_time = esp_timer_get_time();
@@ -48,28 +47,23 @@ void log_elapsed_time(char *auth_type, int64_t start_time)
 #endif
 }
 
-// Load all display screens into memory
 void heap_monitor_task(void *pvParameters)
 {
     while (1)
     {
         long unsigned int free_heap = (long unsigned int)esp_get_free_heap_size();
-        // ESP_LOGI(MAIN_TAG, "Free heap size: %lu bytes", free_heap);
 
         if (free_heap < HEAP_WARNING_THRESHOLD)
         {
 #ifdef UTILS_DEBUG
             ESP_LOGE(TAG, "CRITICAL: Heap size below safe limit! Free heap: %lu bytes", free_heap);
 #endif
-            // Optional: Restart the system if necessary
-            // esp_restart();
         }
 
-        vTaskDelay(pdMS_TO_TICKS(5000)); // Check every 5 seconds
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
 
-// Check if a task has been successfully created. For debug purposes
 void check_task_creation(char *taskName, TaskHandle_t taskHandle)
 {
     if (taskHandle == NULL)

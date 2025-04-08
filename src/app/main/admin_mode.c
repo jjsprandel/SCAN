@@ -1,12 +1,12 @@
 #include "admin_mode.h"
 
 static const char *ADMIN_TAG = "admin_mode";
-admin_state_t current_admin_state = ADMIN_STATE_BEGIN, prev_admin_state = ADMIN_STATE_ERROR;
+admin_state_t current_admin_state = ADMIN_STATE_BEGIN;
 static uint8_t invalid_id_attempts = 0;
+char user_id_to_write[ID_LEN+1];
 
 void admin_mode_control_task(void *param)
 {
-    char user_id_to_write[ID_LEN];
     while (1)
     {
         switch (current_admin_state)
@@ -29,6 +29,7 @@ void admin_mode_control_task(void *param)
             if (keypadNotify > 0)
             {
                 memcpy(user_id_to_write, keypad_buffer.elements, ID_LEN);
+                user_id_to_write[ID_LEN] = '\0';
                 current_admin_state = ADMIN_STATE_VALIDATE_ID;
             }
             break;
@@ -42,14 +43,17 @@ void admin_mode_control_task(void *param)
             {
                 ESP_LOGE(ADMIN_TAG, "Error validating ID in database. Try again.");
                 invalid_id_attempts++;
-                if (invalid_id_attempts >= 3) {
+                if (invalid_id_attempts >= 3)
+                {
                     ESP_LOGE(ADMIN_TAG, "Maximum number of invalid ID attempts reached. Exiting admin mode.");
                     current_admin_state = ADMIN_STATE_ERROR;
-                } else {
+                }
+                else
+                {
                     current_admin_state = ADMIN_STATE_ENTER_ID_ERROR;
                 }
             }
-            else if (strcmp(user_info->active_student, "Yes") == 0)
+            else if (strcmp(user_info->active_user, "Yes") == 0)
             {
                 ESP_LOGI(ADMIN_TAG, "ID validated in database");
                 invalid_id_attempts = 0;
@@ -59,10 +63,13 @@ void admin_mode_control_task(void *param)
             {
                 ESP_LOGE(ADMIN_TAG, "User is not an active student. Try again.");
                 invalid_id_attempts++;
-                if (invalid_id_attempts >= 3) {
+                if (invalid_id_attempts >= 3)
+                {
                     ESP_LOGE(ADMIN_TAG, "Maximum number of invalid ID attempts reached. Exiting admin mode.");
                     current_admin_state = ADMIN_STATE_ERROR;
-                } else {
+                }
+                else
+                {
                     current_admin_state = ADMIN_STATE_ENTER_ID_ERROR;
                 }
             }
@@ -75,7 +82,7 @@ void admin_mode_control_task(void *param)
 
         case ADMIN_STATE_TAP_CARD:
 #ifdef ADMIN_DEBUG
-            ESP_LOGI(ADMIN_TAG, "Tap a blank NTAG213 card for writing");
+            ESP_LOGI(ADMIN_TAG, "Tap a blank NTAG213 card for writing ID %s for user %s %s", user_id_to_write, user_info->first_name, user_info->last_name);
 #endif
 
             bool nfcWriteFlag = write_user_id(user_id_to_write, 50);
@@ -127,7 +134,6 @@ void admin_mode_control_task(void *param)
             vTaskDelete(NULL);
             break;
         }
-        prev_admin_state = current_admin_state;
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 }
