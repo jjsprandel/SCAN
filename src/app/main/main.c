@@ -10,7 +10,7 @@ TaskHandle_t state_control_task_handle = NULL;
 static TaskHandle_t wifi_init_task_handle = NULL;
 TaskHandle_t ota_update_task_handle = NULL;
 TaskHandle_t keypad_task_handle = NULL;
-extern TaskHandle_t cypd3177_task_handle = NULL;
+TaskHandle_t cypd3177_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
 static TaskHandle_t blink_led_task_handle = NULL;
 TaskHandle_t admin_mode_control_task_handle = NULL;
@@ -25,7 +25,7 @@ static int64_t start_time, end_time;
 
 static led_strip_handle_t led_strip;
 
-extern int usb_connected = 1;
+int usb_connected = 1;
 
 void blink_led_task(void *pvParameter)
 {
@@ -158,7 +158,7 @@ static void display_screen(state_t display_state)
                 }
 
                 _lock_acquire(&lvgl_api_lock);
-                ui_set_screen_transition(admin_screen_objects[current_admin_state]);
+                scan_ui_set_screen_transition(admin_screen_objects[current_admin_state]);
                 _lock_release(&lvgl_api_lock);
 
                 prev_admin_state_internal = current_admin_state;
@@ -182,7 +182,7 @@ static void display_screen(state_t display_state)
             }
 
             _lock_acquire(&lvgl_api_lock);
-            ui_set_screen_transition(screen_objects[current_state]);
+            scan_ui_set_screen_transition(screen_objects[current_state]);
             _lock_release(&lvgl_api_lock);
         }
         else
@@ -195,7 +195,6 @@ static void display_screen(state_t display_state)
 // Function to control state transitions and task management
 void state_control_task(void *pvParameter)
 {
-    char user_id[ID_LEN];
     while (1)
     {
         switch (current_state)
@@ -271,6 +270,7 @@ void state_control_task(void *pvParameter)
 
         case STATE_SYSTEM_READY:
             MAIN_DEBUG_LOG("System fully initialized");
+            vTaskDelay(pdMS_TO_TICKS(5000));
             current_state = STATE_IDLE;
             break;
 
@@ -316,7 +316,7 @@ void state_control_task(void *pvParameter)
                     }
                 }
                 memcpy(user_id, nfcReadFlag ? nfcUserID : keypad_buffer.elements, ID_LEN);
-
+                user_id[ID_LEN] = '\0';
                 MAIN_DEBUG_LOG("Processing user ID: %s", user_id);
 
                 if (!is_numeric_string(user_id, ID_LEN))
@@ -338,7 +338,7 @@ void state_control_task(void *pvParameter)
                 break;
             }
             // If admin, set state to STATE_ADMIN_MODE
-            else if (strcmp(user_info->role, "admin") == 0)
+            else if (strcmp(user_info->role, "Admin") == 0)
             {
                 MAIN_DEBUG_LOG("Entering Admin Mode");
                 xTaskNotifyGive(keypad_task_handle);
@@ -347,13 +347,19 @@ void state_control_task(void *pvParameter)
                 break;
             }
             // If student, check-in/out
-            else if (strcmp(user_info->role, "student") == 0)
+            else if (strcmp(user_info->role, "Student") == 0)
             {
                 start_time = esp_timer_get_time();
                 if (strcmp(user_info->check_in_status, "Checked In") == 0)
                     current_state = check_out_user(user_id) ? STATE_CHECK_OUT : STATE_VALIDATION_FAILURE;
                 else
                     current_state = check_in_user(user_id) ? STATE_CHECK_IN : STATE_VALIDATION_FAILURE;
+            }
+            else
+            {
+                MAIN_ERROR_LOG("Invalid user role: %s", user_info->role);
+                current_state = STATE_VALIDATION_FAILURE;
+                break;
             }
 #else
             MAIN_DEBUG_LOG("Entering Admin Mode");
@@ -410,9 +416,9 @@ void state_control_task(void *pvParameter)
             ESP_LOGW(TAG, "Unknown state encountered: %d", current_state);
             break;
         }
-        if ((current_state != prev_state) || current_state == STATE_ADMIN_MODE)
+        if ((current_state != prev_state) || (current_state == STATE_ADMIN_MODE && (current_admin_state != prev_admin_state)))
         {
-            play_kiosk_buzzer(current_state);
+            play_kiosk_buzzer(current_state, current_admin_state);
             display_screen(current_state);
             prev_state = current_state;
         }
@@ -432,8 +438,9 @@ void display_test_task(void *pvParameter)
             if (screen_objects[current_state] != NULL)
             {
                 ESP_LOGI(TAG, "Testing state: %d", test_state);
+                ui_update_user_info("Cory Brynds", "1234567890");
                 _lock_acquire(&lvgl_api_lock);
-                ui_set_screen_transition(screen_objects[current_state]);
+                scan_ui_set_screen_transition(screen_objects[current_state]);
                 _lock_release(&lvgl_api_lock);
             }
             else
@@ -450,8 +457,9 @@ void display_test_task(void *pvParameter)
             if (admin_screen_objects[current_admin_state] != NULL)
             {
                 ESP_LOGI(TAG, "Testing admin state: %d", test_admin_state);
+                ui_update_user_info("Dr. Mike", "0987654321");
                 _lock_acquire(&lvgl_api_lock);
-                ui_set_screen_transition(admin_screen_objects[current_admin_state]);
+                scan_ui_set_screen_transition(admin_screen_objects[current_admin_state]);
                 _lock_release(&lvgl_api_lock);
             }
             else
@@ -532,33 +540,33 @@ void app_main(void)
 
     // Create tasks with increased stack sizes and priorities
     ESP_LOGI(TAG, "Creating tasks...");
-    // xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
-    // xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
+    xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
+    xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
-    // xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
+    xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
 
     ESP_LOGI(TAG, "Free heap after task creation: %lu bytes", esp_get_free_heap_size());
 
-    // #ifdef MAIN_DEBUG
-    //     check_task_creation("State control", state_control_task_handle);
-    //     check_task_creation("Keypad", keypad_task_handle);
-    //     check_task_creation("LVGL", lvgl_port_task_handle);
-    //     check_task_creation("Admin mode control", admin_mode_control_task_handle);
-    // #endif
+#ifdef MAIN_DEBUG
+    check_task_creation("State control", state_control_task_handle);
+    check_task_creation("Keypad", keypad_task_handle);
+    check_task_creation("LVGL", lvgl_port_task_handle);
+    check_task_creation("Admin mode control", admin_mode_control_task_handle);
+#endif
 
     // Create display test task
-    xTaskCreate(display_test_task, "display_test", 4096, NULL, 5, NULL);
+    // xTaskCreate(display_test_task, "display_test", 4096, NULL, 5, NULL);
 
     while (1)
     {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 
-    // teardown_task(&state_control_task_handle);
-    // teardown_task(&keypad_task_handle);
-    // teardown_task(&lvgl_port_task_handle);
-    // teardown_task(&admin_mode_control_task_handle);
-    // teardown_task(&blink_led_task_handle);
-    // teardown_task(&wifi_init_task_handle);
+    teardown_task(&state_control_task_handle);
+    teardown_task(&keypad_task_handle);
+    teardown_task(&lvgl_port_task_handle);
+    teardown_task(&admin_mode_control_task_handle);
+    teardown_task(&blink_led_task_handle);
+    teardown_task(&wifi_init_task_handle);
     MAIN_DEBUG_LOG("App Main End");
 }

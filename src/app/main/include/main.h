@@ -31,8 +31,6 @@
 #include "cypd3177.h"
 #include "pcf8574n.h"
 #include "display_config.h"
-#include "display_frames.h"
-#include "admin_frames.h"
 #include "admin_mode.h"
 
 #define ID_LEN 10

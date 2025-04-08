@@ -2,7 +2,7 @@
 
 typedef struct
 {
-    char active_student[5];
+    char active_user[5];
     char check_in_status[20];
     char first_name[32];
     char last_name[32];
