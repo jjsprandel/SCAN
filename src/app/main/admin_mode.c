@@ -3,10 +3,10 @@
 static const char *ADMIN_TAG = "admin_mode";
 admin_state_t current_admin_state = ADMIN_STATE_BEGIN;
 static uint8_t invalid_id_attempts = 0;
+char user_id_to_write[ID_LEN+1];
 
 void admin_mode_control_task(void *param)
 {
-    char user_id_to_write[ID_LEN];
     while (1)
     {
         switch (current_admin_state)
@@ -29,6 +29,7 @@ void admin_mode_control_task(void *param)
             if (keypadNotify > 0)
             {
                 memcpy(user_id_to_write, keypad_buffer.elements, ID_LEN);
+                user_id_to_write[ID_LEN] = '\0';
                 current_admin_state = ADMIN_STATE_VALIDATE_ID;
             }
             break;
@@ -56,13 +57,6 @@ void admin_mode_control_task(void *param)
             {
                 ESP_LOGI(ADMIN_TAG, "ID validated in database");
                 invalid_id_attempts = 0;
-
-                // Update user info display
-                char full_name[64];
-                snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
-                ui_update_user_info(full_name, user_id_to_write);
-                ESP_LOGI(ADMIN_TAG, "Updated UI with name: %s, ID: %s", full_name, user_id_to_write);
-
                 current_admin_state = ADMIN_STATE_TAP_CARD;
             }
             else
@@ -88,7 +82,7 @@ void admin_mode_control_task(void *param)
 
         case ADMIN_STATE_TAP_CARD:
 #ifdef ADMIN_DEBUG
-            ESP_LOGI(ADMIN_TAG, "Tap a blank NTAG213 card for writing");
+            ESP_LOGI(ADMIN_TAG, "Tap a blank NTAG213 card for writing ID %s for user %s %s", user_id_to_write, user_info->first_name, user_info->last_name);
 #endif
 
             bool nfcWriteFlag = write_user_id(user_id_to_write, 50);

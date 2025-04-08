@@ -82,6 +82,8 @@ extern admin_state_t current_admin_state;
 extern int usb_connected;
 
 extern char user_id[ID_LEN + 1];
+extern char user_id_to_write[ID_LEN+1];
+
 void state_control_task(void *pvParameter);
 void blink_led_1_task(void *pvParameter);
 void blink_led_2_task(void *pvParameter);

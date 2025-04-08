@@ -38,26 +38,23 @@ void display_screen(state_t display_state, admin_state_t display_admin_state)
         if (admin_screen_objects[display_admin_state] != NULL)
         {
             ESP_LOGI(TAG, "Displaying admin screen for state %d", display_admin_state);
-// In admin mode, update the user ID or user info if needed
-                if (display_admin_state == ADMIN_STATE_VALIDATE_ID)
-                {
-                    ui_update_user_info(NULL, keypad_buffer.elements);
-                }
-                else if (display_admin_state == ADMIN_STATE_TAP_CARD ||
-                         display_admin_state == ADMIN_STATE_CARD_WRITE_SUCCESS || display_admin_state == ADMIN_STATE_VALIDATE_ID)
-                {
-                    if (user_info != NULL)
-                    {
-                        char full_name[64];
-                        snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
-                        ui_update_user_info(full_name, keypad_buffer.elements);
-                    }
-                }
+            // In admin mode, update the user ID or user info if needed
+            if (user_info != NULL)
+            {
+                char full_name[64];
+                snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
+                
+                // For TAP_CARD and CARD_WRITE_SUCCESS states, use user_id_to_write
+                // For other states, use the current user_id
+                const char *id_to_display = (display_admin_state == ADMIN_STATE_VALIDATE_ID || display_admin_state == ADMIN_STATE_TAP_CARD || 
+                    display_admin_state == ADMIN_STATE_CARD_WRITE_SUCCESS) ? user_id_to_write : user_id;
+                
+                ui_update_user_info(full_name, id_to_display);
+            }
 
                 _lock_acquire(&lvgl_api_lock);
                 scan_ui_set_screen_transition(admin_screen_objects[display_admin_state]);
                 _lock_release(&lvgl_api_lock);
-
         }
     }
     else
@@ -65,15 +62,12 @@ void display_screen(state_t display_state, admin_state_t display_admin_state)
         if (screen_objects[display_state] != NULL)
         {
             ESP_LOGI(TAG, "Displaying screen for state %d", display_state);
- if (display_state == STATE_CHECK_IN || display_state == STATE_CHECK_OUT)
-            {
                 if (user_info != NULL)
                 {
                     char full_name[64];
                     snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
                     ui_update_user_info(full_name, user_id);
                 }
-            }
 
             _lock_acquire(&lvgl_api_lock);
             scan_ui_set_screen_transition(screen_objects[display_state]);

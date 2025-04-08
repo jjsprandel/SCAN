@@ -12,6 +12,7 @@
 #include "firebase_utils.h"
 
 #define ADMIN_DEBUG
+#define DATABASE_QUERY_ENABLED 1
 
 typedef enum
 {
@@ -29,6 +30,6 @@ extern keypad_buffer_t keypad_buffer; // Defined in keypad_driver.c
 extern TaskHandle_t state_control_task_handle;
 extern TaskHandle_t keypad_task_handle;
 extern admin_state_t current_admin_state;
-
+extern char user_id_to_write[ID_LEN+1];
 void admin_mode_control_task(void *param);
 #endif // ADMIN_MODE_H
