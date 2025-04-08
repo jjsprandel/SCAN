@@ -41,6 +41,7 @@ esp_err_t bq25798_init(void)
     
     ESP_LOGI(TAG, "Part Info: 0x%02X", part_info);
     
+    /* Commenting out charge current and charging configuration
     // Configure charge current and voltage limits
     ret = bq25798_set_charge_current(I2C_NUM_0, BQ25798_DEFAULT_CHARGE_CURRENT_MA);
     if (ret != ESP_OK) {
@@ -48,14 +49,74 @@ esp_err_t bq25798_init(void)
         return ret;
     }
 
-    
-    // Enable charging
-    uint8_t charge_ctrl = BQ25798_CHRG_EN | BQ25798_ADC_EN;
-    ret = bq25798_write_reg(I2C_NUM_0, BQ25798_CHRG_CTRL_0, charge_ctrl);
+    // Enable charging and ADC
+    uint8_t charge_ctrl;
+    ret = bq25798_read_reg(I2C_NUM_0, BQ25798_CHRG_CTRL_0, &charge_ctrl);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to enable charging");
+        ESP_LOGE(TAG, "Failed to read charge control register");
         return ret;
     }
+    
+    // Enable both charging and ADC
+    charge_ctrl |= (BQ25798_CHRG_EN | BQ25798_ADC_EN);
+    ret = bq25798_write_reg(I2C_NUM_0, BQ25798_CHRG_CTRL_0, charge_ctrl);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to enable charging and ADC");
+        return ret;
+    }
+    */
+
+    // Only enable ADC
+    uint8_t charge_ctrl;
+    ret = bq25798_read_reg(I2C_NUM_0, BQ25798_CHRG_CTRL_0, &charge_ctrl);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read charge control register");
+        return ret;
+    }
+    
+    ESP_LOGI(TAG, "Charge Control Register (before): 0x%02X", charge_ctrl);
+    
+    // Enable only ADC
+    charge_ctrl |= BQ25798_ADC_EN;
+    ret = bq25798_write_reg(I2C_NUM_0, BQ25798_CHRG_CTRL_0, charge_ctrl);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to enable ADC");
+        return ret;
+    }
+    
+    // Read back to verify
+    ret = bq25798_read_reg(I2C_NUM_0, BQ25798_CHRG_CTRL_0, &charge_ctrl);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read charge control register after write");
+        return ret;
+    }
+    ESP_LOGI(TAG, "Charge Control Register (after): 0x%02X", charge_ctrl);
+
+    // Configure ADC control register
+    uint8_t adc_ctrl = 0;
+    ret = bq25798_read_reg(I2C_NUM_0, BQ25798_ADC_CTRL, &adc_ctrl);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read ADC control register");
+        return ret;
+    }
+    
+    ESP_LOGI(TAG, "ADC Control Register (before): 0x%02X", adc_ctrl);
+
+    // Enable all ADC channels
+    adc_ctrl = 0xA0;  // Enable all ADC channels
+    ret = bq25798_write_reg(I2C_NUM_0, BQ25798_ADC_CTRL, adc_ctrl);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to configure ADC");
+        return ret;
+    }
+    
+    // Read back to verify
+    ret = bq25798_read_reg(I2C_NUM_0, BQ25798_ADC_CTRL, &adc_ctrl);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read ADC control register after write");
+        return ret;
+    }
+    ESP_LOGI(TAG, "ADC Control Register (after): 0x%02X", adc_ctrl);
     
     ESP_LOGI(TAG, "BQ25798 initialization complete");
     return ESP_OK;

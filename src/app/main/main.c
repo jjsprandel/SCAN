@@ -427,6 +427,15 @@ void app_main(void)
     i2c_master_add_device(&master_handle, &bq25798_i2c_handle, &bq25798_i2c_config);
     ESP_LOGI(TAG, "I2C initialized successfully");
 
+    // Initialize BQ25798 charger
+    ESP_LOGI(TAG, "Initializing BQ25798 charger...");
+    ret = bq25798_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize BQ25798 charger");
+        return;
+    }
+    ESP_LOGI(TAG, "BQ25798 charger initialized successfully");
+
     // Initialize peripherals
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
@@ -467,7 +476,6 @@ void app_main(void)
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
     xTaskCreate(bq25798_monitor_task, "bq25798_monitor", 4096, NULL, 2, NULL);
-    ESP_LOGI(TAG, "BQ25798 monitoring task started");
 
     MAIN_DEBUG_LOG("Free heap after task creation: %lu bytes", esp_get_free_heap_size());
 
