@@ -12,7 +12,6 @@ TaskHandle_t ota_update_task_handle = NULL;
 TaskHandle_t keypad_task_handle = NULL;
 TaskHandle_t cypd3177_task_handle = NULL;
 static TaskHandle_t lvgl_port_task_handle = NULL;
-static TaskHandle_t blink_led_task_handle = NULL;
 TaskHandle_t admin_mode_control_task_handle = NULL;
 
 // Semaphore Handles
@@ -20,92 +19,11 @@ SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init 
 
 static const char *TAG = "MAIN";
 
-static uint8_t s_led_state = 0;
-static int64_t start_time, end_time;
-
-static led_strip_handle_t led_strip;
+static bool s_led_state = 0;
+static int64_t start_time;
 
 int usb_connected = 1;
 char user_id[ID_LEN + 1];
-
-void blink_led_task(void *pvParameter)
-{
-    while (1)
-    {
-        s_led_state = !s_led_state;
-
-        /* If the addressable LED is enabled */
-        if (s_led_state && current_state == STATE_WIFI_CONNECTING)
-        {
-            /* Set the LED pixel using RGB from 0 (0%) to 255 (100%) for each color */
-            for (int i = 0; i < NUM_LEDS; i++)
-            {
-                led_strip_set_pixel(led_strip, i, 100, 0, 0);
-            }
-            /* Refresh the strip to send data */
-            led_strip_refresh(led_strip);
-        }
-        else
-        {
-            /* Set all LED off to clear all pixels */
-            led_strip_clear(led_strip);
-        }
-        if (current_state == STATE_USER_DETECTED)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-        }
-        else if (current_state == STATE_DATABASE_VALIDATION)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-        }
-        else if (current_state == STATE_CHECK_IN || current_state == STATE_CHECK_OUT)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-            led_strip_set_pixel(led_strip, 2, 0, 100, 0);
-        }
-        else if (current_state == STATE_VALIDATION_FAILURE)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-            led_strip_set_pixel(led_strip, 2, 100, 0, 0);
-        }
-        else if (current_state == STATE_IDLE)
-        {
-            led_strip_clear(led_strip);
-        }
-
-        if (usb_connected == 0)
-        {
-            led_strip_set_pixel(led_strip, 0, 50, 75, 60);
-            led_strip_set_pixel(led_strip, 1, 50, 75, 60);
-            led_strip_set_pixel(led_strip, 2, 50, 75, 60);
-        }
-
-        led_strip_refresh(led_strip);
-        vTaskDelay(250 / portTICK_PERIOD_MS);
-    }
-}
-
-static void configure_led(void)
-{
-    MAIN_DEBUG_LOG("Configured to blink addressable LED!");
-    /* LED strip initialization with the GPIO and pixels number*/
-    led_strip_config_t strip_config = {
-        .strip_gpio_num = BLINK_GPIO,
-        .max_leds = 3, // at least one LED on board
-    };
-
-    led_strip_rmt_config_t rmt_config = {
-        .resolution_hz = 10 * 1000 * 1000, // 10MHz
-        .flags.with_dma = false,
-    };
-    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
-
-    /* Set all LED off to clear all pixels */
-    led_strip_clear(led_strip);
-}
 
 // Function to control state transitions and task management
 void state_control_task(void *pvParameter)
@@ -116,12 +34,6 @@ void state_control_task(void *pvParameter)
         {
         case STATE_HARDWARE_INIT:
             // Hardware is already initialized in app_main
-            // Just start LED blinking task if not already running
-            if (blink_led_task_handle == NULL)
-            {
-                MAIN_DEBUG_LOG("Starting Blink LED Task");
-                xTaskCreate(blink_led_task, "blink_led_task", 1024, NULL, 2, &blink_led_task_handle);
-            }
 
             // Move to WiFi connecting state
             current_state = STATE_WIFI_CONNECTING;
@@ -339,9 +251,7 @@ void state_control_task(void *pvParameter)
             }
             break;
         case STATE_VALIDATION_FAILURE:
-#ifdef MAIN_DEBUG
             MAIN_DEBUG_LOG("ID %s not found in database. Try again.", user_id);
-#endif
             vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
             current_state = STATE_USER_DETECTED;
             break;
@@ -351,11 +261,6 @@ void state_control_task(void *pvParameter)
             {
                 vTaskDelete(wifi_init_task_handle);
                 wifi_init_task_handle = NULL;
-            }
-            if (blink_led_task_handle != NULL)
-            {
-                vTaskDelete(blink_led_task_handle);
-                blink_led_task_handle = NULL;
             }
             MAIN_ERROR_LOG("Error state reached!");
             break;
@@ -367,12 +272,14 @@ void state_control_task(void *pvParameter)
         if ((current_state != prev_state) || ((current_state == STATE_ADMIN_MODE) && (current_admin_state != prev_admin_state)))
         {
             play_kiosk_buzzer(current_state, current_admin_state);
+            set_kiosk_leds(current_state, current_admin_state, s_led_state);
             display_screen(current_state, current_admin_state);
             prev_state = current_state;
 
             if (current_state == STATE_ADMIN_MODE)
                 prev_admin_state = current_admin_state;
         }
+        s_led_state = !s_led_state;
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
     MAIN_DEBUG_LOG("State control task finished"); // Should not reach here unless task is deleted
@@ -442,34 +349,35 @@ void app_main(void)
 #endif
 
     // Create tasks with increased stack sizes and priorities
-    ESP_LOGI(TAG, "Creating tasks...");
+    MAIN_DEBUG_LOG("Creating tasks...");
+
     xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
+    check_task_creation("State control", state_control_task_handle);
+
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
+    check_task_creation("Keypad", keypad_task_handle);
+
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
+    check_task_creation("LVGL", lvgl_port_task_handle);
+
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
+    check_task_creation("Admin mode control", admin_mode_control_task_handle);
 
     ESP_LOGI(TAG, "Free heap after task creation: %lu bytes", esp_get_free_heap_size());
-
-#ifdef MAIN_DEBUG
-    check_task_creation("State control", state_control_task_handle);
-    check_task_creation("Keypad", keypad_task_handle);
-    check_task_creation("LVGL", lvgl_port_task_handle);
-    check_task_creation("Admin mode control", admin_mode_control_task_handle);
-#endif
-
-    // Create display test task
-    // xTaskCreate(display_test_task, "display_test", 4096, NULL, 5, NULL);
 
     while (1)
     {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
-
+    
+    // Kill all tasks
     teardown_task(&state_control_task_handle);
     teardown_task(&keypad_task_handle);
     teardown_task(&lvgl_port_task_handle);
     teardown_task(&admin_mode_control_task_handle);
-    teardown_task(&blink_led_task_handle);
     teardown_task(&wifi_init_task_handle);
+    teardown_task(&ota_update_task_handle);
+    teardown_task(&cypd3177_task_handle);
+    
     MAIN_DEBUG_LOG("App Main End");
 }

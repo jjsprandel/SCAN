@@ -36,6 +36,7 @@
 #include "admin_mode.h"
 #include "firebase_utils.h"
 #include "display_utils.h"
+#include "status_leds.h"
 
 #define ID_LEN 10
 #define BLINK_GPIO 8
