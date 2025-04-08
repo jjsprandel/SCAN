@@ -21,6 +21,7 @@ lv_obj_t *ui_screen_system_ready(void);
 lv_obj_t *ui_screen_idle(void);
 lv_obj_t *ui_screen_user_detected(void);
 lv_obj_t *ui_screen_database_validation(void);
+lv_obj_t *ui_screen_keypad_entry_error(void);
 lv_obj_t *ui_screen_check_in_success(void);
 lv_obj_t *ui_screen_check_out_success(void);
 lv_obj_t *ui_screen_validation_failure(void);

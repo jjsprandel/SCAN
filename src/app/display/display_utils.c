@@ -12,6 +12,7 @@ void create_screens()
     screen_objects[STATE_IDLE] = ui_screen_idle();
     screen_objects[STATE_USER_DETECTED] = ui_screen_user_detected();
     screen_objects[STATE_DATABASE_VALIDATION] = ui_screen_database_validation();
+    screen_objects[STATE_KEYPAD_ENTRY_ERROR] = ui_screen_keypad_entry_error();
     screen_objects[STATE_CHECK_IN] = ui_screen_check_in_success();
     screen_objects[STATE_CHECK_OUT] = ui_screen_check_out_success();
     screen_objects[STATE_VALIDATION_FAILURE] = ui_screen_validation_failure();
@@ -43,7 +44,8 @@ void display_screen(state_t display_state, admin_state_t display_admin_state)
                 // For TAP_CARD and CARD_WRITE_SUCCESS states, use user_id_to_write
                 // For other states, use the current user_id
                 const char *id_to_display = (display_admin_state == ADMIN_STATE_VALIDATE_ID || display_admin_state == ADMIN_STATE_TAP_CARD || 
-                    display_admin_state == ADMIN_STATE_CARD_WRITE_SUCCESS) ? user_id_to_write : user_id;
+                    display_admin_state == ADMIN_STATE_CARD_WRITE_SUCCESS) ? user_id_to_write 
+                    : (display_admin_state == ADMIN_STATE_ENTER_ID_ERROR) ? keypad_buffer.elements : user_id;
                 
                 ui_update_user_info(full_name, id_to_display);
             }
@@ -62,7 +64,7 @@ void display_screen(state_t display_state, admin_state_t display_admin_state)
                 {
                     char full_name[64];
                     snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
-                    ui_update_user_info(full_name, user_id);
+                    ui_update_user_info(full_name, display_state == STATE_KEYPAD_ENTRY_ERROR ? keypad_buffer.elements : user_id);
                 }
 
             _lock_acquire(&lvgl_api_lock);

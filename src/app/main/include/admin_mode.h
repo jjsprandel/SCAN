@@ -13,6 +13,7 @@
 
 #define ADMIN_DEBUG
 #define DATABASE_QUERY_ENABLED 1
+#define NUM_ID_ATTEMPTS 3
 
 typedef enum
 {
