@@ -6,7 +6,7 @@ Welcome to the **SCAN ESP32 Firmware** repository! This repository contains the 
   - [Full Schematic (PDF)](https://github.com/jjsprandel/SCAN_PCB/blob/main/hardware_design/exports/schematic/SCAN.pdf)
   - [Top Layer Layout (PDF)](https://github.com/jjsprandel/SCAN_PCB/blob/main/hardware_design/exports/layout/multi-layer/top_gnd1.pdf)
   - [Bill of Materials (Excel)](https://github.com/jjsprandel/SCAN_PCB/blob/main/hardware_design/manufacturing/jlcpcb_upload/bom.xlsx)
-- [SCAN_APP](https://github.com/jjsprandel/SCAN_APP) - React web application for admin interface
+- [SCAN_APP](https://github.com/jjsprandel/SCAN_APP) - React web application for analytics dashboard and admin interface
 
 ---
 
