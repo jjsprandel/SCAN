@@ -48,19 +48,12 @@ esp_err_t bq25798_init(void)
         return ret;
     }
 
-    // Enable charging and ADC
-    uint8_t charge_ctrl;
-    ret = bq25798_read_reg(I2C_NUM_0, BQ25798_CHRG_CTRL_0, &charge_ctrl);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to read charge control register");
-        return ret;
-    }
     
-    // Enable both charging and ADC
-    charge_ctrl |= (BQ25798_CHRG_EN | BQ25798_ADC_EN);
+    // Enable charging
+    uint8_t charge_ctrl = BQ25798_CHRG_EN | BQ25798_ADC_EN;
     ret = bq25798_write_reg(I2C_NUM_0, BQ25798_CHRG_CTRL_0, charge_ctrl);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to enable charging and ADC");
+        ESP_LOGE(TAG, "Failed to enable charging");
         return ret;
     }
     
@@ -205,99 +198,32 @@ void bq25798_monitor_task(void *pvParameters)
     int16_t temperature;
     uint8_t charge_status;
     
-    // First ensure ADC is enabled
-    uint8_t charge_ctrl;
-    esp_err_t ret = bq25798_read_reg(I2C_NUM_0, BQ25798_CHRG_CTRL_0, &charge_ctrl);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to read charge control register");
-        return;
-    }
-    
-    // Enable ADC if not already enabled
-    if (!(charge_ctrl & BQ25798_ADC_EN)) {
-        charge_ctrl |= BQ25798_ADC_EN;
-        ret = bq25798_write_reg(I2C_NUM_0, BQ25798_CHRG_CTRL_0, charge_ctrl);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to enable ADC");
-            return;
-        }
-        ESP_LOGI(TAG, "ADC enabled");
-    }
-    
     while (1) {
-        // Read all parameters with error checking
-        ret = bq25798_get_battery_voltage(I2C_NUM_0, &battery_voltage);
-        if (ret == ESP_OK) {
+        // Read all parameters
+        if (bq25798_get_battery_voltage(I2C_NUM_0, &battery_voltage) == ESP_OK) {
             ESP_LOGI(TAG, "Battery Voltage: %d mV", battery_voltage);
-        } else {
-            ESP_LOGE(TAG, "Failed to read battery voltage");
         }
         
-        ret = bq25798_get_charge_current(I2C_NUM_0, &charge_current);
-        if (ret == ESP_OK) {
+        if (bq25798_get_charge_current(I2C_NUM_0, &charge_current) == ESP_OK) {
             ESP_LOGI(TAG, "Charge Current: %d mA", charge_current);
-        } else {
-            ESP_LOGE(TAG, "Failed to read charge current");
         }
         
-        ret = bq25798_get_input_voltage(I2C_NUM_0, &input_voltage);
-        if (ret == ESP_OK) {
+        if (bq25798_get_input_voltage(I2C_NUM_0, &input_voltage) == ESP_OK) {
             ESP_LOGI(TAG, "Input Voltage: %d mV", input_voltage);
-        } else {
-            ESP_LOGE(TAG, "Failed to read input voltage");
         }
         
-        ret = bq25798_get_input_current(I2C_NUM_0, &input_current);
-        if (ret == ESP_OK) {
+        if (bq25798_get_input_current(I2C_NUM_0, &input_current) == ESP_OK) {
             ESP_LOGI(TAG, "Input Current: %d mA", input_current);
-        } else {
-            ESP_LOGE(TAG, "Failed to read input current");
         }
         
-        ret = bq25798_get_temperature(I2C_NUM_0, &temperature);
-        if (ret == ESP_OK) {
+        if (bq25798_get_temperature(I2C_NUM_0, &temperature) == ESP_OK) {
             ESP_LOGI(TAG, "Temperature: %d°C", temperature);
-        } else {
-            ESP_LOGE(TAG, "Failed to read temperature");
         }
         
-        ret = bq25798_get_charge_status(I2C_NUM_0, &charge_status);
-        if (ret == ESP_OK) {
+        if (bq25798_get_charge_status(I2C_NUM_0, &charge_status) == ESP_OK) {
             ESP_LOGI(TAG, "Charge Status: 0x%02X", charge_status);
-            // Log specific charge states
-            if (charge_status & BQ25798_VBUS_PRESENT) {
-                ESP_LOGI(TAG, "VBUS Present");
-            }
-            switch (charge_status & BQ25798_CHG_STAT_MSK) {
-                case BQ25798_NOT_CHRGING:
-                    ESP_LOGI(TAG, "Not Charging");
-                    break;
-                case BQ25798_TRICKLE_CHRG:
-                    ESP_LOGI(TAG, "Trickle Charging");
-                    break;
-                case BQ25798_PRECHRG:
-                    ESP_LOGI(TAG, "Pre-Charging");
-                    break;
-                case BQ25798_FAST_CHRG:
-                    ESP_LOGI(TAG, "Fast Charging");
-                    break;
-                case BQ25798_TAPER_CHRG:
-                    ESP_LOGI(TAG, "Taper Charging");
-                    break;
-                case BQ25798_TOP_OFF_CHRG:
-                    ESP_LOGI(TAG, "Top-Off Charging");
-                    break;
-                case BQ25798_TERM_CHRG:
-                    ESP_LOGI(TAG, "Termination Charging");
-                    break;
-                default:
-                    ESP_LOGI(TAG, "Unknown Charging State");
-                    break;
-            }
-        } else {
-            ESP_LOGE(TAG, "Failed to read charge status");
         }
         
-        vTaskDelay(pdMS_TO_TICKS(5000)); // Update every 5 seconds
+        vTaskDelay(pdMS_TO_TICKS(10000)); // Update every 10 seconds
     }
 } 

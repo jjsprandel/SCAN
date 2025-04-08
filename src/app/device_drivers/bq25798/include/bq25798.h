@@ -90,7 +90,7 @@
 #define BQ25798_ADC_EN          BIT(7)
 
 // Charger Status 1
-#define BQ25798_CHG_STAT_MSK    GENMASK(7, 5)
+#define BQ25798_CHG_STAT_MSK    0b11100000  // bits 7-5
 #define BQ25798_NOT_CHRGING     0
 #define BQ25798_TRICKLE_CHRG    BIT(5)
 #define BQ25798_PRECHRG         BIT(6)
@@ -101,7 +101,7 @@
 #define BQ25798_VBUS_PRESENT    BIT(0)
 
 // VBUS Status
-#define BQ25798_VBUS_STAT_MSK   GENMASK(4, 1)
+#define BQ25798_VBUS_STAT_MSK   0b00011110  // bits 4-1
 #define BQ25798_USB_SDP         BIT(1)
 #define BQ25798_USB_CDP         BIT(2)
 #define BQ25798_USB_DCP         (BIT(1) | BIT(2))
@@ -117,7 +117,7 @@
 #define BQ25798_TEMP_WARM       BIT(1)
 #define BQ25798_TEMP_COOL       BIT(2)
 #define BQ25798_TEMP_COLD       BIT(3)
-#define BQ25798_TEMP_MASK       GENMASK(3, 0)
+#define BQ25798_TEMP_MASK       0b00001111  // bits 3-0
 
 // Additional Status Bits
 #define BQ25798_OTG_OVP         BIT(5)
@@ -125,12 +125,12 @@
 #define BQ25798_PG_STAT         BIT(3)
 
 // Current Control
-#define BQ25798_PRECHRG_CUR_MASK                GENMASK(5, 0)
+#define BQ25798_PRECHRG_CUR_MASK                0b00111111  // bits 5-0
 #define BQ25798_PRECHRG_CURRENT_STEP_uA         40000
 #define BQ25798_PRECHRG_I_MIN_uA                40000
 #define BQ25798_PRECHRG_I_MAX_uA                2000000
 #define BQ25798_PRECHRG_I_DEF_uA                120000
-#define BQ25798_TERMCHRG_CUR_MASK               GENMASK(4, 0)
+#define BQ25798_TERMCHRG_CUR_MASK               0b00011111  // bits 4-0
 #define BQ25798_TERMCHRG_CURRENT_STEP_uA        40000
 #define BQ25798_TERMCHRG_I_MIN_uA               40000
 #define BQ25798_TERMCHRG_I_MAX_uA               1000000
@@ -163,7 +163,7 @@
 #define BQ25798_ADC_CURR_STEP_uA        1000
 
 // Watchdog Control
-#define BQ25798_WATCHDOG_MASK   GENMASK(2, 0)
+#define BQ25798_WATCHDOG_MASK   0b00000111  // bits 2-0
 #define BQ25798_WATCHDOG_DIS    0
 #define BQ25798_WATCHDOG_MAX    160000
 
