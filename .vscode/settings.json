@@ -15,7 +15,8 @@
     ],
     "files.associations": {
         "cstdint": "c",
-        "mqtt.h": "c"
+        "mqtt.h": "c",
+        "main.h": "c"
     },
     "idf.pythonInstallPath": "/usr/bin/python3",
 }

@@ -146,6 +146,19 @@
 #define BQ25798_VREG_V_DEF_uV   3600000
 #define BQ25798_VREG_V_STEP_uV  10000
 
+// VSYSMIN Control
+#define BQ25798_VSYSMIN_OFFSET_mV 2500
+#define BQ25798_VSYSMIN_STEP_mV   250
+
+// VREG Control
+#define BQ25798_VREG_STEP_mV      10
+
+// ICHG Control
+#define BQ25798_ICHRG_STEP_mA      10
+
+// IINDPM Control
+#define BQ25798_IINDPM_STEP_mA     10
+
 // Input Current Control
 #define BQ25798_IINDPM_I_MIN_uA 100000
 #define BQ25798_IINDPM_I_MAX_uA 3300000
@@ -172,17 +185,23 @@ extern i2c_device_config_t bq25798_i2c_config;
 
 // Function declarations
 esp_err_t bq25798_init(void);
-esp_err_t bq25798_read_reg(i2c_port_t port, uint8_t reg_addr, uint8_t *data);
-esp_err_t bq25798_write_reg(i2c_port_t port, uint8_t reg_addr, uint8_t data);
-esp_err_t bq25798_set_charge_current(i2c_port_t port, uint16_t current_ma);
-esp_err_t bq25798_set_max_charge_voltage(i2c_port_t port, uint16_t voltage_mv);
-esp_err_t bq25798_get_charge_status(i2c_port_t port, uint8_t *status);
-esp_err_t bq25798_get_battery_voltage(i2c_port_t port, uint16_t *voltage_mv);
-esp_err_t bq25798_get_charge_current(i2c_port_t port, uint16_t *current_ma);
-esp_err_t bq25798_get_input_current(i2c_port_t port, uint16_t *current_ma);
-esp_err_t bq25798_get_input_voltage(i2c_port_t port, uint16_t *voltage_mv);
-esp_err_t bq25798_get_system_voltage(i2c_port_t port, uint16_t *voltage_mv);
-esp_err_t bq25798_get_temperature(i2c_port_t port, int16_t *temperature_c);
+esp_err_t bq25798_read_reg(uint8_t reg_addr, uint8_t *data);
+esp_err_t bq25798_write_reg(uint8_t reg_addr, uint8_t data);
+esp_err_t bq25798_set_charge_current(uint16_t current_ma);
+esp_err_t bq25798_set_max_charge_voltage(uint16_t voltage_mv);
+esp_err_t bq25798_get_charge_status(uint8_t *status);
+esp_err_t bq25798_get_battery_voltage(uint16_t *voltage_mv);
+esp_err_t bq25798_get_charge_current(uint16_t *current_ma);
+esp_err_t bq25798_get_input_current(uint16_t *current_ma);
+esp_err_t bq25798_get_input_voltage(uint16_t *voltage_mv);
+esp_err_t bq25798_get_system_voltage(uint16_t *voltage_mv);
 void bq25798_monitor_task(void *pvParameters);
+
+/**
+ * @brief Disable the watchdog timer in the BQ25798 charger
+ * 
+ * @return esp_err_t ESP_OK on success, error code otherwise
+ */
+esp_err_t bq25798_disable_watchdog(void);
 
 #endif // BQ25798_H 
