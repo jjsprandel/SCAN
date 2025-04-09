@@ -12,6 +12,8 @@ void ui_init(void)
 }
 
 void ui_update_user_info(const char* name, const char* id) {
+    ESP_LOGI("UI", "Updating user info - Name: %s, ID: %s", name ? name : "NULL", id ? id : "NULL");
+    
     if (name != NULL) {
         strncpy(user_name_buffer, name, sizeof(user_name_buffer) - 1);
         user_name_buffer[sizeof(user_name_buffer) - 1] = '\0';
@@ -451,10 +453,10 @@ lv_obj_t *ui_screen_id_enter_error(void)
     lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(card, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-    user_id_labels[ADMIN_STATE_CARD_WRITE_SUCCESS+STATE_ERROR+1] = lv_label_create(card);
-    lv_obj_set_style_text_color(user_id_labels[ADMIN_STATE_CARD_WRITE_SUCCESS+STATE_ERROR+1], UI_COLOR_BLACK, 0);
-    lv_obj_set_style_text_font(user_id_labels[ADMIN_STATE_CARD_WRITE_SUCCESS+STATE_ERROR+1], UI_FONT_TINY, 0);
-    lv_label_set_text(user_id_labels[ADMIN_STATE_CARD_WRITE_SUCCESS+STATE_ERROR+1], user_id_buffer);
+    user_id_labels[ADMIN_STATE_ENTER_ID_ERROR+STATE_ERROR+1] = lv_label_create(card);
+    lv_obj_set_style_text_color(user_id_labels[ADMIN_STATE_ENTER_ID_ERROR+STATE_ERROR+1], UI_COLOR_BLACK, 0);
+    lv_obj_set_style_text_font(user_id_labels[ADMIN_STATE_ENTER_ID_ERROR+STATE_ERROR+1], UI_FONT_TINY, 0);
+    lv_label_set_text(user_id_labels[ADMIN_STATE_ENTER_ID_ERROR+STATE_ERROR+1], user_id_buffer);
 
     return scr;
 }
