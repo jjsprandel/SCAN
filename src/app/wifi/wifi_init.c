@@ -14,8 +14,8 @@
 
 extern SemaphoreHandle_t wifi_init_semaphore;
 
-#define EXAMPLE_ESP_WIFI_SSID "Jonah Hotspot"
-#define EXAMPLE_ESP_WIFI_PASS "123456789"
+#define EXAMPLE_ESP_WIFI_SSID "iPhone (43)"
+#define EXAMPLE_ESP_WIFI_PASS "brynds8899"
 // #define EXAMPLE_ESP_WIFI_SSID "Jonah Hotspot"
 // #define EXAMPLE_ESP_WIFI_PASS "123456789"
 

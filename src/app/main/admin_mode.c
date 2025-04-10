@@ -1,9 +1,17 @@
 #include "admin_mode.h"
+#include "esp_timer.h"
 
 static const char *ADMIN_TAG = "admin_mode";
 admin_state_t current_admin_state = ADMIN_STATE_BEGIN;
 static uint8_t invalid_id_attempts = 0;
 char user_id_to_write[ID_LEN+1];
+
+// Timeout tracking variables
+static int64_t admin_enter_id_start_time = 0;
+static bool admin_enter_id_timeout_initialized = false;
+static int64_t admin_tap_card_start_time = 0;
+static bool admin_tap_card_timeout_initialized = false;
+const int64_t ADMIN_TIMEOUT_US = 15 * 1000 * 1000; // 10 seconds in microseconds
 
 void admin_mode_control_task(void *param)
 {
@@ -25,10 +33,30 @@ void admin_mode_control_task(void *param)
 #ifdef ADMIN_DEBUG
             ESP_LOGI(ADMIN_TAG, "Enter a valid ID # on the keypad to write to the card");
 #endif
-            BaseType_t keypadNotify = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+            // Initialize the start time when first entering this state
+            if (!admin_enter_id_timeout_initialized) {
+                admin_enter_id_start_time = esp_timer_get_time();
+                admin_enter_id_timeout_initialized = true;
+                ESP_LOGI(ADMIN_TAG, "Admin enter ID started - 10 second timeout");
+            }
+            
+            // Check if timeout has occurred
+            int64_t current_time = esp_timer_get_time();
+            if (current_time - admin_enter_id_start_time > ADMIN_TIMEOUT_US) {
+                ESP_LOGI(ADMIN_TAG, "Admin enter ID timeout - returning to IDLE state");
+                admin_enter_id_timeout_initialized = false; // Reset for next time
+                current_admin_state = ADMIN_STATE_BEGIN;
+                xTaskNotifyGive(state_control_task_handle);
+                break;
+            }
+            
+            BaseType_t keypadNotify = ulTaskNotifyTake(pdTRUE, 0); // Changed from portMAX_DELAY to 0 to avoid blocking
 
             if (keypadNotify > 0)
             {
+                // Reset the timeout flag since we're exiting this state
+                admin_enter_id_timeout_initialized = false;
+                
                 if (keypad_buffer.occupied != ID_LEN){
 #ifdef ADMIN_DEBUG
                     ESP_LOGE(ADMIN_TAG, "Invalid ID length. Expected %d characters, got %d", ID_LEN, keypad_buffer.occupied);
@@ -91,11 +119,31 @@ void admin_mode_control_task(void *param)
 #ifdef ADMIN_DEBUG
             ESP_LOGI(ADMIN_TAG, "Tap a blank NTAG213 card for writing ID %s for user %s %s", user_id_to_write, user_info->first_name, user_info->last_name);
 #endif
+            // Initialize the start time when first entering this state
+            if (!admin_tap_card_timeout_initialized) {
+                admin_tap_card_start_time = esp_timer_get_time();
+                admin_tap_card_timeout_initialized = true;
+                ESP_LOGI(ADMIN_TAG, "Admin tap card started - 10 second timeout");
+            }
+            
+            // Check if timeout has occurred
+            current_time = esp_timer_get_time();
+            if (current_time - admin_tap_card_start_time > ADMIN_TIMEOUT_US) {
+                ESP_LOGI(ADMIN_TAG, "Admin tap card timeout - returning to IDLE state");
+                admin_tap_card_timeout_initialized = false; // Reset for next time
+                current_admin_state = ADMIN_STATE_BEGIN;
+                xTaskNotifyGive(state_control_task_handle);
+                break;
+            }
+            
             const char *card_id_to_write = user_id_to_write;
             bool nfcWriteFlag = write_user_id(card_id_to_write, 50);
 
             if (nfcWriteFlag)
             {
+                // Reset the timeout flag since we're exiting this state
+                admin_tap_card_timeout_initialized = false;
+                
                 ESP_LOGI(ADMIN_TAG, "ID %s Successfully Written to Card", user_id_to_write);
                 current_admin_state = ADMIN_STATE_CARD_WRITE_SUCCESS;
             }

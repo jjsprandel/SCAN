@@ -23,7 +23,7 @@ SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init 
 static const char *TAG = "MAIN";
 
 static uint8_t s_led_state = 0;
-static int64_t start_time, end_time;
+static int64_t start_time;
 
 static led_strip_handle_t led_strip;
 
@@ -52,37 +52,158 @@ void blink_led_task(void *pvParameter)
             /* Set all LED off to clear all pixels */
             led_strip_clear(led_strip);
         }
-        if (current_state == STATE_USER_DETECTED)
+        
+        // Kiosk states
+        if (current_state == STATE_HARDWARE_INIT)
         {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
+            // Hardware initialization - all LEDs red
+            for (int i = 0; i < NUM_LEDS; i++)
+            {
+                led_strip_set_pixel(led_strip, i, 100, 0, 0);
+            }
+        }
+        else if (current_state == STATE_WIFI_CONNECTING)
+        {
+            // Already handled above with blinking
+        }
+        else if (current_state == STATE_SOFTWARE_INIT)
+        {
+            // Software initialization - all LEDs yellow
+            for (int i = 0; i < NUM_LEDS; i++)
+            {
+                led_strip_set_pixel(led_strip, i, 100, 100, 0);
+            }
+        }
+        else if (current_state == STATE_SYSTEM_READY)
+        {
+            // System ready - all LEDs green
+            for (int i = 0; i < NUM_LEDS; i++)
+            {
+                led_strip_set_pixel(led_strip, i, 0, 100, 0);
+            }
+        }
+        else if (current_state == STATE_USER_DETECTED)
+        {
+            led_strip_set_pixel(led_strip, 2, 0, 0, 100);
         }
         else if (current_state == STATE_DATABASE_VALIDATION)
         {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
+            led_strip_set_pixel(led_strip, 2, 0, 0, 100);
             led_strip_set_pixel(led_strip, 1, 100, 100, 0);
         }
         else if (current_state == STATE_CHECK_IN || current_state == STATE_CHECK_OUT)
         {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
+            led_strip_set_pixel(led_strip, 2, 0, 0, 100);
             led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-            led_strip_set_pixel(led_strip, 2, 0, 100, 0);
+            led_strip_set_pixel(led_strip, 0, 0, 100, 0);
         }
         else if (current_state == STATE_VALIDATION_FAILURE)
         {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
+            led_strip_set_pixel(led_strip, 2, 0, 0, 100);
             led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-            led_strip_set_pixel(led_strip, 2, 100, 0, 0);
+            led_strip_set_pixel(led_strip, 0, 100, 0, 0);
+        }
+        else if (current_state == STATE_KEYPAD_ENTRY_ERROR)
+        {
+            // Keypad entry error - all LEDs red
+            for (int i = 0; i < NUM_LEDS; i++)
+            {
+                led_strip_set_pixel(led_strip, i, 100, 0, 0);
+            }
         }
         else if (current_state == STATE_IDLE)
         {
             led_strip_clear(led_strip);
         }
+        else if (current_state == STATE_ERROR)
+        {
+            // Error state - all LEDs red
+            for (int i = 0; i < NUM_LEDS; i++)
+            {
+                led_strip_set_pixel(led_strip, i, 100, 0, 0);
+            }
+        }
+        
+        // Admin mode states
+        if (current_state == STATE_ADMIN_MODE)
+        {
+            switch (current_admin_state)
+            {
+                case ADMIN_STATE_BEGIN:
+                    // Admin mode begin - all LEDs blue
+                    for (int i = 0; i < NUM_LEDS; i++)
+                    {
+                        led_strip_set_pixel(led_strip, i, 0, 0, 100);
+                    }
+                    break;
+                    
+                case ADMIN_STATE_ENTER_ID:
+                    // Admin enter ID - first LED blue, second yellow
+                    led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                    led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                    break;
+                    
+                case ADMIN_STATE_VALIDATE_ID:
+                    // Admin validate ID - first LED blue, second yellow, third green
+                    led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                    led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                    led_strip_set_pixel(led_strip, 0, 0, 100, 0);
+                    break;
+                    
+                case ADMIN_STATE_TAP_CARD:
+                    // Admin tap card - first LED blue, second yellow, third purple
+                    led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                    led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                    led_strip_set_pixel(led_strip, 0, 100, 0, 100);
+                    break;
+                    
+                case ADMIN_STATE_CARD_WRITE_SUCCESS:
+                    // Admin card write success - all LEDs green
+                    for (int i = 0; i < NUM_LEDS; i++)
+                    {
+                        led_strip_set_pixel(led_strip, i, 0, 100, 0);
+                    }
+                    break;
+                    
+                case ADMIN_STATE_ENTER_ID_ERROR:
+                    // Admin enter ID error - all LEDs red
+                    for (int i = 0; i < NUM_LEDS; i++)
+                    {
+                        led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                    }
+                    break;
+                    
+                case ADMIN_STATE_CARD_WRITE_ERROR:
+                    // Admin card write error - all LEDs red
+                    for (int i = 0; i < NUM_LEDS; i++)
+                    {
+                        led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                    }
+                    break;
+                    
+                case ADMIN_STATE_ERROR:
+                    // Admin error - all LEDs red
+                    for (int i = 0; i < NUM_LEDS; i++)
+                    {
+                        led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                    }
+                    break;
+                    
+                default:
+                    // Default admin state - all LEDs blue
+                    for (int i = 0; i < NUM_LEDS; i++)
+                    {
+                        led_strip_set_pixel(led_strip, i, 0, 0, 100);
+                    }
+                    break;
+            }
+        }
 
         if (usb_connected == 0)
         {
-            led_strip_set_pixel(led_strip, 0, 50, 75, 60);
-            led_strip_set_pixel(led_strip, 1, 50, 75, 60);
             led_strip_set_pixel(led_strip, 2, 50, 75, 60);
+            led_strip_set_pixel(led_strip, 1, 50, 75, 60);
+            led_strip_set_pixel(led_strip, 0, 50, 75, 60);
         }
 
         led_strip_refresh(led_strip);
@@ -156,19 +277,19 @@ void state_control_task(void *pvParameter)
             // Initialize software services that need WiFi
             ESP_LOGI(TAG, "Starting software initialization. Free heap: %lu bytes", esp_get_free_heap_size());
 
-            // Initialize MQTT first
-            ESP_LOGI(TAG, "Initializing MQTT...");
-            mqtt_init();
-            ESP_LOGI(TAG, "MQTT initialized. Free heap: %lu bytes", esp_get_free_heap_size());
+            // // Initialize MQTT first
+            // ESP_LOGI(TAG, "Initializing MQTT...");
+            // mqtt_init();
+            // ESP_LOGI(TAG, "MQTT initialized. Free heap: %lu bytes", esp_get_free_heap_size());
             
-            // Publish connected status
-            mqtt_publish_status("Kiosk Connected");
-            ESP_LOGI(TAG, "Published connected status");
+            // // Publish connected status
+            // mqtt_publish_status("Kiosk Connected");
+            // ESP_LOGI(TAG, "Published connected status");
             
-            // Start MQTT ping task
-            ESP_LOGI(TAG, "Starting MQTT ping task...");
-            mqtt_start_ping_task();
-            ESP_LOGI(TAG, "MQTT ping task started. Free heap: %lu bytes", esp_get_free_heap_size());
+            // // Start MQTT ping task
+            // ESP_LOGI(TAG, "Starting MQTT ping task...");
+            // mqtt_start_ping_task();
+            // ESP_LOGI(TAG, "MQTT ping task started. Free heap: %lu bytes", esp_get_free_heap_size());
 
             /*
             if (ota_update_task_handle == NULL) {
@@ -197,16 +318,37 @@ void state_control_task(void *pvParameter)
             }
             break;
         case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
+            static int64_t user_detected_start_time = 0;
+            static bool user_detected_timeout_initialized = false;
+            const int64_t USER_DETECTED_TIMEOUT_US = 10 * 1000 * 1000; // 10 seconds in microseconds
+            
+            // Initialize the start time when first entering this state
+            if (!user_detected_timeout_initialized) {
+                user_detected_start_time = esp_timer_get_time();
+                user_detected_timeout_initialized = true;
+                MAIN_DEBUG_LOG("User detection started - 10 second timeout");
+            }
+            
+            // Check if timeout has occurred
+            int64_t current_time = esp_timer_get_time();
+            if (current_time - user_detected_start_time > USER_DETECTED_TIMEOUT_US) {
+                MAIN_DEBUG_LOG("User detection timeout - returning to IDLE state");
+                user_detected_timeout_initialized = false; // Reset for next time
+                current_state = STATE_IDLE;
+                break;
+            }
+            
             char nfcUserID[ID_LEN] = {'\0'};
-
             bool nfcReadFlag = false;
-
             BaseType_t keypadNotify = ulTaskNotifyTake(pdTRUE, 0);
-
+            
             nfcReadFlag = read_user_id(nfcUserID, 50);
 
             if ((nfcReadFlag) || (keypadNotify > 0))
             {
+                // Reset the timeout flag since we're exiting this state
+                user_detected_timeout_initialized = false;
+                
                 if (nfcReadFlag)
                 {
                     MAIN_DEBUG_LOG("User ID entered by NFC Transceiver");
@@ -254,9 +396,9 @@ void state_control_task(void *pvParameter)
                 // Format user ID for MQTT message
                 char formatted_id[ID_LEN + 1];
                 snprintf(formatted_id, sizeof(formatted_id), "%s", user_id);
-                char mqtt_message[64];
-                snprintf(mqtt_message, sizeof(mqtt_message), "Validating %s", formatted_id);
-                mqtt_publish_status(mqtt_message);
+                // char mqtt_message[64];
+                // snprintf(mqtt_message, sizeof(mqtt_message), "Validating %s", formatted_id);
+                // mqtt_publish_status(mqtt_message);
             }
             break;
             
@@ -279,7 +421,7 @@ void state_control_task(void *pvParameter)
             else if (strcmp(user_info->role, "Admin") == 0)
             {
                 MAIN_DEBUG_LOG("Entering Admin Mode");
-                mqtt_publish_status("Entering Admin Mode");
+                // mqtt_publish_status("Entering Admin Mode");
                 xTaskNotifyGive(keypad_task_handle);
                 xTaskNotifyGive(admin_mode_control_task_handle);
                 current_state = STATE_ADMIN_MODE;
@@ -306,7 +448,7 @@ void state_control_task(void *pvParameter)
             }
 #else
             MAIN_DEBUG_LOG("Entering Admin Mode");
-            mqtt_publish_status("Entering Admin Mode");
+            // mqtt_publish_status("Entering Admin Mode");
             xTaskNotifyGive(keypad_task_handle);
             xTaskNotifyGive(admin_mode_control_task_handle);
             current_state = STATE_ADMIN_MODE;
@@ -322,17 +464,17 @@ void state_control_task(void *pvParameter)
                                user_info->first_name, user_info->last_name, user_id);
                 
                 // Format user info for MQTT message
-                char mqtt_message[128];
-                snprintf(mqtt_message, sizeof(mqtt_message), "User Checked In: %s %s", 
-                         user_info->first_name, user_info->last_name);
-                mqtt_publish_status(mqtt_message);
+                // char mqtt_message[128];
+                // snprintf(mqtt_message, sizeof(mqtt_message), "User Checked In: %s %s", 
+                //          user_info->first_name, user_info->last_name);
+                // mqtt_publish_status(mqtt_message);
             }
             else
             {
                 MAIN_DEBUG_LOG("CHECK-IN: No user info available. ID: %s", user_id);
-                char mqtt_message[64];
-                snprintf(mqtt_message, sizeof(mqtt_message), "User Checked In: %s", user_id);
-                mqtt_publish_status(mqtt_message);
+                // char mqtt_message[64];
+                // snprintf(mqtt_message, sizeof(mqtt_message), "User Checked In: %s", user_id);
+                // mqtt_publish_status(mqtt_message);
             }
 
             MAIN_DEBUG_LOG("ID %s found in database. Checking in.", user_id);
@@ -343,19 +485,19 @@ void state_control_task(void *pvParameter)
             log_elapsed_time("check out authentication", start_time);
             
             // Format user info for MQTT message
-            if (user_info != NULL)
-            {
-                char mqtt_message[128];
-                snprintf(mqtt_message, sizeof(mqtt_message), "User Checked Out: %s %s", 
-                         user_info->first_name, user_info->last_name);
-                mqtt_publish_status(mqtt_message);
-            }
-            else
-            {
-                char mqtt_message[64];
-                snprintf(mqtt_message, sizeof(mqtt_message), "User Checked Out: %s", user_id);
-                mqtt_publish_status(mqtt_message);
-            }
+            // if (user_info != NULL)
+            // {
+            //     char mqtt_message[128];
+            //     snprintf(mqtt_message, sizeof(mqtt_message), "User Checked Out: %s %s", 
+            //              user_info->first_name, user_info->last_name);
+            //     mqtt_publish_status(mqtt_message);
+            // }
+            // else
+            // {
+            //     char mqtt_message[64];
+            //     snprintf(mqtt_message, sizeof(mqtt_message), "User Checked Out: %s", user_id);
+            //     mqtt_publish_status(mqtt_message);
+            // }
             
             MAIN_DEBUG_LOG("ID %s found in database. Checking out.", user_id);
             vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
@@ -367,7 +509,7 @@ void state_control_task(void *pvParameter)
             if (adminNotify > 0)
             {
                 MAIN_DEBUG_LOG("Exiting admin mode");
-                mqtt_publish_status("Exiting Admin Mode");
+                // mqtt_publish_status("Exiting Admin Mode");
                 current_state = STATE_IDLE;
             }
             break;
@@ -376,9 +518,9 @@ void state_control_task(void *pvParameter)
             MAIN_DEBUG_LOG("ID %s not found in database. Try again.", user_id);
 #endif
             // Add MQTT status message for validation failure
-            char validation_failure_msg[64];
-            snprintf(validation_failure_msg, sizeof(validation_failure_msg), "Validation Failed: %s", user_id);
-            mqtt_publish_status(validation_failure_msg);
+            // char validation_failure_msg[64];
+            // snprintf(validation_failure_msg, sizeof(validation_failure_msg), "Validation Failed: %s", user_id);
+            // mqtt_publish_status(validation_failure_msg);
             
             vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
             current_state = STATE_USER_DETECTED;
@@ -446,26 +588,26 @@ void app_main(void)
     i2c_master_init(&master_handle);
     i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
     i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
-    i2c_master_add_device(&master_handle, &bq25798_i2c_handle, &bq25798_i2c_config);
+    // i2c_master_add_device(&master_handle, &bq25798_i2c_handle, &bq25798_i2c_config);
     ESP_LOGI(TAG, "I2C initialized successfully");
 
     // Initialize BQ25798 charger
-    ESP_LOGI(TAG, "Initializing BQ25798 charger...");
-    ret = bq25798_init();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize BQ25798 charger");
-        return;
-    }
-    ESP_LOGI(TAG, "BQ25798 charger initialized successfully");
+    // ESP_LOGI(TAG, "Initializing BQ25798 charger...");
+    // ret = bq25798_init();
+    // if (ret != ESP_OK) {
+    //     ESP_LOGE(TAG, "Failed to initialize BQ25798 charger");
+    //     return;
+    // }
+    // ESP_LOGI(TAG, "BQ25798 charger initialized successfully");
     
     // Initialize power management
-    ESP_LOGI(TAG, "Initializing power management...");
-    ret = power_mgmt_init();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize power management");
-        return;
-    }
-    ESP_LOGI(TAG, "Power management initialized successfully");
+    // ESP_LOGI(TAG, "Initializing power management...");
+    // ret = power_mgmt_init();
+    // if (ret != ESP_OK) {
+    //     ESP_LOGE(TAG, "Failed to initialize power management");
+    //     return;
+    // }
+    // ESP_LOGI(TAG, "Power management initialized successfully");
     
     // Initialize kiosk Firebase client
     ESP_LOGI(TAG, "Initializing kiosk Firebase client...");
@@ -513,7 +655,7 @@ void app_main(void)
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
-    xTaskCreate(bq25798_monitor_task, "bq25798_monitor", 4096, NULL, 2, NULL);
+    // xTaskCreate(bq25798_monitor_task, "bq25798_monitor", 4096, NULL, 2, NULL);
 
     ESP_LOGI(TAG, "Free heap after task creation: %lu bytes", esp_get_free_heap_size());
 
