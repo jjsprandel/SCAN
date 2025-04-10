@@ -10,11 +10,12 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 #include "wifi_init.h"
+#include "../database/include/kiosk_firebase.h"
 
 extern SemaphoreHandle_t wifi_init_semaphore;
 
-#define EXAMPLE_ESP_WIFI_SSID "iPhone (43)"
-#define EXAMPLE_ESP_WIFI_PASS "brynds8899"
+#define EXAMPLE_ESP_WIFI_SSID "Jonah Hotspot"
+#define EXAMPLE_ESP_WIFI_PASS "123456789"
 // #define EXAMPLE_ESP_WIFI_SSID "Jonah Hotspot"
 // #define EXAMPLE_ESP_WIFI_PASS "123456789"
 
@@ -69,6 +70,9 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        
+        // Notify that the network is ready for Firebase
+        kiosk_firebase_network_ready();
     }
 }
 

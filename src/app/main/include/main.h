@@ -32,6 +32,7 @@
 #include "mqtt.h"
 #include "i2c_config.h"
 #include "cypd3177.h"
+#include "bq25798.h"
 #include "pcf8574n.h"
 #include "admin_mode.h"
 #include "firebase_utils.h"
