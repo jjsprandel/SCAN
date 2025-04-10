@@ -114,8 +114,8 @@ esp_err_t bq25798_init(void)
         return ret;
     }
     
-    // 4. Set ICHG to 3A (REG03-04)
-    ESP_LOGI(TAG, "Setting ICHG to 3A");
+    // 4. Set ICHG to 5A (REG03-04)
+    ESP_LOGI(TAG, "Setting ICHG to 5A");
     // 3A = 3000mA, convert to register value using step size of 10mA
     // Only bits 8-0 are used for ICHG, bits 15-9 are reserved
     uint16_t ichg_ma = 5000;
@@ -143,8 +143,8 @@ esp_err_t bq25798_init(void)
         return ret;
     }
     
-    // 5. Set IINDPM to 2A (REG06-07)
-    ESP_LOGI(TAG, "Setting IINDPM to 2A");
+    // 5. Set IINDPM to 3.3A (REG06-07)
+    ESP_LOGI(TAG, "Setting IINDPM to 3.3A");
     // 2A = 2000mA, convert to register value using step size of 10mA
     // Only bits 8-0 are used for IINDPM, bits 15-9 are reserved
     uint16_t iindpm_ma = 3300;

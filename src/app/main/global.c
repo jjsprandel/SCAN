@@ -23,12 +23,16 @@ void init_device_info(void)
     // Set kiosk name based on MAC address
     if (strcmp(device_info.mac_addr, "ccba97e1dd80") == 0) {
         strncpy(device_info.kiosk_name, "Kiosk 1", sizeof(device_info.kiosk_name) - 1);
+        strncpy(device_info.kiosk_location, "UCF Library", sizeof(device_info.kiosk_location) - 1);
     } else if (strcmp(device_info.mac_addr, "ccba97e1dd84") == 0) {
         strncpy(device_info.kiosk_name, "Kiosk 2", sizeof(device_info.kiosk_name) - 1);
+        strncpy(device_info.kiosk_location, "UCF RWC", sizeof(device_info.kiosk_location) - 1);
     } else {
         strncpy(device_info.kiosk_name, "Kiosk 3", sizeof(device_info.kiosk_name) - 1);
+        strncpy(device_info.kiosk_location, "UCF Arena", sizeof(device_info.kiosk_location) - 1);
     }
     device_info.kiosk_name[sizeof(device_info.kiosk_name) - 1] = '\0';
+    device_info.kiosk_location[sizeof(device_info.kiosk_location) - 1] = '\0';
     
     // Set firmware version
     strncpy(device_info.firmware_version, "1.0.0", sizeof(device_info.firmware_version) - 1);

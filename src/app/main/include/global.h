@@ -10,6 +10,7 @@ typedef struct {
     char mac_addr[18];           // MAC address as string
     char firmware_version[32];    // Current firmware version
     char kiosk_name[16];
+    char kiosk_location[16];
     
     // Power information
     float charge_current_amps;    // Battery charge current in amperes

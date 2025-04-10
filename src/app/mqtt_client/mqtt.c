@@ -142,7 +142,7 @@ static void mqtt_ping_task(void *pvParameters)
         if (mqtt_client != NULL) {
             char topic[64];
             snprintf(topic, sizeof(topic), "kiosks/%s/ping", device_info.mac_addr);
-            int msg_id = esp_mqtt_client_publish(mqtt_client, topic, "ping", 0, 0, 0);
+            int msg_id = esp_mqtt_client_publish(mqtt_client, topic, "ping", 0, 0, 1);
             if (msg_id < 0) {
                 ESP_LOGE(TAG, "Failed to send ping message");
             } else {

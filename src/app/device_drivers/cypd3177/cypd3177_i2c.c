@@ -1,4 +1,5 @@
 #include "cypd3177.h"
+#include "esp_err.h"
 
 static const char *TAG = "CYPD3177";
 
@@ -30,6 +31,8 @@ static const uint8_t bus_voltage_addr[] = FORMAT(BUS_VOLTAGE_REG_ADDR);
 
 static const uint8_t dev_response_addr[] = FORMAT(DEV_RESPONSE_REG_ADDR);
 static const uint8_t pd_response_addr[] = FORMAT(PD_RESPONSE_REG_ADDR);
+
+static const uint8_t data_mem_addr[] = FORMAT(WRITE_DATA_MEM_REG_ADDR);
 
 
 
@@ -111,4 +114,77 @@ void get_pd_response(void *pvParameter)
     //ESP_LOGI(TAG, "pd length1: %d", pd_response_reg.length1);
     //ESP_LOGI(TAG, "pd length2: %d", pd_response_reg.length2);
     return;
+}
+
+
+esp_err_t cypd3177_change_pdo(void)
+{
+    // Define high power PDOs
+    const uint32_t high_power_pdos[] = {
+        0x5A900102,  // Fixed PDO: 5V, 0.9A (5V = 100 * 50mV, 0.9A = 90 * 10mA)
+        0x5A900302,  // Fixed PDO: 5V, 3.0A (5V = 100 * 50mV, 3.0A = 300 * 10mA)
+        0xB4900302,  // Fixed PDO: 9V, 3.0A (9V = 180 * 50mV, 3.0A = 300 * 10mA)
+        0xF0900302,  // Fixed PDO: 12V, 3.0A (12V = 240 * 50mV, 3.0A = 300 * 10mA)
+        0x2C900302,  // Fixed PDO: 15V, 3.0A (15V = 300 * 50mV, 3.0A = 300 * 10mA)
+        0x90900302,  // Fixed PDO: 20V, 3.0A (20V = 400 * 50mV, 3.0A = 300 * 10mA)
+        0x90900502   // Fixed PDO: 20V, 5.0A (20V = 400 * 50mV, 5.0A = 500 * 10mA)
+    };
+
+    // Step 1: Write the PDO data to the data memory address (0x1800-0x19FF)
+    
+    // Prepare the complete 32-byte data buffer
+    uint8_t pdo_data[32];
+    
+    // Add "SNKP" ASCII string (little endian)
+    pdo_data[0] = 0x50; // 'P'
+    pdo_data[1] = 0x4B; // 'K'
+    pdo_data[2] = 0x4E; // 'N'
+    pdo_data[3] = 0x53; // 'S'
+    
+    // Copy PDO data
+    size_t pdos_to_copy = (num_pdos > 7) ? 7 : num_pdos; // Maximum 7 PDOs
+    for (size_t i = 0; i < pdos_to_copy; i++) {
+        pdo_data[4 + (i * 4)] = (pdos[i] >> 0) & 0xFF;
+        pdo_data[4 + (i * 4) + 1] = (pdos[i] >> 8) & 0xFF;
+        pdo_data[4 + (i * 4) + 2] = (pdos[i] >> 16) & 0xFF;
+        pdo_data[4 + (i * 4) + 3] = (pdos[i] >> 24) & 0xFF;
+    }
+    
+    // Write the complete 32-byte data to the data memory
+    esp_err_t ret = i2c_master_transmit(cypd3177_i2c_handle, data_memory_addr, 2, -1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set data memory address");
+        return ret;
+    }
+    
+    ret = i2c_master_transmit(cypd3177_i2c_handle, pdo_data, 32, -1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to write PDO data");
+        return ret;
+    }
+    
+    // Step 2: Send 1 byte with data 0xFF to register address 0x1005
+    uint8_t cmd_addr[] = {0x05, 0x10}; // Register address 0x1005
+    uint8_t cmd_data[] = {0xFF};       // Data to write
+    
+    ret = i2c_master_transmit(cypd3177_i2c_handle, cmd_addr, 2, -1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set command address");
+        return ret;
+    }
+    
+    ret = i2c_master_transmit(cypd3177_i2c_handle, cmd_data, 1, -1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to send command data");
+        return ret;
+    }
+    
+    return ESP_OK;
+}
+
+
+esp_err_t enable_high_power_charging(void)
+{
+    // Change PDOs to enable high power charging
+    return cypd3177_change_pdo();
 }

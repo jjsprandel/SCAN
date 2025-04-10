@@ -3,6 +3,7 @@
 #include "../../main/include/global.h"
 #include "../database/include/kiosk_firebase.h"
 #include "../device_drivers/bq25798/include/bq25798.h"
+#include "../device_drivers/cypd3177/include/cypd3177.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -81,13 +82,20 @@ void power_mgmt_task(void *pvParameters)
                 device_info.battery_percentage = (uint8_t)((voltage_above_min * 100) / voltage_range);
             }
             
-            ESP_LOGI(TAG, "Battery voltage: %.2fV, Percentage: %d%%", 
-                    device_info.battery_voltage_volts, device_info.battery_percentage);
+            //ESP_LOGI(TAG, "Battery voltage: %.2fV, Percentage: %d%%", device_info.battery_voltage_volts, device_info.battery_percentage);
 
             // Check charge state and is_charging flag
-            if (device_info.charge_state >= 1 && device_info.charge_state <= 4) {
+            if (device_info.charge_state >= 1 && device_info.charge_state <= 4 && device_info.charge_current_amps > 0.0f && device_info.input_voltage_volts > 0.0f) {
                 new_state = POWER_STATE_CHARGING;
-            } else if (device_info.charge_state == 5) {
+                // Enable high power charging when entering charging state
+                if (current_state != POWER_STATE_CHARGING) {
+                    ESP_LOGI(TAG, "Entering charging state, enabling high power charging");
+                    if (enable_high_power_charging() != ESP_OK) {
+                        ESP_LOGE(TAG, "Failed to enable high power charging");
+                    }
+                }
+            } else if (device_info.charge_state == 7 && device_info.charge_current_amps == 0) {
+                //device_info.battery_percentage = 100;
                 new_state = POWER_STATE_FULLY_CHARGED;
             } else if (device_info.input_voltage_volts > 0.0f) {
                 new_state = POWER_STATE_POWERED;

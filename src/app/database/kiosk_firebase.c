@@ -44,7 +44,7 @@ static char* create_kiosk_power_json(void)
 
     // Add device information to JSON with the specified key names
     cJSON_AddStringToObject(root, "name", device_info.kiosk_name);
-    cJSON_AddStringToObject(root, "location", "UCF Library");
+    cJSON_AddStringToObject(root, "location", device_info.kiosk_location);
     cJSON_AddStringToObject(root, "esp32Type", "ESP32-C6");
     cJSON_AddStringToObject(root, "firmwareVersion", device_info.firmware_version);
     cJSON_AddStringToObject(root, "networkSSID", "Jonah Hotspot");
