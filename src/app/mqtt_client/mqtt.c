@@ -146,7 +146,7 @@ static void mqtt_ping_task(void *pvParameters)
             if (msg_id < 0) {
                 ESP_LOGE(TAG, "Failed to send ping message");
             } else {
-                ESP_LOGI(TAG, "Sent ping message with msg_id=%d", msg_id);
+                ESP_LOGI(TAG, "Sent ping message");
             }
         }
         vTaskDelay(pdMS_TO_TICKS(10000)); // Send ping every 10 seconds
@@ -184,7 +184,7 @@ void mqtt_init(void)
 void mqtt_start_ping_task(void)
 {
     if (mqtt_client != NULL) {
-        xTaskCreate(mqtt_ping_task, "mqtt_ping_task", 4096, NULL, 3, NULL);
+        xTaskCreate(mqtt_ping_task, "mqtt_ping_task", 2048, NULL, 10, NULL);
         ESP_LOGI(TAG, "MQTT ping task started");
     } else {
         ESP_LOGE(TAG, "Cannot start ping task: MQTT client not initialized");

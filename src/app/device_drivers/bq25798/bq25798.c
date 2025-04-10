@@ -13,6 +13,10 @@ i2c_device_config_t bq25798_i2c_config = {
     .scl_wait_us = 2000,
 };
 
+// Global voltage values used in initialization
+uint16_t vsysmin_mv = 10500;  // Minimum system voltage in mV (10.5V)
+uint16_t vreg_mv = 14000;     // Maximum charge voltage in mV (14.0V)
+
 // Register read function
 esp_err_t bq25798_read_reg(uint8_t reg_addr, uint8_t *data)
 {
@@ -27,9 +31,19 @@ esp_err_t bq25798_write_reg(uint8_t reg_addr, uint8_t data)
     return i2c_master_transmit(bq25798_i2c_handle, write_buf, 2, -1);
 }
 
+// Mutex for protecting access to device_info
+SemaphoreHandle_t device_info_mutex = NULL;
+
 // Initialize the BQ25798 charger
 esp_err_t bq25798_init(void)
 {
+    // Create the mutex for device_info access
+    device_info_mutex = xSemaphoreCreateMutex();
+    if (device_info_mutex == NULL) {
+        ESP_LOGE(TAG, "Failed to create device_info mutex");
+        return ESP_FAIL;
+    }
+    
     ESP_LOGI(TAG, "Initializing BQ25798 charger");
     
     // Read and verify device ID from PART_INFO register
@@ -65,7 +79,6 @@ esp_err_t bq25798_init(void)
     // 2. Set VSYSMIN to 10.5V (REG00)
     ESP_LOGI(TAG, "Setting VSYSMIN to 10.5V");
     // 10.5V = 10500mV, convert to register value using offset and step size
-    uint16_t vsysmin_mv = 10500;
     uint8_t vsysmin_reg = (vsysmin_mv - BQ25798_VSYSMIN_OFFSET_mV) / BQ25798_VSYSMIN_STEP_mV;
     ret = bq25798_write_reg(BQ25798_MIN_SYS_V, vsysmin_reg);
     if (ret != ESP_OK) {
@@ -77,7 +90,6 @@ esp_err_t bq25798_init(void)
     ESP_LOGI(TAG, "Setting VREG to 14.2V");
     // 14.0V = 14000mV, convert to register value using step size of 3.84mV
     // Only bits 10-0 are used for VREG, bits 15-11 are reserved
-    uint16_t vreg_mv = 14000;
     uint16_t vreg_reg = vreg_mv / BQ25798_VREG_STEP_mV;
     // Ensure we only use bits 10-0 (0x7FF mask)
     vreg_reg &= 0x7FF;
@@ -334,45 +346,108 @@ esp_err_t bq25798_get_system_voltage(uint16_t *voltage_mv)
 // Monitor charging status task
 void bq25798_monitor_task(void *pvParameters)
 {
-    uint16_t battery_voltage;
-    uint16_t charge_current;
-    uint16_t input_voltage;
-    uint16_t input_current;
-    uint8_t charge_status;
+    // Initialize variables with safe default values
+    uint16_t battery_voltage = 0;
+    uint16_t charge_current = 0;
+    uint16_t input_voltage = 0;
+    uint8_t charge_status = 0;
+    
+    ESP_LOGI(TAG, "BQ25798 monitor task started");
     
     while (1) {
         // Read all parameters
-        if (bq25798_get_battery_voltage(&battery_voltage) == ESP_OK) {
-            // Convert mV to V and assign to global structure
+        bq25798_get_battery_voltage(&battery_voltage);
+        bq25798_get_charge_current(&charge_current);
+        bq25798_get_input_voltage(&input_voltage);
+        bq25798_get_charge_status(&charge_status);
+        
+        // Take mutex before updating device_info
+        if (xSemaphoreTake(device_info_mutex, portMAX_DELAY) == pdTRUE) {
+            // Update device_info structure with current values
             device_info.battery_voltage_volts = battery_voltage / 1000.0f;
-        }
-        
-        if (bq25798_get_charge_current(&charge_current) == ESP_OK) {
-            // Convert mA to A and assign to global structure
-            device_info.charge_current_amps = charge_current / 1000.0f;
-        }
-        
-        if (bq25798_get_input_voltage(&input_voltage) == ESP_OK) {
-            // Convert mV to V and assign to global structure
+            
+            // Check for abnormally high charge current and set to zero if detected
+            if (charge_current > 10000) {
+                ESP_LOGW(TAG, "Abnormally high charge current detected: %d mA, setting to zero", charge_current);
+                charge_current = 0;
+            }
+            
+            // If input voltage is zero (no cable connected), force charge current to zero
+            if (input_voltage == 0) {
+                device_info.charge_current_amps = 0.0f;
+                ESP_LOGI(TAG, "No input voltage detected, setting charge current to zero");
+            } else {
+                device_info.charge_current_amps = charge_current / 1000.0f;
+            }
+            
             device_info.input_voltage_volts = input_voltage / 1000.0f;
-        }
-        
-        if (bq25798_get_input_current(&input_current) == ESP_OK) {
-            // Just store input current, not logging it
-        }
-        
-        if (bq25798_get_charge_status(&charge_status) == ESP_OK) {
+            
             // Extract charge status bits (7-5)
-            uint8_t charge_state = (charge_status >> 5) & 0x07;
+            device_info.charge_state = (charge_status >> 5) & 0x07;
             
             // Extract VBUS status bits (4-1)
-            uint8_t vbus_status = (charge_status >> 1) & 0x0F;
+            device_info.vbus_status = (charge_status >> 1) & 0x0F;
             
-            // Set charging status in global structure
-            device_info.is_charging = (charge_state > 0 && charge_state < 7);
+            // Update is_charging flag in device_info
+            // Only consider charging if:
+            // 1. Input voltage is non-zero
+            // 2. Charge current is positive
+            // 3. Charge state is active (1-4: Trickle, Pre, Fast, or Taper charge)
+            device_info.is_charging = (input_voltage > 0) && 
+                                    (charge_current > 0) && 
+                                    (device_info.charge_state >= 1 && device_info.charge_state <= 4);
+            
+            // Release the mutex
+            xSemaphoreGive(device_info_mutex);
         }
         
-        vTaskDelay(pdMS_TO_TICKS(10000)); // Update every 10 seconds
+        // Interpret charge state
+        const char* charge_state_str;
+        switch (device_info.charge_state) {
+            case 0: charge_state_str = "Not Charging"; break;
+            case 1: charge_state_str = "Trickle Charge"; break;
+            case 2: charge_state_str = "Pre-Charge"; break;
+            case 3: charge_state_str = "Fast-Charge (CC Mode)"; break;
+            case 4: charge_state_str = "Taper Charge (CV Mode)"; break;
+            case 5: charge_state_str = "Reserved"; break;
+            case 6: charge_state_str = "Top-Off Timer Active"; break;
+            case 7: charge_state_str = "Charge Termination Done"; break;
+            default: charge_state_str = "Unknown"; break;
+        }
+        
+        // Interpret VBUS status
+        const char* vbus_status_str;
+        switch (device_info.vbus_status) {
+            case 0x0: vbus_status_str = "No Input or BHOT/BCOLD in OTG mode"; break;
+            case 0x1: vbus_status_str = "USB SDP (500mA)"; break;
+            case 0x2: vbus_status_str = "USB CDP (1.5A)"; break;
+            case 0x3: vbus_status_str = "USB DCP (3.25A)"; break;
+            case 0x4: vbus_status_str = "HVDCP (1.5A)"; break;
+            case 0x5: vbus_status_str = "Unknown Adapter (3A)"; break;
+            case 0x6: vbus_status_str = "Non-Standard Adapter (1A/2A/2.1A/2.4A)"; break;
+            case 0x7: vbus_status_str = "OTG Mode"; break;
+            case 0x8: vbus_status_str = "Not Qualified Adapter"; break;
+            case 0x9: vbus_status_str = "Reserved"; break;
+            case 0xA: vbus_status_str = "Reserved"; break;
+            case 0xB: vbus_status_str = "Device Directly Powered from VBUS"; break;
+            case 0xC: vbus_status_str = "Backup Mode"; break;
+            case 0xD: vbus_status_str = "Reserved"; break;
+            case 0xE: vbus_status_str = "Reserved"; break;
+            case 0xF: vbus_status_str = "Reserved"; break;
+            default: vbus_status_str = "Unknown"; break;
+        }
+        
+        ESP_LOGI(TAG, "Charge Status: %s, VBUS Status: %s", charge_state_str, vbus_status_str);
+        
+        // Print device info summary
+        ESP_LOGI(TAG, "Device Info Summary:");
+        ESP_LOGI(TAG, "  Battery Voltage: %.2f V", device_info.battery_voltage_volts);
+        ESP_LOGI(TAG, "  Charge Current: %.3f A", device_info.charge_current_amps);
+        ESP_LOGI(TAG, "  Input Voltage: %.2f V", device_info.input_voltage_volts);
+        ESP_LOGI(TAG, "  Is Charging: %s", device_info.is_charging ? "Yes" : "No");
+        
+        // Delay before next check - update every 1 second for more responsive monitoring
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 

@@ -20,6 +20,16 @@ void init_device_info(void)
              "%02x%02x%02x%02x%02x%02x",
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     
+    // Set kiosk name based on MAC address
+    if (strcmp(device_info.mac_addr, "ccba97e1dd80") == 0) {
+        strncpy(device_info.kiosk_name, "Kiosk 1", sizeof(device_info.kiosk_name) - 1);
+    } else if (strcmp(device_info.mac_addr, "ccba97e1dd84") == 0) {
+        strncpy(device_info.kiosk_name, "Kiosk 2", sizeof(device_info.kiosk_name) - 1);
+    } else {
+        strncpy(device_info.kiosk_name, "Kiosk 3", sizeof(device_info.kiosk_name) - 1);
+    }
+    device_info.kiosk_name[sizeof(device_info.kiosk_name) - 1] = '\0';
+    
     // Set firmware version
     strncpy(device_info.firmware_version, "1.0.0", sizeof(device_info.firmware_version) - 1);
     device_info.firmware_version[sizeof(device_info.firmware_version) - 1] = '\0';
@@ -33,6 +43,6 @@ void init_device_info(void)
     // Initialize WiFi SSID (empty string)
     memset(device_info.wifi_ssid, 0, sizeof(device_info.wifi_ssid));
     
-    ESP_LOGI(TAG, "Device info initialized with MAC: %s, firmware version: %s", 
-             device_info.mac_addr, device_info.firmware_version);
+    ESP_LOGI(TAG, "Device info initialized with MAC: %s, firmware version: %s, kiosk name: %s", 
+             device_info.mac_addr, device_info.firmware_version, device_info.kiosk_name);
 }

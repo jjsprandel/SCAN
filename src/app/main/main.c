@@ -513,7 +513,6 @@ void app_main(void)
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
-    xTaskCreate(bq25798_monitor_task, "bq25798_monitor", 4096, NULL, 2, NULL);
 
     ESP_LOGI(TAG, "Free heap after task creation: %lu bytes", esp_get_free_heap_size());
 
@@ -526,7 +525,9 @@ void app_main(void)
 
     // Create display test task
     // xTaskCreate(display_test_task, "display_test", 4096, NULL, 5, NULL);
-
+    
+    // Power management tasks are created in power_mgmt_init()
+    
     while (1)
     {
         vTaskDelay(1000 / portTICK_PERIOD_MS);

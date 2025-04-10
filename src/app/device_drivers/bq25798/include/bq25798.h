@@ -6,6 +6,7 @@
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 
 // Device Information
 #define BQ25798_MANUFACTURER    "Texas Instruments"
@@ -14,6 +15,22 @@
 // I2C address
 #define BQ25798_I2C_ADDR 0x6B
 
+// BQ25798 charge states
+#define BQ25798_CHARGE_STATE_NOT_CHARGING      0
+#define BQ25798_CHARGE_STATE_TRICKLE_CHARGE    1
+#define BQ25798_CHARGE_STATE_PRE_CHARGE        2
+#define BQ25798_CHARGE_STATE_FAST_CHARGE       3
+#define BQ25798_CHARGE_STATE_TAPER_CHARGE      4
+#define BQ25798_CHARGE_STATE_RESERVED          5
+#define BQ25798_CHARGE_STATE_TOP_OFF_TIMER     6
+#define BQ25798_CHARGE_STATE_TERMINATION_DONE  7
+
+// Mutex for protecting access to device_info
+extern SemaphoreHandle_t device_info_mutex;
+
+// Voltage values used in initialization
+extern uint16_t vsysmin_mv;  // Minimum system voltage in mV (10.5V = 10500mV)
+extern uint16_t vreg_mv;     // Maximum charge voltage in mV (14.0V = 14000mV)
 
 // Default Values
 #define BQ25798_DEFAULT_CHARGE_CURRENT_MA 1000  // 1A default charge current

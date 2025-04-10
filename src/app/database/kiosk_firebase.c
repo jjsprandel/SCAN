@@ -43,7 +43,7 @@ static char* create_kiosk_power_json(void)
              device_info.mac_addr[4], device_info.mac_addr[5]);
 
     // Add device information to JSON with the specified key names
-    cJSON_AddStringToObject(root, "name", "Kiosk 1");
+    cJSON_AddStringToObject(root, "name", device_info.kiosk_name);
     cJSON_AddStringToObject(root, "location", "UCF Library");
     cJSON_AddStringToObject(root, "esp32Type", "ESP32-C6");
     cJSON_AddStringToObject(root, "firmwareVersion", device_info.firmware_version);
@@ -53,7 +53,9 @@ static char* create_kiosk_power_json(void)
     snprintf(formatted_value, sizeof(formatted_value), "%.2f", device_info.battery_voltage_volts);
     cJSON_AddStringToObject(root, "batteryVoltage", formatted_value);
     
-    cJSON_AddNumberToObject(root, "batteryLevel", 30); // Placeholder, should be calculated based on voltage
+    // Convert battery percentage to integer (whole number) before sending
+    int battery_percentage_int = (int)device_info.battery_percentage;
+    cJSON_AddNumberToObject(root, "batteryLevel", battery_percentage_int);
     cJSON_AddBoolToObject(root, "charging", device_info.is_charging);
     cJSON_AddBoolToObject(root, "active", true);
     
