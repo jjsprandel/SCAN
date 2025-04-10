@@ -437,14 +437,14 @@ void bq25798_monitor_task(void *pvParameters)
             default: vbus_status_str = "Unknown"; break;
         }
         
-        ESP_LOGI(TAG, "Charge Status: %s, VBUS Status: %s", charge_state_str, vbus_status_str);
+        //ESP_LOGI(TAG, "Charge Status: %s, VBUS Status: %s", charge_state_str, vbus_status_str);
         
         // Print device info summary
-        ESP_LOGI(TAG, "Device Info Summary:");
-        ESP_LOGI(TAG, "  Battery Voltage: %.2f V", device_info.battery_voltage_volts);
-        ESP_LOGI(TAG, "  Charge Current: %.3f A", device_info.charge_current_amps);
-        ESP_LOGI(TAG, "  Input Voltage: %.2f V", device_info.input_voltage_volts);
-        ESP_LOGI(TAG, "  Is Charging: %s", device_info.is_charging ? "Yes" : "No");
+        //ESP_LOGI(TAG, "Device Info Summary:");
+        //ESP_LOGI(TAG, "  Battery Voltage: %.2f V", device_info.battery_voltage_volts);
+        //ESP_LOGI(TAG, "  Charge Current: %.3f A", device_info.charge_current_amps);
+        //ESP_LOGI(TAG, "  Input Voltage: %.2f V", device_info.input_voltage_volts);
+        //ESP_LOGI(TAG, "  Is Charging: %s", device_info.is_charging ? "Yes" : "No");
         
         // Delay before next check - update every 1 second for more responsive monitoring
         vTaskDelay(pdMS_TO_TICKS(1000));
