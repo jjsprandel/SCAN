@@ -1,4 +1,5 @@
 #include "bq25798.h"
+#include "../../main/include/global.h"
 
 static const char *TAG = "BQ25798";
 
@@ -342,23 +343,33 @@ void bq25798_monitor_task(void *pvParameters)
     while (1) {
         // Read all parameters
         if (bq25798_get_battery_voltage(&battery_voltage) == ESP_OK) {
-            ESP_LOGI(TAG, "Battery Voltage: %d mV", battery_voltage);
+            // Convert mV to V and assign to global structure
+            device_info.battery_voltage_volts = battery_voltage / 1000.0f;
         }
         
         if (bq25798_get_charge_current(&charge_current) == ESP_OK) {
-            ESP_LOGI(TAG, "Charge Current: %d mA", charge_current);
+            // Convert mA to A and assign to global structure
+            device_info.charge_current_amps = charge_current / 1000.0f;
         }
         
         if (bq25798_get_input_voltage(&input_voltage) == ESP_OK) {
-            ESP_LOGI(TAG, "Input Voltage: %d mV", input_voltage);
+            // Convert mV to V and assign to global structure
+            device_info.input_voltage_volts = input_voltage / 1000.0f;
         }
         
         if (bq25798_get_input_current(&input_current) == ESP_OK) {
-            ESP_LOGI(TAG, "Input Current: %d mA", input_current);
+            // Just store input current, not logging it
         }
         
         if (bq25798_get_charge_status(&charge_status) == ESP_OK) {
-            ESP_LOGI(TAG, "Charge Status: 0x%02X", charge_status);
+            // Extract charge status bits (7-5)
+            uint8_t charge_state = (charge_status >> 5) & 0x07;
+            
+            // Extract VBUS status bits (4-1)
+            uint8_t vbus_status = (charge_status >> 1) & 0x0F;
+            
+            // Set charging status in global structure
+            device_info.is_charging = (charge_state > 0 && charge_state < 7);
         }
         
         vTaskDelay(pdMS_TO_TICKS(10000)); // Update every 10 seconds
