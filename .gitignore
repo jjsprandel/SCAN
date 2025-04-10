@@ -1,8 +1,12 @@
 build/
 managed_components/
+util/
 
 # Ignore Python bytecode and cache files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+sdkconfig
+sdkconfig.old
