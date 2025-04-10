@@ -12,6 +12,8 @@ void ui_init(void)
 }
 
 void ui_update_user_info(const char* name, const char* id) {
+    ESP_LOGI("UI", "Updating user info - Name: %s, ID: %s", name ? name : "NULL", id ? id : "NULL");
+    
     if (name != NULL) {
         strncpy(user_name_buffer, name, sizeof(user_name_buffer) - 1);
         user_name_buffer[sizeof(user_name_buffer) - 1] = '\0';
@@ -164,6 +166,30 @@ lv_obj_t *ui_screen_user_detected(void)
     return scr;
 }
 
+lv_obj_t *ui_screen_keypad_entry_error(void)
+{
+    lv_obj_t *scr = scan_ui_create_screen();
+    scan_ui_set_background_color(scr, UI_COLOR_RED, UI_COLOR_RED_DARK);
+    
+    lv_obj_t *cont = scan_ui_create_content_container(scr);
+
+    lv_obj_t *title = scan_ui_create_title(cont, "Invalid ID\nLength", UI_COLOR_BLACK, UI_FONT_SMALL);
+    lv_obj_set_style_text_font(title, UI_FONT_MEDIUM, 0);
+
+    lv_obj_t *icon = create_image(cont, &error);
+
+    lv_obj_t *card = lv_obj_create(cont);
+    lv_obj_set_size(card, 170, 40);
+    user_id_labels[STATE_KEYPAD_ENTRY_ERROR] = lv_label_create(card);
+    lv_obj_set_style_text_color(user_id_labels[STATE_KEYPAD_ENTRY_ERROR], UI_COLOR_BLACK, 0);
+    lv_obj_set_style_text_font(user_id_labels[STATE_KEYPAD_ENTRY_ERROR], UI_FONT_TINY, 0);
+    lv_label_set_text(user_id_labels[STATE_KEYPAD_ENTRY_ERROR], user_id_buffer);
+    lv_obj_center(user_id_labels[STATE_KEYPAD_ENTRY_ERROR]);
+
+    return scr;
+    
+}
+
 lv_obj_t *ui_screen_database_validation(void)
 {
     lv_obj_t *scr = scan_ui_create_screen();   
@@ -282,7 +308,7 @@ lv_obj_t *ui_screen_error(void)
 {
     lv_obj_t *scr = scan_ui_create_screen();
 
-    scan_ui_set_background_color(scr, UI_COLOR_PURPLE, UI_COLOR_PURPLE_DARK);
+    scan_ui_set_background_color(scr, UI_COLOR_RED, UI_COLOR_RED_DARK);
 
     lv_obj_t *cont = scan_ui_create_content_container(scr);
 
@@ -422,11 +448,15 @@ lv_obj_t *ui_screen_id_enter_error(void)
 
     lv_obj_t *icon = create_image(cont, &error);
 
-    lv_obj_t *msg = lv_label_create(cont);
-    lv_obj_set_style_text_color(msg, UI_COLOR_BLACK, 0);
-    lv_obj_set_style_text_font(msg, UI_FONT_TINY, 0);
-    lv_label_set_text(msg, "ID not found\nor inactive user.\nTry again.");
-    lv_obj_center(msg);
+    lv_obj_t *card = lv_obj_create(cont);
+    lv_obj_set_size(card, 150, 40);
+    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(card, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    user_id_labels[ADMIN_STATE_ENTER_ID_ERROR+STATE_ERROR+1] = lv_label_create(card);
+    lv_obj_set_style_text_color(user_id_labels[ADMIN_STATE_ENTER_ID_ERROR+STATE_ERROR+1], UI_COLOR_BLACK, 0);
+    lv_obj_set_style_text_font(user_id_labels[ADMIN_STATE_ENTER_ID_ERROR+STATE_ERROR+1], UI_FONT_TINY, 0);
+    lv_label_set_text(user_id_labels[ADMIN_STATE_ENTER_ID_ERROR+STATE_ERROR+1], user_id_buffer);
 
     return scr;
 }

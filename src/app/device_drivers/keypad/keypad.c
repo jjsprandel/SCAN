@@ -118,16 +118,16 @@ void keypad_handler(void *params)
     double prev_time = 0;
     double curr_time = 0;
     i2c_master_transmit(pcf8574n_i2c_handle, &clear_pullup, 1, 50);
-    init_timer();
+    // init_timer();
 
     while (1)
     {
-        timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &curr_time);
+        // timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &curr_time);
 
         c = get_active_key();
 
-        if ((prev_time - curr_time) > 10)
-            clear_buffer();
+        // if ((prev_time - curr_time) > 10)
+        //     clear_buffer();
 
         switch (c)
         {
@@ -141,12 +141,8 @@ void keypad_handler(void *params)
             prev_time = curr_time;
             break;
         case '#':
-            if (keypad_buffer.occupied == ID_LEN)
-            {
-#ifdef KEYPAD_DEBUG
-                ESP_LOGI(TAG, "ID of valid length is entered");
-#endif
-                BaseType_t adminNotify = ulTaskNotifyTake(pdTRUE, 0);
+        {                
+             BaseType_t adminNotify = ulTaskNotifyTake(pdTRUE, 0);
                 if (adminNotify > 0)
                 {
                     if (admin_mode_control_task_handle != NULL)
@@ -168,19 +164,12 @@ void keypad_handler(void *params)
                 {
                     ESP_LOGW(TAG, "Cannot notify - state_control_task_handle is NULL");
                 }
-            }
-            else
-            {
-#ifdef KEYPAD_DEBUG
-                ESP_LOGI(TAG, "ID %s invalid, please entered an ID of length %d", keypad_buffer.elements, ID_LEN);
-#endif
-            
-            }
 #ifdef KEYPAD_DEBUG
             ESP_LOGI(TAG, "[Buffer]> %s", keypad_buffer.elements);
 #endif
             prev_time = curr_time;
             break;
+            }
         case '\0':
             break;
         default:

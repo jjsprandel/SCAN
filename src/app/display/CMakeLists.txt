@@ -13,4 +13,4 @@ idf_component_register(SRCS "display_utils.c" "display_config.c" "ui_styles.c" "
                      "image_files/gear_icon.c"
                      "image_files/software_icon.c"
                      INCLUDE_DIRS "." "image_files" "./include" ""
-                     REQUIRES "esp_timer" "esp_lcd" "lvgl" "main" "database")
+                     REQUIRES "esp_timer" "esp_lcd" "lvgl" "main" "database" "keypad")

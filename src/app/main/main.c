@@ -207,9 +207,9 @@ void state_control_task(void *pvParameter)
 
             if ((nfcReadFlag) || (keypadNotify > 0))
             {
-                MAIN_DEBUG_LOG("User ID entered by %s", nfcReadFlag ? "NFC Transceiver" : "Keypad");
                 if (nfcReadFlag)
                 {
+                    MAIN_DEBUG_LOG("User ID entered by NFC Transceiver");
                     bool valid_id = true;
                     for (int i = 0; i < ID_LEN && nfcUserID[i] != '\0'; i++)
                     {
@@ -225,6 +225,17 @@ void state_control_task(void *pvParameter)
                     {
                         MAIN_ERROR_LOG("Rejecting invalid NFC ID");
                         current_state = STATE_ERROR;
+                        break;
+                    }
+                }
+                else{
+                    MAIN_DEBUG_LOG("User ID entered by Keypad");
+                    if (keypad_buffer.occupied == ID_LEN){
+                        MAIN_DEBUG_LOG("ID of valid length is entered");
+                    }
+                    else{
+                        MAIN_ERROR_LOG("ID of invalid length is entered");
+                        current_state = STATE_KEYPAD_ENTRY_ERROR;
                         break;
                     }
                 }
@@ -247,6 +258,13 @@ void state_control_task(void *pvParameter)
                 snprintf(mqtt_message, sizeof(mqtt_message), "Validating %s", formatted_id);
                 mqtt_publish_status(mqtt_message);
             }
+            break;
+            
+        case STATE_KEYPAD_ENTRY_ERROR:
+            MAIN_ERROR_LOG("ID %s of length %d entered. ID must be of length %d. Try again.", keypad_buffer.elements, keypad_buffer.occupied, ID_LEN);
+            clear_buffer();
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            current_state = STATE_USER_DETECTED;
             break;
 
         case STATE_DATABASE_VALIDATION: // Wait until validation is complete
@@ -273,22 +291,10 @@ void state_control_task(void *pvParameter)
                 start_time = esp_timer_get_time();
                 if (strcmp(user_info->check_in_status, "Checked In") == 0)
                 {
-                    // Update user info before state change
-                    // char full_name[64];
-                    // snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
-                    // ui_update_user_info(full_name, user_id);
-                    // MAIN_DEBUG_LOG("Updated UI with name: %s, ID: %s", full_name, user_id);
-
                     current_state = check_out_user(user_id) ? STATE_CHECK_OUT : STATE_VALIDATION_FAILURE;
                 }
                 else
                 {
-                    // Update user info before state change
-                    // char full_name[64];
-                    // snprintf(full_name, sizeof(full_name), "%s %s", user_info->first_name, user_info->last_name);
-                    // ui_update_user_info(full_name, user_id);
-                    // MAIN_DEBUG_LOG("Updated UI with name: %s, ID: %s", full_name, user_id);
-
                     current_state = check_in_user(user_id) ? STATE_CHECK_IN : STATE_VALIDATION_FAILURE;
                 }
             }
