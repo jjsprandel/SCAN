@@ -149,6 +149,9 @@ static void mqtt_ping_task(void *pvParameters)
                 ESP_LOGI(TAG, "Sent ping message");
             }
         }
+        ESP_LOGI(TAG, "Free heap before OTA config: %u bytes", (unsigned int)esp_get_free_heap_size());
+        ESP_LOGI(TAG, "Largest free block: %u bytes", (unsigned int)heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
+        ESP_LOGI(TAG, "Total free: %u bytes", (unsigned int)heap_caps_get_free_size(MALLOC_CAP_DEFAULT));
         vTaskDelay(pdMS_TO_TICKS(10000)); // Send ping every 10 seconds
     }
 }
