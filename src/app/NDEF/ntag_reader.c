@@ -360,7 +360,7 @@ bool read_user_id(char *userID, uint16_t readerTimeout)
 #ifdef NTAG_DEBUG_EN
                     ESP_LOGI(CARD_READER_TAG, "Unable to read page %d", i);
 #endif
-                    return false;
+                    continue;
                 }
                 memcpy(pageHeader + (i * 4), pageBuffer, 4);
             }
@@ -403,6 +403,7 @@ bool read_user_id(char *userID, uint16_t readerTimeout)
 #ifdef NTAG_DEBUG_EN
                     ESP_LOGI(CARD_READER_TAG, "Unable to read page %d", currentPage);
 #endif
+                    return false;  // Return false if any page read fails
                 }
                 uint8_t bytesToCopy = ((textLen + langCodeLen + 1) - bytesRead < 4) ? ((textLen + langCodeLen + 1) - bytesRead) : 4;
                 memcpy(&textPayload[bytesRead], pageBuffer, bytesToCopy);
@@ -551,7 +552,6 @@ void ntag2xx_read_user_id_task(void *pvParameters)
 #ifdef NTAG_DEBUG_EN
                         ESP_LOGI(CARD_READER_TAG, "Unable to read page %d", currentPage);
 #endif
-                        continue;
                     }
                     uint8_t bytesToCopy = ((textLen + langCodeLen + 1) - bytesRead < 4) ? ((textLen + langCodeLen + 1) - bytesRead) : 4;
                     memcpy(&textPayload[bytesRead], pageBuffer, bytesToCopy);
