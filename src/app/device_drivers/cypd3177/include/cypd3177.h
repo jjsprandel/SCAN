@@ -43,6 +43,23 @@ extern int usb_connected;
 #define PD_CONTROL_REG_ADDR             0x1006  // Send PD control message
 #define REQUEST_REG_ADDR                0x1050  // Send custom PD Request Data Object
 
+/* Data Memory Registers */
+#define READ_DATA_MEM_REG_ADDR          0x1404
+#define WRITE_DATA_MEM_REG_ADDR         0x1800
+
+/* PDO Type Definitions */
+#define PDO_TYPE_FIXED_SUPPLY           0x0
+#define PDO_TYPE_BATTERY                0x1
+#define PDO_TYPE_VARIABLE               0x2
+
+/* PDO Bit Masks */
+#define PDO_TYPE_MASK                   0xC0000000
+#define PDO_TYPE_SHIFT                  30
+#define PDO_VOLTAGE_MASK                0x3FF00000
+#define PDO_VOLTAGE_SHIFT               20
+#define PDO_CURRENT_MASK                0x000FFC00
+#define PDO_CURRENT_SHIFT               10
+
 /* Special Reset Commands */
 #define RESET_SIGNATURE        0x52  // 'R' character required for reset
 
@@ -144,6 +161,8 @@ void power_check(void *pvParameter);
 void get_interrupt_response_code(void *pvParameter);
 void get_dev_response(void *pvParameter);
 void get_pd_response(void *pvParameter);
+esp_err_t enable_high_power_charging(void);
+esp_err_t cypd3177_change_pdo(void);
 
 extern void IRAM_ATTR cypd3177_isr_handler(void *arg);
 

@@ -1,8 +1,7 @@
 #include "global.h"
+#include "esp_log.h"
 #include "esp_system.h"
 #include "esp_mac.h"
-#include "esp_chip_info.h"
-#include "esp_log.h"
 #include <string.h>
 
 static const char *TAG = "GLOBAL";
@@ -21,32 +20,33 @@ void init_device_info(void)
              "%02x%02x%02x%02x%02x%02x",
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     
-    // Get chip information
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
+    // Set kiosk name based on MAC address
+    if (strcmp(device_info.mac_addr, "ccba97e1dd80") == 0) {
+        strncpy(device_info.kiosk_name, "Kiosk 1", sizeof(device_info.kiosk_name) - 1);
+        strncpy(device_info.kiosk_location, "UCF Library", sizeof(device_info.kiosk_location) - 1);
+    } else if (strcmp(device_info.mac_addr, "ccba97e1dd84") == 0) {
+        strncpy(device_info.kiosk_name, "Kiosk 2", sizeof(device_info.kiosk_name) - 1);
+        strncpy(device_info.kiosk_location, "UCF RWC", sizeof(device_info.kiosk_location) - 1);
+    } else {
+        strncpy(device_info.kiosk_name, "Kiosk 3", sizeof(device_info.kiosk_name) - 1);
+        strncpy(device_info.kiosk_location, "UCF Arena", sizeof(device_info.kiosk_location) - 1);
+    }
+    device_info.kiosk_name[sizeof(device_info.kiosk_name) - 1] = '\0';
+    device_info.kiosk_location[sizeof(device_info.kiosk_location) - 1] = '\0';
     
-    device_info.chip_model = chip_info.model;
-    device_info.chip_revision = chip_info.revision;
-    device_info.chip_cores = chip_info.cores;
-    device_info.chip_features = chip_info.features;
-    
-    // Set firmware version (using a default value for now)
+    // Set firmware version
     strncpy(device_info.firmware_version, "1.0.0", sizeof(device_info.firmware_version) - 1);
     device_info.firmware_version[sizeof(device_info.firmware_version) - 1] = '\0';
     
-    // Set active status
-    strncpy(device_info.active, "true", sizeof(device_info.active) - 1);
-    device_info.active[sizeof(device_info.active) - 1] = '\0';
+    // Initialize power information with default values
+    device_info.charge_current_amps = 0.0f;
+    device_info.battery_voltage_volts = 0.0f;
+    device_info.input_voltage_volts = 0.0f;
+    device_info.is_charging = false;
     
-    // WiFi SSID is not set yet
+    // Initialize WiFi SSID (empty string)
+    memset(device_info.wifi_ssid, 0, sizeof(device_info.wifi_ssid));
     
-    ESP_LOGI(TAG, "Device info initialized:");
-    ESP_LOGI(TAG, "  MAC Address: %s", device_info.mac_addr);
-    ESP_LOGI(TAG, "  Firmware Version: %s", device_info.firmware_version);
-    ESP_LOGI(TAG, "  Active Status: %s", device_info.active);
-    ESP_LOGI(TAG, "  WiFi SSID: %s", device_info.wifi_ssid[0] ? device_info.wifi_ssid : "Not set");
-    ESP_LOGI(TAG, "  Chip Model: %d", device_info.chip_model);
-    ESP_LOGI(TAG, "  Chip Revision: %lu", device_info.chip_revision);
-    ESP_LOGI(TAG, "  Chip Cores: %d", device_info.chip_cores);
-    ESP_LOGI(TAG, "  Chip Features: 0x%x", device_info.chip_features);
+    ESP_LOGI(TAG, "Device info initialized with MAC: %s, firmware version: %s, kiosk name: %s", 
+             device_info.mac_addr, device_info.firmware_version, device_info.kiosk_name);
 }

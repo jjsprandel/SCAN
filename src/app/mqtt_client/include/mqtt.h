@@ -1,3 +1,6 @@
+#ifndef MQTT_H
+#define MQTT_H
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -16,5 +19,9 @@
 
 #define CONFIG_BROKER_URI "mqtts://0ec065087cf84d309f1c73b00c9441f8.s1.eu.hivemq.cloud:8883"
 
-extern void mqtt_init(void);
+void mqtt_init(void);
+void mqtt_start_ping_task(void);
+void mqtt_publish_status(const char *status);
+
+#endif // MQTT_H
 

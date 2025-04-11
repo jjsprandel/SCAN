@@ -1,5 +1,7 @@
 #include "global.h"
 #include "main.h"
+#include "power_mgmt.h"
+#include "../database/include/kiosk_firebase.h"
 
 // State variables
 static state_t current_state = STATE_HARDWARE_INIT, prev_state = STATE_ERROR;
@@ -158,19 +160,15 @@ void state_control_task(void *pvParameter)
             ESP_LOGI(TAG, "Initializing MQTT...");
             mqtt_init();
             ESP_LOGI(TAG, "MQTT initialized. Free heap: %lu bytes", esp_get_free_heap_size());
-
-            // Stop Wi-Fi task when ready
-            if (wifi_init_task_handle != NULL)
-            {
-                ESP_LOGI(TAG, "Stopping WiFi task...");
-                vTaskDelete(wifi_init_task_handle);
-                wifi_init_task_handle = NULL;
-                ESP_LOGI(TAG, "WiFi task stopped. Free heap: %lu bytes", esp_get_free_heap_size());
-            }
-            else
-            {
-                MAIN_DEBUG_LOG("WiFi task handle is NULL");
-            }
+            
+            // Publish connected status
+            mqtt_publish_status("Kiosk Connected");
+            ESP_LOGI(TAG, "Published connected status");
+            
+            // Start MQTT ping task
+            ESP_LOGI(TAG, "Starting MQTT ping task...");
+            mqtt_start_ping_task();
+            ESP_LOGI(TAG, "MQTT ping task started. Free heap: %lu bytes", esp_get_free_heap_size());
 
             /*
             if (ota_update_task_handle == NULL) {
@@ -252,6 +250,13 @@ void state_control_task(void *pvParameter)
                     break;
                 }
                 current_state = STATE_DATABASE_VALIDATION;
+                
+                // Format user ID for MQTT message
+                char formatted_id[ID_LEN + 1];
+                snprintf(formatted_id, sizeof(formatted_id), "%s", user_id);
+                char mqtt_message[64];
+                snprintf(mqtt_message, sizeof(mqtt_message), "Validating %s", formatted_id);
+                mqtt_publish_status(mqtt_message);
             }
             break;
             
@@ -274,6 +279,7 @@ void state_control_task(void *pvParameter)
             else if (strcmp(user_info->role, "Admin") == 0)
             {
                 MAIN_DEBUG_LOG("Entering Admin Mode");
+                mqtt_publish_status("Entering Admin Mode");
                 xTaskNotifyGive(keypad_task_handle);
                 xTaskNotifyGive(admin_mode_control_task_handle);
                 current_state = STATE_ADMIN_MODE;
@@ -300,6 +306,7 @@ void state_control_task(void *pvParameter)
             }
 #else
             MAIN_DEBUG_LOG("Entering Admin Mode");
+            mqtt_publish_status("Entering Admin Mode");
             xTaskNotifyGive(keypad_task_handle);
             xTaskNotifyGive(admin_mode_control_task_handle);
             current_state = STATE_ADMIN_MODE;
@@ -313,10 +320,19 @@ void state_control_task(void *pvParameter)
             {
                 MAIN_DEBUG_LOG("CHECK-IN: User info available - Name: %s %s, ID: %s",
                                user_info->first_name, user_info->last_name, user_id);
+                
+                // Format user info for MQTT message
+                char mqtt_message[128];
+                snprintf(mqtt_message, sizeof(mqtt_message), "User Checked In: %s %s", 
+                         user_info->first_name, user_info->last_name);
+                mqtt_publish_status(mqtt_message);
             }
             else
             {
                 MAIN_DEBUG_LOG("CHECK-IN: No user info available. ID: %s", user_id);
+                char mqtt_message[64];
+                snprintf(mqtt_message, sizeof(mqtt_message), "User Checked In: %s", user_id);
+                mqtt_publish_status(mqtt_message);
             }
 
             MAIN_DEBUG_LOG("ID %s found in database. Checking in.", user_id);
@@ -325,6 +341,22 @@ void state_control_task(void *pvParameter)
             break;
         case STATE_CHECK_OUT:
             log_elapsed_time("check out authentication", start_time);
+            
+            // Format user info for MQTT message
+            if (user_info != NULL)
+            {
+                char mqtt_message[128];
+                snprintf(mqtt_message, sizeof(mqtt_message), "User Checked Out: %s %s", 
+                         user_info->first_name, user_info->last_name);
+                mqtt_publish_status(mqtt_message);
+            }
+            else
+            {
+                char mqtt_message[64];
+                snprintf(mqtt_message, sizeof(mqtt_message), "User Checked Out: %s", user_id);
+                mqtt_publish_status(mqtt_message);
+            }
+            
             MAIN_DEBUG_LOG("ID %s found in database. Checking out.", user_id);
             vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
             current_state = STATE_IDLE;
@@ -335,6 +367,7 @@ void state_control_task(void *pvParameter)
             if (adminNotify > 0)
             {
                 MAIN_DEBUG_LOG("Exiting admin mode");
+                mqtt_publish_status("Exiting Admin Mode");
                 current_state = STATE_IDLE;
             }
             break;
@@ -342,6 +375,11 @@ void state_control_task(void *pvParameter)
 #ifdef MAIN_DEBUG
             MAIN_DEBUG_LOG("ID %s not found in database. Try again.", user_id);
 #endif
+            // Add MQTT status message for validation failure
+            char validation_failure_msg[64];
+            snprintf(validation_failure_msg, sizeof(validation_failure_msg), "Validation Failed: %s", user_id);
+            mqtt_publish_status(validation_failure_msg);
+            
             vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
             current_state = STATE_USER_DETECTED;
             break;
@@ -408,8 +446,36 @@ void app_main(void)
     i2c_master_init(&master_handle);
     i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
     i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
+    i2c_master_add_device(&master_handle, &bq25798_i2c_handle, &bq25798_i2c_config);
     ESP_LOGI(TAG, "I2C initialized successfully");
 
+    // Initialize BQ25798 charger
+    ESP_LOGI(TAG, "Initializing BQ25798 charger...");
+    ret = bq25798_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize BQ25798 charger");
+        return;
+    }
+    ESP_LOGI(TAG, "BQ25798 charger initialized successfully");
+    
+    // Initialize power management
+    ESP_LOGI(TAG, "Initializing power management...");
+    ret = power_mgmt_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize power management");
+        return;
+    }
+    ESP_LOGI(TAG, "Power management initialized successfully");
+    
+    // Initialize kiosk Firebase client
+    ESP_LOGI(TAG, "Initializing kiosk Firebase client...");
+    if (!kiosk_firebase_init()) {
+        ESP_LOGE(TAG, "Failed to initialize kiosk Firebase client");
+        return;
+    }
+    ESP_LOGI(TAG, "Kiosk Firebase client initialized successfully");
+    
+    // Initialize peripherals
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
 
@@ -459,7 +525,9 @@ void app_main(void)
 
     // Create display test task
     // xTaskCreate(display_test_task, "display_test", 4096, NULL, 5, NULL);
-
+    
+    // Power management tasks are created in power_mgmt_init()
+    
     while (1)
     {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
