@@ -87,12 +87,14 @@ void power_mgmt_task(void *pvParameters)
             // Check charge state and is_charging flag
             if (device_info.charge_state >= 1 && device_info.charge_state <= 4 && device_info.charge_current_amps > 0.0f && device_info.input_voltage_volts > 0.0f) {
                 new_state = POWER_STATE_CHARGING;
+
                 // Enable high power charging when entering charging state
-                if (current_state != POWER_STATE_CHARGING) {
+/*                 if (current_state != POWER_STATE_CHARGING) {
                     ESP_LOGI(TAG, "Entering charging state, enabling high power charging");
                     if (enable_high_power_charging() != ESP_OK) {
                         ESP_LOGE(TAG, "Failed to enable high power charging");
-                    }
+                    } */
+                   
                 }
             } else if (device_info.charge_state == 7 && device_info.charge_current_amps == 0) {
                 //device_info.battery_percentage = 100;

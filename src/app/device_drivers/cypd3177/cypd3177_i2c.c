@@ -140,15 +140,7 @@ esp_err_t cypd3177_change_pdo(void)
     pdo_data[1] = 0x4B; // 'K'
     pdo_data[2] = 0x4E; // 'N'
     pdo_data[3] = 0x53; // 'S'
-    
-    // Copy PDO data
-    size_t pdos_to_copy = (num_pdos > 7) ? 7 : num_pdos; // Maximum 7 PDOs
-    for (size_t i = 0; i < pdos_to_copy; i++) {
-        pdo_data[4 + (i * 4)] = (pdos[i] >> 0) & 0xFF;
-        pdo_data[4 + (i * 4) + 1] = (pdos[i] >> 8) & 0xFF;
-        pdo_data[4 + (i * 4) + 2] = (pdos[i] >> 16) & 0xFF;
-        pdo_data[4 + (i * 4) + 3] = (pdos[i] >> 24) & 0xFF;
-    }
+
     
     // Write the complete 32-byte data to the data memory
     esp_err_t ret = i2c_master_transmit(cypd3177_i2c_handle, data_memory_addr, 2, -1);
