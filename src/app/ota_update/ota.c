@@ -245,6 +245,6 @@ void ota_update_fw_task(void *pvParameter)
     esp_wifi_set_ps(WIFI_PS_NONE);
 #endif // CONFIG_EXAMPLE_CONNECT_WIFI
 
-    xTaskCreate(&advanced_ota_example_task, "OTA TASK", 1024 * 8, update_url, 10, NULL);
+    xTaskCreate(&advanced_ota_example_task, "OTA TASK", 1024 * 16, update_url, 10, NULL);
     vTaskDelete(NULL);
 }
