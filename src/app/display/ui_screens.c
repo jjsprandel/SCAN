@@ -23,16 +23,19 @@ void ui_update_user_info(const char* name, const char* id) {
         strncpy(user_id_buffer, id, sizeof(user_id_buffer) - 1);
         user_id_buffer[sizeof(user_id_buffer) - 1] = '\0';
     }
-
+    
+    ESP_LOGI("UI", "After string copies");
     for (int i = 0; i < NUM_SCREENS; i++) {
+        ESP_LOGI("UI", "Inside of for loop");
         if (user_name_labels[i] != NULL) {
             lv_label_set_text(user_name_labels[i], user_name_buffer);
         }
-        
+
         if (user_id_labels[i] != NULL) {
             lv_label_set_text(user_id_labels[i], user_id_buffer);
         }
     }
+    ESP_LOGI("UI", "End of ui_update_user_info");
 }
 
 lv_obj_t *ui_screen_hardware_init(void)
