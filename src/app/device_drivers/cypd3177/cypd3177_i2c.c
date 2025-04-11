@@ -156,11 +156,12 @@ esp_err_t cypd3177_change_pdo(void)
         return ret;
     }
     */
-   
+
     // Step 2: Send 1 byte with data 0xFF to register address 0x1005
     uint8_t cmd_addr[] = {0x05, 0x10}; // Register address 0x1005
     uint8_t cmd_data[] = {0xFF};       // Data to write
     
+    /*
     ret = i2c_master_transmit(cypd3177_i2c_handle, cmd_addr, 2, -1);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set command address");
@@ -172,7 +173,7 @@ esp_err_t cypd3177_change_pdo(void)
         ESP_LOGE(TAG, "Failed to send command data");
         return ret;
     }
-    
+    */
     return ESP_OK;
 }
 
