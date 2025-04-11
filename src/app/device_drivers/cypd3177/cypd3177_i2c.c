@@ -32,7 +32,7 @@ static const uint8_t bus_voltage_addr[] = FORMAT(BUS_VOLTAGE_REG_ADDR);
 static const uint8_t dev_response_addr[] = FORMAT(DEV_RESPONSE_REG_ADDR);
 static const uint8_t pd_response_addr[] = FORMAT(PD_RESPONSE_REG_ADDR);
 
-static const uint8_t data_mem_addr[] = FORMAT(WRITE_DATA_MEM_REG_ADDR);
+//static const uint8_t data_mem_addr[] = FORMAT(WRITE_DATA_MEM_REG_ADDR);
 
 
 
@@ -143,11 +143,12 @@ esp_err_t cypd3177_change_pdo(void)
 
     
     // Write the complete 32-byte data to the data memory
-    esp_err_t ret = i2c_master_transmit(cypd3177_i2c_handle, data_memory_addr, 2, -1);
+    /*esp_err_t ret = i2c_master_transmit(cypd3177_i2c_handle, data_memory_addr, 2, -1);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set data memory address");
         return ret;
     }
+        */
     
     ret = i2c_master_transmit(cypd3177_i2c_handle, pdo_data, 32, -1);
     if (ret != ESP_OK) {
