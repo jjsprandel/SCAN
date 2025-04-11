@@ -36,53 +36,159 @@ void blink_led_task(void *pvParameter)
     {
         s_led_state = !s_led_state;
 
-        /* If the addressable LED is enabled */
         if (s_led_state && current_state == STATE_WIFI_CONNECTING)
         {
-            /* Set the LED pixel using RGB from 0 (0%) to 255 (100%) for each color */
             for (int i = 0; i < NUM_LEDS; i++)
             {
                 led_strip_set_pixel(led_strip, i, 100, 0, 0);
             }
-            /* Refresh the strip to send data */
             led_strip_refresh(led_strip);
         }
         else
         {
-            /* Set all LED off to clear all pixels */
             led_strip_clear(led_strip);
         }
-        if (current_state == STATE_USER_DETECTED)
+        
+        switch (current_state)
         {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-        }
-        else if (current_state == STATE_DATABASE_VALIDATION)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-        }
-        else if (current_state == STATE_CHECK_IN || current_state == STATE_CHECK_OUT)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-            led_strip_set_pixel(led_strip, 2, 0, 100, 0);
-        }
-        else if (current_state == STATE_VALIDATION_FAILURE)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-            led_strip_set_pixel(led_strip, 2, 100, 0, 0);
-        }
-        else if (current_state == STATE_IDLE)
-        {
-            led_strip_clear(led_strip);
+            case STATE_HARDWARE_INIT:
+                for (int i = 0; i < NUM_LEDS; i++)
+                {
+                    led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                }
+                break;
+                
+            case STATE_WIFI_CONNECTING:
+                break;
+                
+            case STATE_SOFTWARE_INIT:
+                for (int i = 0; i < NUM_LEDS; i++)
+                {
+                    led_strip_set_pixel(led_strip, i, 100, 100, 0);
+                }
+                break;
+                
+            case STATE_SYSTEM_READY:
+                for (int i = 0; i < NUM_LEDS; i++)
+                {
+                    led_strip_set_pixel(led_strip, i, 0, 100, 0);
+                }
+                break;
+                
+            case STATE_USER_DETECTED:
+                led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                break;
+                
+            case STATE_DATABASE_VALIDATION:
+                led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                break;
+                
+            case STATE_CHECK_IN:
+            case STATE_CHECK_OUT:
+                led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                led_strip_set_pixel(led_strip, 0, 0, 100, 0);
+                break;
+                
+            case STATE_VALIDATION_FAILURE:
+                led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                led_strip_set_pixel(led_strip, 0, 100, 0, 0);
+                break;
+                
+            case STATE_KEYPAD_ENTRY_ERROR:
+                for (int i = 0; i < NUM_LEDS; i++)
+                {
+                    led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                }
+                break;
+                
+            case STATE_IDLE:
+                led_strip_clear(led_strip);
+                break;
+                
+            case STATE_ERROR:
+                for (int i = 0; i < NUM_LEDS; i++)
+                {
+                    led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                }
+                break;
+                
+            case STATE_ADMIN_MODE:
+                switch (current_admin_state)
+                {
+                    case ADMIN_STATE_BEGIN:
+                        for (int i = 0; i < NUM_LEDS; i++)
+                        {
+                            led_strip_set_pixel(led_strip, i, 0, 0, 100);
+                        }
+                        break;
+                        
+                    case ADMIN_STATE_ENTER_ID:
+                        led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                        led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                        break;
+                        
+                    case ADMIN_STATE_VALIDATE_ID:
+                        led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                        led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                        led_strip_set_pixel(led_strip, 0, 0, 100, 0);
+                        break;
+                        
+                    case ADMIN_STATE_TAP_CARD:
+                        led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                        led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                        led_strip_set_pixel(led_strip, 0, 100, 0, 100);
+                        break;
+                        
+                    case ADMIN_STATE_CARD_WRITE_SUCCESS:
+                        for (int i = 0; i < NUM_LEDS; i++)
+                        {
+                            led_strip_set_pixel(led_strip, i, 0, 100, 0);
+                        }
+                        break;
+                        
+                    case ADMIN_STATE_ENTER_ID_ERROR:
+                        for (int i = 0; i < NUM_LEDS; i++)
+                        {
+                            led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                        }
+                        break;
+                        
+                    case ADMIN_STATE_CARD_WRITE_ERROR:
+                        for (int i = 0; i < NUM_LEDS; i++)
+                        {
+                            led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                        }
+                        break;
+                        
+                    case ADMIN_STATE_ERROR:
+                        for (int i = 0; i < NUM_LEDS; i++)
+                        {
+                            led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                        }
+                        break;
+                        
+                    default:
+                        for (int i = 0; i < NUM_LEDS; i++)
+                        {
+                            led_strip_set_pixel(led_strip, i, 0, 0, 100);
+                        }
+                        break;
+                }
+                break;
+                
+            default:
+                led_strip_clear(led_strip);
+                break;
         }
 
         if (usb_connected == 0)
         {
-            led_strip_set_pixel(led_strip, 0, 50, 75, 60);
-            led_strip_set_pixel(led_strip, 1, 50, 75, 60);
             led_strip_set_pixel(led_strip, 2, 50, 75, 60);
+            led_strip_set_pixel(led_strip, 1, 50, 75, 60);
+            led_strip_set_pixel(led_strip, 0, 50, 75, 60);
         }
 
         led_strip_refresh(led_strip);
@@ -197,17 +303,38 @@ void state_control_task(void *pvParameter)
                 current_state = STATE_USER_DETECTED;
             }
             break;
-        case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
+                case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
+            static int64_t user_detected_start_time = 0;
+            static bool user_detected_timeout_initialized = false;
+            const int64_t USER_DETECTED_TIMEOUT_US = ID_ENTRY_TIMEOUT_SEC * 1000 * 1000; // 10 seconds in microseconds
+            
+            // Initialize the start time when first entering this state
+            if (!user_detected_timeout_initialized) {
+                user_detected_start_time = esp_timer_get_time();
+                user_detected_timeout_initialized = true;
+                MAIN_DEBUG_LOG("User detection started - 10 second timeout");
+            }
+            
+            // Check if timeout has occurred
+            int64_t current_time = esp_timer_get_time();
+            if (current_time - user_detected_start_time > USER_DETECTED_TIMEOUT_US) {
+                MAIN_DEBUG_LOG("User detection timeout - returning to IDLE state");
+                user_detected_timeout_initialized = false; // Reset for next time
+                current_state = STATE_IDLE;
+                break;
+            }
+            
             char nfcUserID[ID_LEN] = {'\0'};
-
             bool nfcReadFlag = false;
-
             BaseType_t keypadNotify = ulTaskNotifyTake(pdTRUE, 0);
-
+            
             nfcReadFlag = read_user_id(nfcUserID, 50);
 
             if ((nfcReadFlag) || (keypadNotify > 0))
             {
+                // Reset the timeout flag since we're exiting this state
+                user_detected_timeout_initialized = false;
+                
                 if (nfcReadFlag)
                 {
                     MAIN_DEBUG_LOG("User ID entered by NFC Transceiver");
