@@ -43,7 +43,7 @@ void log_elapsed_time(char *auth_type, int64_t start_time)
     int64_t end_time = esp_timer_get_time();
     double elapsed_time_sec = (end_time - start_time) / 1000000.0;
 #ifdef UTILS_DEBUG
-    ESP_LOGI(TAG, "Time taken for %s: %.6f seconds", auth_type, elapsed_time_sec);
+    ESP_LOGI(TAG, ANSI_COLOR_BLUE "Time taken for %s: %.6f seconds" ANSI_COLOR_RESET, auth_type, elapsed_time_sec);
 #endif
 }
 
@@ -52,7 +52,9 @@ void heap_monitor_task(void *pvParameters)
     while (1)
     {
         long unsigned int free_heap = (long unsigned int)esp_get_free_heap_size();
-
+        #ifdef UTILS_DEBUG
+        ESP_LOGI(TAG, ANSI_COLOR_BLUE "Free heap: %lu bytes" ANSI_COLOR_RESET, free_heap);
+        #endif
         if (free_heap < HEAP_WARNING_THRESHOLD)
         {
 #ifdef UTILS_DEBUG
@@ -60,7 +62,7 @@ void heap_monitor_task(void *pvParameters)
 #endif
         }
 
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(pdMS_TO_TICKS(HEAP_MONITOR_INTERVAL));
     }
 }
 

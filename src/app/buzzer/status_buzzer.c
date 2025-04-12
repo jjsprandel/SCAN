@@ -5,34 +5,34 @@ static const char *TAG = "status_buzzer";
 
 // Define music note frequencies (in Hz)
 // C3 through B5
-static const int NOTE_C3 = 131;
-static const int NOTE_C4 = 262;
-// static const int NOTE_CS4 = 277;
-// static const int NOTE_D4 = 294;
-// static const int NOTE_DS4 = 311;
-static const int NOTE_E4 = 330;
-static const int NOTE_F4 = 349;
-// static const int NOTE_FS4 = 370;
-static const int NOTE_G4 = 392;
-// static const int NOTE_GS4 = 415;
-static const int NOTE_A4 = 440;
-// static const int NOTE_AS4 = 466;
-static const int NOTE_B4 = 494;
-static const int NOTE_C5 = 523;
-// static const int NOTE_CS5 = 554;
-static const int NOTE_D5 = 587;
-// static const int NOTE_DS5 = 622;
-static const int NOTE_E5 = 659;
-// static const int NOTE_F5 = 698;
-// static const int NOTE_FS5 = 740;
-static const int NOTE_G5 = 784;
-// static const int NOTE_GS5 = 831;
-// static const int NOTE_A5 = 880;
-// static const int NOTE_AS5 = 932;
-// static const int NOTE_B5 = 988;
+#define NOTE_C3 131
+#define NOTE_C4 262
+// #define NOTE_CS4 277
+// #define NOTE_D4 294
+// #define NOTE_DS4 311
+#define NOTE_E4 330
+#define NOTE_F4 349
+// #define NOTE_FS4 370
+#define NOTE_G4 392
+// #define NOTE_GS4 415
+#define NOTE_A4 440
+// #define NOTE_AS4 466
+#define NOTE_B4 494
+#define NOTE_C5 523
+// #define NOTE_CS5 554
+#define NOTE_D5 587
+// #define NOTE_DS5 622
+#define NOTE_E5 659
+// #define NOTE_F5 698
+// #define NOTE_FS5 740
+#define NOTE_G5 784
+// #define NOTE_GS5 831
+// #define NOTE_A5 880
+// #define NOTE_AS5 932
+// #define NOTE_B5 988
 
 // Rest note
-static const int NOTE_REST = 0;
+#define NOTE_REST 0
 
 void buzzer_init()
 {
@@ -56,7 +56,7 @@ void buzzer_init()
 }
 
 // Helper function to create melody notes with short gaps between them
-static BuzzerNote *create_melody_with_gaps(int *frequencies, int *durations, float volume, int note_count, size_t *total_notes)
+static BuzzerNote *create_melody_with_gaps(const int *frequencies, const int *durations, float volume, int note_count, size_t *total_notes)
 {
     // Each note will have a gap, so total will be 2 * note_count
     *total_notes = note_count * 2;
@@ -98,80 +98,80 @@ void play_kiosk_buzzer(state_t current_state, admin_state_t current_admin_state)
         case STATE_HARDWARE_INIT:
         {
             // Hardware initialization sound - low frequency beep
-            int frequencies[] = {NOTE_C3};
-            int durations[] = {200};
+            static const int frequencies[] = {NOTE_C3};
+            static const int durations[] = {200};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_LOW, 1, &total_notes);
             break;
         }
         case STATE_WIFI_CONNECTING:
         {
             // WiFi connecting sound - rising pattern
-            int frequencies[] = {NOTE_C4, NOTE_E4, NOTE_G4};
-            int durations[] = {100, 100, 200};
+            static const int frequencies[] = {NOTE_C4, NOTE_E4, NOTE_G4};
+            static const int durations[] = {100, 100, 200};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 3, &total_notes);
             break;
         }
         case STATE_SOFTWARE_INIT:
         {
             // Software initialization sound - descending pattern
-            int frequencies[] = {NOTE_G4, NOTE_E4, NOTE_C4};
-            int durations[] = {100, 100, 200};
+            static const int frequencies[] = {NOTE_G4, NOTE_E4, NOTE_C4};
+            static const int durations[] = {100, 100, 200};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 3, &total_notes);
             break;
         }
         case STATE_SYSTEM_READY:
         {
             // System ready sound - startup chime
-            int frequencies[] = {NOTE_C4, NOTE_E4, NOTE_G4, NOTE_C5};
-            int durations[] = {100, 100, 100, 250};
+            static const int frequencies[] = {NOTE_C4, NOTE_E4, NOTE_G4, NOTE_C5};
+            static const int durations[] = {100, 100, 100, 250};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 4, &total_notes);
             break;
         }
         case STATE_USER_DETECTED:
         {
             // Attention-grabbing alert - quick rising beep
-            int frequencies[] = {NOTE_C5, NOTE_E5, NOTE_G5};
-            int durations[] = {80, 80, 150};
+            static const int frequencies[] = {NOTE_C5, NOTE_E5, NOTE_G5};
+            static const int durations[] = {80, 80, 150};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 3, &total_notes);
             break;
         }
         case STATE_CHECK_IN:
         {
             // Success melody - happy, uplifting
-            int frequencies[] = {NOTE_C4, NOTE_E4, NOTE_G4, NOTE_C5, NOTE_E5, NOTE_C5};
-            int durations[] = {100, 100, 100, 150, 200, 250};
+            static const int frequencies[] = {NOTE_C4, NOTE_E4, NOTE_G4, NOTE_C5, NOTE_E5, NOTE_C5};
+            static const int durations[] = {100, 100, 100, 150, 200, 250};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 6, &total_notes);
             break;
         }
         case STATE_CHECK_OUT:
         {
             // Check-out confirmation - descending pattern
-            int frequencies[] = {NOTE_C5, NOTE_G4, NOTE_E4, NOTE_C4};
-            int durations[] = {150, 100, 100, 250};
+            static const int frequencies[] = {NOTE_C5, NOTE_G4, NOTE_E4, NOTE_C4};
+            static const int durations[] = {150, 100, 100, 250};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 4, &total_notes);
             break;
         }
         case STATE_VALIDATION_FAILURE:
         {
             // Error sound - descending minor third
-            int frequencies[] = {NOTE_A4, NOTE_F4, NOTE_A4, NOTE_F4};
-            int durations[] = {200, 300, 200, 300};
+            static const int frequencies[] = {NOTE_A4, NOTE_F4, NOTE_A4, NOTE_F4};
+            static const int durations[] = {200, 300, 200, 300};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 4, &total_notes);
             break;
         }
         case STATE_ADMIN_MODE:
         {
             // Admin mode entry - distinctive sequence
-            int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
-            int durations[] = {100, 100, 100, 200, 100, 100, 200};
+            static const int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
+            static const int durations[] = {100, 100, 100, 200, 100, 100, 200};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 7, &total_notes);
             break;
         }
         case STATE_ERROR:
         {
             // System error - alarming, attention-grabbing
-            int frequencies[] = {NOTE_A4, NOTE_REST, NOTE_A4, NOTE_REST, NOTE_A4};
-            int durations[] = {200, 100, 200, 100, 400};
+            static const int frequencies[] = {NOTE_A4, NOTE_REST, NOTE_A4, NOTE_REST, NOTE_A4};
+            static const int durations[] = {200, 100, 200, 100, 400};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_HIGH, 5, &total_notes);
             break;
         }
@@ -199,56 +199,56 @@ void play_kiosk_buzzer(state_t current_state, admin_state_t current_admin_state)
         case ADMIN_STATE_ENTER_ID:
         {
             // Admin mode entry - distinctive sequence
-            int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
-            int durations[] = {100, 100, 100, 200, 100, 100, 200};
+            static const int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
+            static const int durations[] = {100, 100, 100, 200, 100, 100, 200};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 7, &total_notes);
             break;
         }
         case ADMIN_STATE_VALIDATE_ID:
         {
             // Admin mode entry - distinctive sequence
-            int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
-            int durations[] = {100, 100, 100, 200, 100, 100, 200};
+            static const int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
+            static const int durations[] = {100, 100, 100, 200, 100, 100, 200};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 7, &total_notes);
             break;
         }
         case ADMIN_STATE_TAP_CARD:
         {
             // Admin mode entry - distinctive sequence
-            int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
-            int durations[] = {100, 100, 100, 200, 100, 100, 200};
+            static const int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
+            static const int durations[] = {100, 100, 100, 200, 100, 100, 200};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 7, &total_notes);
             break;
         }
         case ADMIN_STATE_CARD_WRITE_SUCCESS:
         {
             // Admin mode entry - distinctive sequence
-            int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
-            int durations[] = {100, 100, 100, 200, 100, 100, 200};
+            static const int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
+            static const int durations[] = {100, 100, 100, 200, 100, 100, 200};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 7, &total_notes);
             break;
         }
         case ADMIN_STATE_ENTER_ID_ERROR:
         {
             // Admin mode entry - distinctive sequence
-            int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
-            int durations[] = {100, 100, 100, 200, 100, 100, 200};
+            static const int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
+            static const int durations[] = {100, 100, 100, 200, 100, 100, 200};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 7, &total_notes);
             break;
         }
         case ADMIN_STATE_CARD_WRITE_ERROR:
         {
             // Admin mode entry - distinctive sequence
-            int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
-            int durations[] = {100, 100, 100, 200, 100, 100, 200};
+            static const int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
+            static const int durations[] = {100, 100, 100, 200, 100, 100, 200};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 7, &total_notes);
             break;
         }
         case ADMIN_STATE_ERROR:
         {
             // Admin mode entry - distinctive sequence
-            int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
-            int durations[] = {100, 100, 100, 200, 100, 100, 200};
+            static const int frequencies[] = {NOTE_G4, NOTE_B4, NOTE_D5, NOTE_G5, NOTE_D5, NOTE_B4, NOTE_G4};
+            static const int durations[] = {100, 100, 100, 200, 100, 100, 200};
             notes = create_melody_with_gaps(frequencies, durations, VOLUME_MEDIUM, 7, &total_notes);
             break;
         }

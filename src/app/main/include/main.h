@@ -48,6 +48,8 @@
 #define MAIN_HEAP_DEBUG 1
 #define DATABASE_QUERY_ENABLED 1
 #define USING_MAIN_PCB 1
+#define ID_ENTRY_TIMEOUT_SEC 10
+#define STATE_CONTROL_TASK_PRIORITY 1
 
 #ifdef MAIN_DEBUG
 #define MAIN_DEBUG_LOG(fmt, ...)           \
