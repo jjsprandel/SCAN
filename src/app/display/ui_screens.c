@@ -24,9 +24,9 @@ void ui_update_user_info(const char* name, const char* id) {
         user_id_buffer[sizeof(user_id_buffer) - 1] = '\0';
     }
     
-    ESP_LOGI("UI", "After string copies");
+    //ESP_LOGI("UI", "After string copies");
     for (int i = 0; i < NUM_SCREENS; i++) {
-        ESP_LOGI("UI", "Inside of for loop");
+        //ESP_LOGI("UI", "Inside of for loop");
         if (user_name_labels[i] != NULL) {
             lv_label_set_text(user_name_labels[i], user_name_buffer);
         }
@@ -35,7 +35,7 @@ void ui_update_user_info(const char* name, const char* id) {
             lv_label_set_text(user_id_labels[i], user_id_buffer);
         }
     }
-    ESP_LOGI("UI", "End of ui_update_user_info");
+    //ESP_LOGI("UI", "End of ui_update_user_info");
 }
 
 lv_obj_t *ui_screen_hardware_init(void)

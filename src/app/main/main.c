@@ -645,16 +645,16 @@ void app_main(void)
 
     // Create tasks with increased stack sizes and priorities
     ESP_LOGI(TAG, "Creating tasks...");
-    xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
+    xTaskCreate(state_control_task, "state_control_task", 8192, NULL, 5, &state_control_task_handle);
     ESP_LOGI(TAG, "State control task created. Free heap: %lu bytes", esp_get_free_heap_size());
     
-    xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
+    xTaskCreate(keypad_handler, "keypad_task", 1024 * 2, NULL, 3, &keypad_task_handle);
     ESP_LOGI(TAG, "Keypad task created. Free heap: %lu bytes", esp_get_free_heap_size());
     
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
     ESP_LOGI(TAG, "LVGL task created. Free heap: %lu bytes", esp_get_free_heap_size());
     
-    xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
+    xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 8192, NULL, 4, &admin_mode_control_task_handle);
     ESP_LOGI(TAG, "Admin mode control task created. Free heap: %lu bytes", esp_get_free_heap_size());
 
     ESP_LOGI(TAG, "Free heap after task creation: %lu bytes", esp_get_free_heap_size());

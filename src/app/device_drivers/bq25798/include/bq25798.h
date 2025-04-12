@@ -28,9 +28,9 @@
 // Mutex for protecting access to device_info
 extern SemaphoreHandle_t device_info_mutex;
 
-// Voltage values used in initialization
-extern uint16_t vsysmin_mv;  // Minimum system voltage in mV (10.5V = 10500mV)
-extern uint16_t vreg_mv;     // Maximum charge voltage in mV (14.0V = 14000mV)
+// Voltage values used in initialization - declared as extern const
+extern const uint16_t vsysmin_mv;  // Minimum system voltage in mV (10.5V = 10500mV)
+extern const uint16_t vreg_mv;     // Maximum charge voltage in mV (14.0V = 14000mV)
 
 // Default Values
 #define BQ25798_DEFAULT_CHARGE_CURRENT_MA 1000  // 1A default charge current
