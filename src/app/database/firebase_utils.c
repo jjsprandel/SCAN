@@ -53,7 +53,7 @@ static void initialize_sntp(void)
 }
 
 // Function to obtain time from SNTP server
-static void obtain_time(void)
+void obtain_time(void)
 {
     // Initialize SNTP once
     static bool sntp_initialized = false;
@@ -68,7 +68,7 @@ static void obtain_time(void)
     struct tm timeinfo = {0};
     int retry = 0;
     const int retry_count = 10;
-    while (timeinfo.tm_year < (2016 - 1900) && ++retry < retry_count)
+    while (timeinfo.tm_year < (2016 - 1900))
     {
         ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
         vTaskDelay(2000 / portTICK_PERIOD_MS);
@@ -136,7 +136,7 @@ bool get_user_info(const char *user_id)
     strlcpy(sanitized_id, user_id, sizeof(sanitized_id));
 
     // Obtain time from NTP server
-    obtain_time();
+    // obtain_time();
 
     char url[256];
     char response_buffer[1024 + 1];
@@ -246,7 +246,7 @@ bool check_in_user(const char *user_id)
     strlcpy(sanitized_id, user_id, sizeof(sanitized_id));
 
     // Obtain time from NTP server
-    obtain_time();
+    // obtain_time();
 
     char url[256];
     // char response_buffer[1024 + 1];
@@ -345,7 +345,7 @@ bool check_out_user(const char *user_id)
     strlcpy(sanitized_id, user_id, sizeof(sanitized_id));
 
     // Obtain time from NTP server
-    obtain_time();
+    // obtain_time();
 
     char url[256];
     // char response_buffer[1024 + 1];

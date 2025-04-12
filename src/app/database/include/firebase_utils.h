@@ -17,6 +17,7 @@ typedef struct
 extern UserInfo user_info_instance;
 extern UserInfo *user_info;
 
+void obtain_time(void);
 bool get_user_info(const char *user_id);
 bool check_in_user(const char *user_id);
 bool check_out_user(const char *user_id);

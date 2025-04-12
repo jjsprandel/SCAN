@@ -255,6 +255,8 @@ void state_control_task(void *pvParameter)
             if (xSemaphoreTake(wifi_init_semaphore, portMAX_DELAY) == pdTRUE)
             {
                 ESP_LOGI(TAG, "WiFi initialization completed. Free heap: %lu bytes", esp_get_free_heap_size());
+                // Obtain the current time from the NTP server
+                obtain_time();
                 current_state = STATE_SOFTWARE_INIT;
             }
             break;

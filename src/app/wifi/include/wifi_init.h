@@ -8,4 +8,7 @@
 void wifi_init_sta(void);
 void wifi_init_task(void *pvParameter);
 
-extern SemaphoreHandle_t wifi_init_semaphore;
+ extern SemaphoreHandle_t wifi_init_semaphore;
+ 
+ /* FreeRTOS event group to signal when we are connected*/
+ static EventGroupHandle_t s_wifi_event_group;
