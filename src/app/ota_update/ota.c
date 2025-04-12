@@ -129,8 +129,8 @@ void advanced_ota_example_task(void *pvParameter)
         .cert_pem = (char *)github_server_cert_pem_start,
         .timeout_ms = 40000,  // Keep the increased timeout
         .keep_alive_enable = true,
-        .buffer_size = 2 * 1024,  // Increased to 8KB for headers
-        .buffer_size_tx = 1 * 1024,  // Increased to 4KB for transmission
+        .buffer_size = 32 * 1024,  // Increased to 8KB for headers
+        .buffer_size_tx = 4 * 1024,  // Increased to 4KB for transmission
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .is_async = false,  // Keep synchronous mode
     };
@@ -143,7 +143,7 @@ void advanced_ota_example_task(void *pvParameter)
         .http_config = &config,
         .http_client_init_cb = _http_client_init_cb,
         .partial_http_download = true,
-        .max_http_request_size = 8 * 1024,  // Increased from 8KB to 16KB
+        .max_http_request_size = 32 * 1024,  // Increased from 8KB to 16KB
         .bulk_flash_erase = true,
     };
 

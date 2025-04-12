@@ -534,7 +534,7 @@ void state_control_task(void *pvParameter)
         }
         if ((current_state != prev_state) || ((current_state == STATE_ADMIN_MODE) && (current_admin_state != prev_admin_state)))
         {
-            // play_kiosk_buzzer(current_state, current_admin_state);
+            play_kiosk_buzzer(current_state, current_admin_state);
             display_screen(current_state, current_admin_state);
             prev_state = current_state;
 
