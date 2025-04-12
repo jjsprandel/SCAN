@@ -52,7 +52,9 @@ void heap_monitor_task(void *pvParameters)
     while (1)
     {
         long unsigned int free_heap = (long unsigned int)esp_get_free_heap_size();
-
+        #ifdef UTILS_DEBUG
+        ESP_LOGI(TAG, ANSI_COLOR_BLUE "Free heap: %lu bytes" ANSI_COLOR_RESET, free_heap);
+        #endif
         if (free_heap < HEAP_WARNING_THRESHOLD)
         {
 #ifdef UTILS_DEBUG
@@ -60,7 +62,7 @@ void heap_monitor_task(void *pvParameters)
 #endif
         }
 
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(pdMS_TO_TICKS(HEAP_MONITOR_INTERVAL));
     }
 }
 

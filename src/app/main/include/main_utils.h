@@ -18,6 +18,7 @@
 #define MONITOR_TASK_STACK_SIZE 2048 // Stack size in words (4 bytes each)
 #define MONITOR_TASK_PRIORITY 5      // Task priority
 #define UTILS_DEBUG 1
+#define HEAP_MONITOR_INTERVAL 2000 // Interval in milliseconds
 
 bool is_valid_id_string(const char *str, size_t max_len);
 bool is_numeric_string(const char *str, size_t max_len);

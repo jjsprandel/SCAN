@@ -30,7 +30,7 @@ void create_screens()
 void display_screen(state_t display_state, admin_state_t display_admin_state)
 {
     ESP_LOGI(TAG, "DISPLAY: Current state=%d, Current admin state=%d", display_state, display_admin_state);
-
+    ESP_LOGI(TAG, "Beginning of display_screen. Free heap: %lu", esp_get_free_heap_size());
     if (display_state == STATE_ADMIN_MODE)
     {
         if (admin_screen_objects[display_admin_state] != NULL)
@@ -102,6 +102,7 @@ void display_screen(state_t display_state, admin_state_t display_admin_state)
             #endif
         }
     }
+    ESP_LOGI(TAG, "End of display_screen. Free heap: %lu", esp_get_free_heap_size());
 }
 
 // void display_test_task(void *pvParameter)

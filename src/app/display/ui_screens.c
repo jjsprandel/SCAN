@@ -14,6 +14,7 @@ void ui_init(void)
 void ui_update_user_info(const char* name, const char* id) {
     #ifdef UI_DEBUG
     ESP_LOGI("UI", "Updating user info - Name: %s, ID: %s", name ? name : "NULL", id ? id : "NULL");
+    ESP_LOGI("UI", "Free heap: %lu", esp_get_free_heap_size());
     #endif
     
     if (name != NULL) {
@@ -25,20 +26,10 @@ void ui_update_user_info(const char* name, const char* id) {
         strncpy(user_id_buffer, id, sizeof(user_id_buffer) - 1);
         user_id_buffer[sizeof(user_id_buffer) - 1] = '\0';
     }
-<<<<<<< HEAD
     #ifdef UI_DEBUG
     ESP_LOGI("UI", "After string copies");
     #endif
     for (int i = 0; i < NUM_SCREENS; i++) {
-        #ifdef UI_DEBUG
-        ESP_LOGI("UI", "Inside of for loop");
-        #endif
-=======
-    
-    //ESP_LOGI("UI", "After string copies");
-    for (int i = 0; i < NUM_SCREENS; i++) {
-        //ESP_LOGI("UI", "Inside of for loop");
->>>>>>> 0e7471e040142e17c05a0b2bb6ab870c8680f2be
         if (user_name_labels[i] != NULL) {
             lv_label_set_text(user_name_labels[i], user_name_buffer);
         }
@@ -47,13 +38,10 @@ void ui_update_user_info(const char* name, const char* id) {
             lv_label_set_text(user_id_labels[i], user_id_buffer);
         }
     }
-<<<<<<< HEAD
     #ifdef UI_DEBUG
     ESP_LOGI("UI", "End of ui_update_user_info");
+    ESP_LOGI("UI", "Free heap: %lu", esp_get_free_heap_size());
     #endif
-=======
-    //ESP_LOGI("UI", "End of ui_update_user_info");
->>>>>>> 0e7471e040142e17c05a0b2bb6ab870c8680f2be
 }
 
 lv_obj_t *ui_screen_hardware_init(void)

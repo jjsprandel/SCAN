@@ -552,6 +552,7 @@ void app_main(void)
 {
     MAIN_DEBUG_LOG("App Main Start");
     ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
+    ESP_LOGI(TAG, "App main starting free heap size: %lu", esp_get_free_heap_size());
 
     // Initialize device info
     init_device_info();
@@ -643,13 +644,13 @@ void app_main(void)
     MAIN_DEBUG_LOG("Free heap after screen creation: %lu bytes", esp_get_free_heap_size());
 
 #ifdef MAIN_HEAP_DEBUG
-    //xTaskCreate(heap_monitor_task, "HeapMonitor", MONITOR_TASK_STACK_SIZE, NULL, 1, NULL);
-    //ESP_LOGI(TAG, "Heap monitor task created. Free heap: %lu bytes", esp_get_free_heap_size());
+    xTaskCreate(heap_monitor_task, "HeapMonitor", MONITOR_TASK_STACK_SIZE, NULL, 1, NULL);
+    ESP_LOGI(TAG, "Heap monitor task created. Free heap: %lu bytes", esp_get_free_heap_size());
 #endif
 
     // Create tasks with increased stack sizes and priorities
     ESP_LOGI(TAG, "Creating tasks...");
-    xTaskCreate(state_control_task, "state_control_task", 8192, NULL, 5, &state_control_task_handle);
+    xTaskCreate(state_control_task, "state_control_task", 8192, NULL, STATE_CONTROL_TASK_PRIORITY, &state_control_task_handle);
     ESP_LOGI(TAG, "State control task created. Free heap: %lu bytes", esp_get_free_heap_size());
     
     xTaskCreate(keypad_handler, "keypad_task", 1024 * 2, NULL, 3, &keypad_task_handle);
