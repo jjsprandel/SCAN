@@ -127,10 +127,10 @@ void advanced_ota_example_task(void *pvParameter)
     esp_http_client_config_t config = {
         .url = update_url,
         .cert_pem = (char *)github_server_cert_pem_start,
-        .timeout_ms = 20000,  // Keep the increased timeout
+        .timeout_ms = 40000,  // Keep the increased timeout
         .keep_alive_enable = true,
-        .buffer_size = 8 * 1024,  // Increased from 4KB to 8KB
-        .buffer_size_tx = 4 * 1024,  // Increased from 2KB to 4KB
+        .buffer_size = 2 * 1024,  // Increased to 8KB for headers
+        .buffer_size_tx = 1 * 1024,  // Increased to 4KB for transmission
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .is_async = false,  // Keep synchronous mode
     };
@@ -143,7 +143,7 @@ void advanced_ota_example_task(void *pvParameter)
         .http_config = &config,
         .http_client_init_cb = _http_client_init_cb,
         .partial_http_download = true,
-        .max_http_request_size = 16 * 1024,  // Increased from 8KB to 16KB
+        .max_http_request_size = 8 * 1024,  // Increased from 8KB to 16KB
         .bulk_flash_erase = true,
     };
 
@@ -238,13 +238,6 @@ void ota_update_fw_task(void *pvParameter)
     }
 #endif
 
-#if CONFIG_EXAMPLE_CONNECT_WIFI
-    /* Ensure to disable any WiFi power save mode, this allows best throughput
-     * and hence timings for overall OTA operation.
-     */
-    esp_wifi_set_ps(WIFI_PS_NONE);
-#endif // CONFIG_EXAMPLE_CONNECT_WIFI
-
-    xTaskCreate(&advanced_ota_example_task, "OTA TASK", 1024 * 8, update_url, 10, NULL);
+    xTaskCreate(&advanced_ota_example_task, "OTA TASK", 1024 * 8, update_url, 12, NULL);
     vTaskDelete(NULL);
 }

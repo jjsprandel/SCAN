@@ -230,6 +230,7 @@ void state_control_task(void *pvParameter)
             {
                 MAIN_DEBUG_LOG("Starting Blink LED Task");
                 xTaskCreate(blink_led_task, "blink_led_task", 1024, NULL, 2, &blink_led_task_handle);
+                MAIN_DEBUG_LOG("Blink LED Task created. Free heap: %lu bytes", esp_get_free_heap_size());
             }
 
             // Move to WiFi connecting state
@@ -248,13 +249,13 @@ void state_control_task(void *pvParameter)
                     current_state = STATE_ERROR;
                     break;
                 }
-                ESP_LOGI(TAG, "WiFi task created successfully");
+                ESP_LOGI(TAG, "WiFi task created successfully. Free heap: %lu bytes", esp_get_free_heap_size());
             }
 
             // Check if Wi-Fi init is completed (signaled by semaphore)
             if (xSemaphoreTake(wifi_init_semaphore, portMAX_DELAY) == pdTRUE)
             {
-                ESP_LOGI(TAG, "WiFi initialization completed");
+                ESP_LOGI(TAG, "WiFi initialization completed. Free heap: %lu bytes", esp_get_free_heap_size());
                 current_state = STATE_SOFTWARE_INIT;
             }
             break;
@@ -270,7 +271,7 @@ void state_control_task(void *pvParameter)
             
             // Publish connected status
             mqtt_publish_status("Kiosk Connected");
-            ESP_LOGI(TAG, "Published connected status");
+            ESP_LOGI(TAG, "Published connected status. Free heap: %lu bytes", esp_get_free_heap_size());
             
             // Start MQTT ping task
             ESP_LOGI(TAG, "Starting MQTT ping task...");
@@ -284,7 +285,7 @@ void state_control_task(void *pvParameter)
             }
             */
 
-            MAIN_DEBUG_LOG("Software services initialized");
+            MAIN_DEBUG_LOG("Software services initialized. Free heap: %lu bytes", esp_get_free_heap_size());
             current_state = STATE_SYSTEM_READY;
             break;
 
@@ -554,6 +555,7 @@ void app_main(void)
 
     // Initialize device info
     init_device_info();
+    ESP_LOGI(TAG, "Device info initialized. Free heap: %lu bytes", esp_get_free_heap_size());
 
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -563,22 +565,25 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+    ESP_LOGI(TAG, "NVS initialized. Free heap: %lu bytes", esp_get_free_heap_size());
 
     // Log initial heap size
     ESP_LOGI(TAG, "Initial free heap: %lu bytes", esp_get_free_heap_size());
 
     // GPIO config
-    gpio_config(&cypd3177_intr_config);
+    //gpio_config(&cypd3177_intr_config);
+    //ESP_LOGI(TAG, "GPIO configured. Free heap: %lu bytes", esp_get_free_heap_size());
 
     // Install the ISR service and attach handlers
     gpio_install_isr_service(0);
+    ESP_LOGI(TAG, "ISR service installed. Free heap: %lu bytes", esp_get_free_heap_size());
 
     // Initialize I2C bus
     i2c_master_init(&master_handle);
     i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
     i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
     i2c_master_add_device(&master_handle, &bq25798_i2c_handle, &bq25798_i2c_config);
-    ESP_LOGI(TAG, "I2C initialized successfully");
+    ESP_LOGI(TAG, "I2C initialized successfully. Free heap: %lu bytes", esp_get_free_heap_size());
 
     // Initialize BQ25798 charger
     ESP_LOGI(TAG, "Initializing BQ25798 charger...");
@@ -587,7 +592,7 @@ void app_main(void)
         ESP_LOGE(TAG, "Failed to initialize BQ25798 charger");
         return;
     }
-    ESP_LOGI(TAG, "BQ25798 charger initialized successfully");
+    ESP_LOGI(TAG, "BQ25798 charger initialized successfully. Free heap: %lu bytes", esp_get_free_heap_size());
     
     // Initialize power management
     ESP_LOGI(TAG, "Initializing power management...");
@@ -596,7 +601,7 @@ void app_main(void)
         ESP_LOGE(TAG, "Failed to initialize power management");
         return;
     }
-    ESP_LOGI(TAG, "Power management initialized successfully");
+    ESP_LOGI(TAG, "Power management initialized successfully. Free heap: %lu bytes", esp_get_free_heap_size());
     
     // Initialize kiosk Firebase client
     ESP_LOGI(TAG, "Initializing kiosk Firebase client...");
@@ -604,11 +609,12 @@ void app_main(void)
         ESP_LOGE(TAG, "Failed to initialize kiosk Firebase client");
         return;
     }
-    ESP_LOGI(TAG, "Kiosk Firebase client initialized successfully");
+    ESP_LOGI(TAG, "Kiosk Firebase client initialized successfully. Free heap: %lu bytes", esp_get_free_heap_size());
     
     // Initialize peripherals
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
+    ESP_LOGI(TAG, "WiFi init semaphore created. Free heap: %lu bytes", esp_get_free_heap_size());
 
     // Initialize hardware components that don't need WiFi
     MAIN_DEBUG_LOG("Starting hardware initialization. Free heap: %lu bytes", esp_get_free_heap_size());
@@ -626,6 +632,8 @@ void app_main(void)
     MAIN_DEBUG_LOG("Buzzer initialized. Free heap: %lu bytes", esp_get_free_heap_size());
 
     sensor_init();
+    MAIN_DEBUG_LOG("Sensor initialized. Free heap: %lu bytes", esp_get_free_heap_size());
+    
     // Log heap size before screen creation
     MAIN_DEBUG_LOG("Free heap before screen creation: %lu bytes", esp_get_free_heap_size());
 
@@ -635,15 +643,23 @@ void app_main(void)
     MAIN_DEBUG_LOG("Free heap after screen creation: %lu bytes", esp_get_free_heap_size());
 
 #ifdef MAIN_HEAP_DEBUG
-    xTaskCreate(heap_monitor_task, "HeapMonitor", MONITOR_TASK_STACK_SIZE, NULL, 1, NULL);
+    //xTaskCreate(heap_monitor_task, "HeapMonitor", MONITOR_TASK_STACK_SIZE, NULL, 1, NULL);
+    //ESP_LOGI(TAG, "Heap monitor task created. Free heap: %lu bytes", esp_get_free_heap_size());
 #endif
 
     // Create tasks with increased stack sizes and priorities
     ESP_LOGI(TAG, "Creating tasks...");
-    xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, STATE_CONTROL_TASK_PRIORITY, &state_control_task_handle);
-    xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
+    xTaskCreate(state_control_task, "state_control_task", 8192, NULL, 5, &state_control_task_handle);
+    ESP_LOGI(TAG, "State control task created. Free heap: %lu bytes", esp_get_free_heap_size());
+    
+    xTaskCreate(keypad_handler, "keypad_task", 1024 * 2, NULL, 3, &keypad_task_handle);
+    ESP_LOGI(TAG, "Keypad task created. Free heap: %lu bytes", esp_get_free_heap_size());
+    
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
-    xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
+    ESP_LOGI(TAG, "LVGL task created. Free heap: %lu bytes", esp_get_free_heap_size());
+    
+    xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 8192, NULL, 4, &admin_mode_control_task_handle);
+    ESP_LOGI(TAG, "Admin mode control task created. Free heap: %lu bytes", esp_get_free_heap_size());
 
     ESP_LOGI(TAG, "Free heap after task creation: %lu bytes", esp_get_free_heap_size());
 

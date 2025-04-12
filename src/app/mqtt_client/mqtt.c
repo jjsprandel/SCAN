@@ -49,7 +49,13 @@ static void handle_update_topic(esp_mqtt_event_handle_t event, esp_mqtt_client_h
                 // Create OTA task with the received URL
                 if (ota_update_task_handle == NULL) {
                     ESP_LOGI(TAG, "Creating OTA update task");
-                    xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 8, url, 8, &ota_update_task_handle);
+                    ESP_LOGI(TAG, "Free heap before OTA task: %lu bytes", esp_get_free_heap_size());
+                    ESP_LOGI(TAG, "Minimum free heap: %lu bytes", esp_get_minimum_free_heap_size());
+                    esp_err_t err = xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 4, url, 8, &ota_update_task_handle);
+                    if (err != pdPASS) {
+                        return;
+                    }
+                    ESP_LOGI(TAG, "Free heap after OTA task: %lu bytes", esp_get_free_heap_size());
                 } else {
                     ESP_LOGW(TAG, "OTA task already running");
                 }
