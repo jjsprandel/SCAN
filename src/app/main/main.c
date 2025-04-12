@@ -23,7 +23,7 @@ SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init 
 static const char *TAG = "MAIN";
 
 static uint8_t s_led_state = 0;
-static int64_t start_time, end_time;
+static int64_t start_time;
 
 static led_strip_handle_t led_strip;
 
@@ -220,6 +220,7 @@ void state_control_task(void *pvParameter)
 {
     while (1)
     {
+        int64_t state_control_loop_start_time = esp_timer_get_time();
         switch (current_state)
         {
         case STATE_HARDWARE_INIT:
@@ -396,6 +397,7 @@ void state_control_task(void *pvParameter)
 
         case STATE_DATABASE_VALIDATION: // Wait until validation is complete
 #ifdef DATABASE_QUERY_ENABLED
+            start_time = esp_timer_get_time();
             if (!get_user_info(user_id))
             {
                 MAIN_ERROR_LOG("Invalid user detected");
@@ -415,7 +417,6 @@ void state_control_task(void *pvParameter)
             // If student, check-in/out
             else if (strcmp(user_info->role, "Student") == 0)
             {
-                start_time = esp_timer_get_time();
                 if (strcmp(user_info->check_in_status, "Checked In") == 0)
                 {
                     current_state = check_out_user(user_id) ? STATE_CHECK_OUT : STATE_VALIDATION_FAILURE;
@@ -467,7 +468,7 @@ void state_control_task(void *pvParameter)
             current_state = STATE_IDLE;
             break;
         case STATE_CHECK_OUT:
-            log_elapsed_time("check out authentication", start_time);
+            log_elapsed_time("check-out authentication", start_time);
             
             // Format user info for MQTT message
             if (user_info != NULL)
@@ -499,6 +500,7 @@ void state_control_task(void *pvParameter)
             }
             break;
         case STATE_VALIDATION_FAILURE:
+            log_elapsed_time("validation failure", start_time);
 #ifdef MAIN_DEBUG
             MAIN_DEBUG_LOG("ID %s not found in database. Try again.", user_id);
 #endif
@@ -531,15 +533,17 @@ void state_control_task(void *pvParameter)
         }
         if ((current_state != prev_state) || ((current_state == STATE_ADMIN_MODE) && (current_admin_state != prev_admin_state)))
         {
-            play_kiosk_buzzer(current_state, current_admin_state);
+            // play_kiosk_buzzer(current_state, current_admin_state);
             display_screen(current_state, current_admin_state);
             prev_state = current_state;
 
             if (current_state == STATE_ADMIN_MODE)
                 prev_admin_state = current_admin_state;
         }
+        // log_elapsed_time("state control loop", state_control_loop_start_time);
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
+    // ESP_ERROR_CHECK(esp_task_wdt_delete(NULL));
     MAIN_DEBUG_LOG("State control task finished"); // Should not reach here unless task is deleted
 }
 
@@ -636,7 +640,7 @@ void app_main(void)
 
     // Create tasks with increased stack sizes and priorities
     ESP_LOGI(TAG, "Creating tasks...");
-    xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
+    xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, STATE_CONTROL_TASK_PRIORITY, &state_control_task_handle);
     xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
     xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
@@ -650,11 +654,6 @@ void app_main(void)
     check_task_creation("Admin mode control", admin_mode_control_task_handle);
 #endif
 
-    // Create display test task
-    // xTaskCreate(display_test_task, "display_test", 4096, NULL, 5, NULL);
-    
-    // Power management tasks are created in power_mgmt_init()
-    
     while (1)
     {
         vTaskDelay(1000 / portTICK_PERIOD_MS);

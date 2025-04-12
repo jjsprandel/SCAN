@@ -43,7 +43,7 @@ void log_elapsed_time(char *auth_type, int64_t start_time)
     int64_t end_time = esp_timer_get_time();
     double elapsed_time_sec = (end_time - start_time) / 1000000.0;
 #ifdef UTILS_DEBUG
-    ESP_LOGI(TAG, "Time taken for %s: %.6f seconds", auth_type, elapsed_time_sec);
+    ESP_LOGI(TAG, ANSI_COLOR_BLUE "Time taken for %s: %.6f seconds" ANSI_COLOR_RESET, auth_type, elapsed_time_sec);
 #endif
 }
 

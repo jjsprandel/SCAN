@@ -10,10 +10,14 @@
 #include <string.h>
 #include <ctype.h>
 #include "esp_timer.h"
+#include "esp_log.h"
 
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
 #define HEAP_WARNING_THRESHOLD 5000  // Minimum acceptable heap size in bytes
 #define MONITOR_TASK_STACK_SIZE 2048 // Stack size in words (4 bytes each)
 #define MONITOR_TASK_PRIORITY 5      // Task priority
+#define UTILS_DEBUG 1
 
 bool is_valid_id_string(const char *str, size_t max_len);
 bool is_numeric_string(const char *str, size_t max_len);

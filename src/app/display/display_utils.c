@@ -35,7 +35,9 @@ void display_screen(state_t display_state, admin_state_t display_admin_state)
     {
         if (admin_screen_objects[display_admin_state] != NULL)
         {
+            #ifdef DISPLAY_UTILS_DEBUG
             ESP_LOGI(TAG, "Displaying admin screen for state %d", display_admin_state);
+            #endif
             if (user_info != NULL)
             {
                 char full_name[64];
@@ -48,16 +50,23 @@ void display_screen(state_t display_state, admin_state_t display_admin_state)
                     display_admin_state == ADMIN_STATE_TAP_CARD || 
                     display_admin_state == ADMIN_STATE_CARD_WRITE_SUCCESS) {
                     id_to_display = user_id_to_write;
+                    #ifdef DISPLAY_UTILS_DEBUG
                     ESP_LOGI(TAG, "Using user_id_to_write: %s", user_id_to_write);
+                    #endif
                 } else if (display_admin_state == ADMIN_STATE_ENTER_ID_ERROR) {
                     id_to_display = keypad_buffer.elements;
+                    #ifdef DISPLAY_UTILS_DEBUG
                     ESP_LOGI(TAG, "Using keypad_buffer: %s", keypad_buffer.elements);
+                    #endif
                 } else {
                     id_to_display = user_id;
+                    #ifdef DISPLAY_UTILS_DEBUG
                     ESP_LOGI(TAG, "Using user_id: %s", user_id);
+                    #endif
                 }
-                
+                #ifdef DISPLAY_UTILS_DEBUG
                 ESP_LOGI(TAG, "Updating UI with name: %s, ID: %s", full_name, id_to_display);
+                #endif
                 ui_update_user_info(full_name, id_to_display);
             } else {
                 ESP_LOGW(TAG, "user_info is NULL, cannot update UI");
@@ -72,7 +81,9 @@ void display_screen(state_t display_state, admin_state_t display_admin_state)
     {
         if (screen_objects[display_state] != NULL)
         {
+            #ifdef DISPLAY_UTILS_DEBUG
             ESP_LOGI(TAG, "Displaying screen for state %d", display_state);
+            #endif
                 if (user_info != NULL)
                 {
                     char full_name[64];
@@ -86,7 +97,9 @@ void display_screen(state_t display_state, admin_state_t display_admin_state)
         }
         else
         {
+            #ifdef DISPLAY_UTILS_DEBUG
             ESP_LOGI(TAG, "Screen object not found for state %d", display_state);
+            #endif
         }
     }
 }
