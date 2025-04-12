@@ -7,6 +7,9 @@
 #include "firebase_utils.h"
 #include "ui_screens.h"
 #include "keypad.h"
+
+#define DISPLAY_UTILS_DEBUG 1
+
 extern lv_obj_t *screen_objects[STATE_ERROR + 1];
 extern lv_obj_t *admin_screen_objects[ADMIN_STATE_ERROR + 1];
 extern _lock_t lvgl_api_lock;

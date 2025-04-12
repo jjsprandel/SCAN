@@ -3,9 +3,50 @@
 
 static const char *TAG = "BQ25798";
 
-// I2C device handle and configuration
+// Define the voltage values as const (not static) to match the extern declarations
+const uint16_t vsysmin_mv = 10500;  // Minimum system voltage in mV (10.5V = 10500mV)
+const uint16_t vreg_mv = 14000;     // Maximum charge voltage in mV (14.0V = 14000mV)
+
+// Move these string constants to flash memory
+static const char *charge_state_strings[] = {
+    "Not Charging",
+    "Trickle Charge",
+    "Pre-Charge",
+    "Fast-Charge (CC Mode)",
+    "Taper Charge (CV Mode)",
+    "Reserved",
+    "Top-Off Timer Active",
+    "Charge Termination Done",
+    "Unknown"
+};
+
+static const char *vbus_status_strings[] = {
+    "No Input or BHOT/BCOLD in OTG mode",
+    "USB SDP (500mA)",
+    "USB CDP (1.5A)",
+    "USB DCP (3.25A)",
+    "HVDCP (1.5A)",
+    "Unknown Adapter (3A)",
+    "Non-Standard Adapter (1A/2A/2.1A/2.4A)",
+    "OTG Mode",
+    "Not Qualified Adapter",
+    "Reserved",
+    "Reserved",
+    "Device Directly Powered from VBUS",
+    "Backup Mode",
+    "Reserved",
+    "Reserved",
+    "Reserved",
+    "Unknown"
+};
+
+// Mutex for protecting access to device_info
+SemaphoreHandle_t device_info_mutex;
+
+// I2C device handle
 i2c_master_dev_handle_t bq25798_i2c_handle;
 
+// I2C device configuration
 i2c_device_config_t bq25798_i2c_config = {
     .dev_addr_length = I2C_ADDR_BIT_LEN_7,
     .device_address = BQ25798_I2C_ADDR,
@@ -13,9 +54,6 @@ i2c_device_config_t bq25798_i2c_config = {
     .scl_wait_us = 2000,
 };
 
-// Global voltage values used in initialization
-uint16_t vsysmin_mv = 10500;  // Minimum system voltage in mV (10.5V)
-uint16_t vreg_mv = 14000;     // Maximum charge voltage in mV (14.0V)
 
 // Register read function
 esp_err_t bq25798_read_reg(uint8_t reg_addr, uint8_t *data)
@@ -402,40 +440,10 @@ void bq25798_monitor_task(void *pvParameters)
         }
         
         // Interpret charge state
-        const char* charge_state_str;
-        switch (device_info.charge_state) {
-            case 0: charge_state_str = "Not Charging"; break;
-            case 1: charge_state_str = "Trickle Charge"; break;
-            case 2: charge_state_str = "Pre-Charge"; break;
-            case 3: charge_state_str = "Fast-Charge (CC Mode)"; break;
-            case 4: charge_state_str = "Taper Charge (CV Mode)"; break;
-            case 5: charge_state_str = "Reserved"; break;
-            case 6: charge_state_str = "Top-Off Timer Active"; break;
-            case 7: charge_state_str = "Charge Termination Done"; break;
-            default: charge_state_str = "Unknown"; break;
-        }
+        char* charge_state_str = charge_state_strings[device_info.charge_state];
         
         // Interpret VBUS status
-        const char* vbus_status_str;
-        switch (device_info.vbus_status) {
-            case 0x0: vbus_status_str = "No Input or BHOT/BCOLD in OTG mode"; break;
-            case 0x1: vbus_status_str = "USB SDP (500mA)"; break;
-            case 0x2: vbus_status_str = "USB CDP (1.5A)"; break;
-            case 0x3: vbus_status_str = "USB DCP (3.25A)"; break;
-            case 0x4: vbus_status_str = "HVDCP (1.5A)"; break;
-            case 0x5: vbus_status_str = "Unknown Adapter (3A)"; break;
-            case 0x6: vbus_status_str = "Non-Standard Adapter (1A/2A/2.1A/2.4A)"; break;
-            case 0x7: vbus_status_str = "OTG Mode"; break;
-            case 0x8: vbus_status_str = "Not Qualified Adapter"; break;
-            case 0x9: vbus_status_str = "Reserved"; break;
-            case 0xA: vbus_status_str = "Reserved"; break;
-            case 0xB: vbus_status_str = "Device Directly Powered from VBUS"; break;
-            case 0xC: vbus_status_str = "Backup Mode"; break;
-            case 0xD: vbus_status_str = "Reserved"; break;
-            case 0xE: vbus_status_str = "Reserved"; break;
-            case 0xF: vbus_status_str = "Reserved"; break;
-            default: vbus_status_str = "Unknown"; break;
-        }
+        char* vbus_status_str = vbus_status_strings[device_info.vbus_status];
         
         //ESP_LOGI(TAG, "Charge Status: %s, VBUS Status: %s", charge_state_str, vbus_status_str);
         

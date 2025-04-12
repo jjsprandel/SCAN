@@ -19,8 +19,8 @@ static TaskHandle_t bq25798_monitor_task_handle = NULL;
 extern SemaphoreHandle_t device_info_mutex;
 
 // External declarations of voltage values from bq25798.c
-extern uint16_t vsysmin_mv;  // Minimum system voltage in mV (10.5V = 10500mV)
-extern uint16_t vreg_mv;     // Maximum charge voltage in mV (14.0V = 14000mV)
+extern const uint16_t vsysmin_mv;  // Minimum system voltage in mV (10.5V = 10500mV)
+extern const uint16_t vreg_mv;     // Maximum charge voltage in mV (14.0V = 14000mV)
 
 // Initialize power management
 esp_err_t power_mgmt_init(void)

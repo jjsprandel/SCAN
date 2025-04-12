@@ -23,7 +23,7 @@ SemaphoreHandle_t wifi_init_semaphore = NULL; // Semaphore to signal Wi-Fi init 
 static const char *TAG = "MAIN";
 
 static uint8_t s_led_state = 0;
-static int64_t start_time, end_time;
+static int64_t start_time;
 
 static led_strip_handle_t led_strip;
 
@@ -36,53 +36,159 @@ void blink_led_task(void *pvParameter)
     {
         s_led_state = !s_led_state;
 
-        /* If the addressable LED is enabled */
         if (s_led_state && current_state == STATE_WIFI_CONNECTING)
         {
-            /* Set the LED pixel using RGB from 0 (0%) to 255 (100%) for each color */
             for (int i = 0; i < NUM_LEDS; i++)
             {
                 led_strip_set_pixel(led_strip, i, 100, 0, 0);
             }
-            /* Refresh the strip to send data */
             led_strip_refresh(led_strip);
         }
         else
         {
-            /* Set all LED off to clear all pixels */
             led_strip_clear(led_strip);
         }
-        if (current_state == STATE_USER_DETECTED)
+        
+        switch (current_state)
         {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-        }
-        else if (current_state == STATE_DATABASE_VALIDATION)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-        }
-        else if (current_state == STATE_CHECK_IN || current_state == STATE_CHECK_OUT)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-            led_strip_set_pixel(led_strip, 2, 0, 100, 0);
-        }
-        else if (current_state == STATE_VALIDATION_FAILURE)
-        {
-            led_strip_set_pixel(led_strip, 0, 0, 0, 100);
-            led_strip_set_pixel(led_strip, 1, 100, 100, 0);
-            led_strip_set_pixel(led_strip, 2, 100, 0, 0);
-        }
-        else if (current_state == STATE_IDLE)
-        {
-            led_strip_clear(led_strip);
+            case STATE_HARDWARE_INIT:
+                for (int i = 0; i < NUM_LEDS; i++)
+                {
+                    led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                }
+                break;
+                
+            case STATE_WIFI_CONNECTING:
+                break;
+                
+            case STATE_SOFTWARE_INIT:
+                for (int i = 0; i < NUM_LEDS; i++)
+                {
+                    led_strip_set_pixel(led_strip, i, 100, 100, 0);
+                }
+                break;
+                
+            case STATE_SYSTEM_READY:
+                for (int i = 0; i < NUM_LEDS; i++)
+                {
+                    led_strip_set_pixel(led_strip, i, 0, 100, 0);
+                }
+                break;
+                
+            case STATE_USER_DETECTED:
+                led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                break;
+                
+            case STATE_DATABASE_VALIDATION:
+                led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                break;
+                
+            case STATE_CHECK_IN:
+            case STATE_CHECK_OUT:
+                led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                led_strip_set_pixel(led_strip, 0, 0, 100, 0);
+                break;
+                
+            case STATE_VALIDATION_FAILURE:
+                led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                led_strip_set_pixel(led_strip, 0, 100, 0, 0);
+                break;
+                
+            case STATE_KEYPAD_ENTRY_ERROR:
+                for (int i = 0; i < NUM_LEDS; i++)
+                {
+                    led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                }
+                break;
+                
+            case STATE_IDLE:
+                led_strip_clear(led_strip);
+                break;
+                
+            case STATE_ERROR:
+                for (int i = 0; i < NUM_LEDS; i++)
+                {
+                    led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                }
+                break;
+                
+            case STATE_ADMIN_MODE:
+                switch (current_admin_state)
+                {
+                    case ADMIN_STATE_BEGIN:
+                        for (int i = 0; i < NUM_LEDS; i++)
+                        {
+                            led_strip_set_pixel(led_strip, i, 0, 0, 100);
+                        }
+                        break;
+                        
+                    case ADMIN_STATE_ENTER_ID:
+                        led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                        led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                        break;
+                        
+                    case ADMIN_STATE_VALIDATE_ID:
+                        led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                        led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                        led_strip_set_pixel(led_strip, 0, 0, 100, 0);
+                        break;
+                        
+                    case ADMIN_STATE_TAP_CARD:
+                        led_strip_set_pixel(led_strip, 2, 0, 0, 100);
+                        led_strip_set_pixel(led_strip, 1, 100, 100, 0);
+                        led_strip_set_pixel(led_strip, 0, 100, 0, 100);
+                        break;
+                        
+                    case ADMIN_STATE_CARD_WRITE_SUCCESS:
+                        for (int i = 0; i < NUM_LEDS; i++)
+                        {
+                            led_strip_set_pixel(led_strip, i, 0, 100, 0);
+                        }
+                        break;
+                        
+                    case ADMIN_STATE_ENTER_ID_ERROR:
+                        for (int i = 0; i < NUM_LEDS; i++)
+                        {
+                            led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                        }
+                        break;
+                        
+                    case ADMIN_STATE_CARD_WRITE_ERROR:
+                        for (int i = 0; i < NUM_LEDS; i++)
+                        {
+                            led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                        }
+                        break;
+                        
+                    case ADMIN_STATE_ERROR:
+                        for (int i = 0; i < NUM_LEDS; i++)
+                        {
+                            led_strip_set_pixel(led_strip, i, 100, 0, 0);
+                        }
+                        break;
+                        
+                    default:
+                        for (int i = 0; i < NUM_LEDS; i++)
+                        {
+                            led_strip_set_pixel(led_strip, i, 0, 0, 100);
+                        }
+                        break;
+                }
+                break;
+                
+            default:
+                led_strip_clear(led_strip);
+                break;
         }
 
         if (usb_connected == 0)
         {
-            led_strip_set_pixel(led_strip, 0, 50, 75, 60);
-            led_strip_set_pixel(led_strip, 1, 50, 75, 60);
             led_strip_set_pixel(led_strip, 2, 50, 75, 60);
+            led_strip_set_pixel(led_strip, 1, 50, 75, 60);
+            led_strip_set_pixel(led_strip, 0, 50, 75, 60);
         }
 
         led_strip_refresh(led_strip);
@@ -114,6 +220,7 @@ void state_control_task(void *pvParameter)
 {
     while (1)
     {
+        int64_t state_control_loop_start_time = esp_timer_get_time();
         switch (current_state)
         {
         case STATE_HARDWARE_INIT:
@@ -123,6 +230,7 @@ void state_control_task(void *pvParameter)
             {
                 MAIN_DEBUG_LOG("Starting Blink LED Task");
                 xTaskCreate(blink_led_task, "blink_led_task", 1024, NULL, 2, &blink_led_task_handle);
+                MAIN_DEBUG_LOG("Blink LED Task created. Free heap: %lu bytes", esp_get_free_heap_size());
             }
 
             // Move to WiFi connecting state
@@ -141,13 +249,13 @@ void state_control_task(void *pvParameter)
                     current_state = STATE_ERROR;
                     break;
                 }
-                ESP_LOGI(TAG, "WiFi task created successfully");
+                ESP_LOGI(TAG, "WiFi task created successfully. Free heap: %lu bytes", esp_get_free_heap_size());
             }
 
             // Check if Wi-Fi init is completed (signaled by semaphore)
             if (xSemaphoreTake(wifi_init_semaphore, portMAX_DELAY) == pdTRUE)
             {
-                ESP_LOGI(TAG, "WiFi initialization completed");
+                ESP_LOGI(TAG, "WiFi initialization completed. Free heap: %lu bytes", esp_get_free_heap_size());
                 current_state = STATE_SOFTWARE_INIT;
             }
             break;
@@ -163,7 +271,7 @@ void state_control_task(void *pvParameter)
             
             // Publish connected status
             mqtt_publish_status("Kiosk Connected");
-            ESP_LOGI(TAG, "Published connected status");
+            ESP_LOGI(TAG, "Published connected status. Free heap: %lu bytes", esp_get_free_heap_size());
             
             // Start MQTT ping task
             ESP_LOGI(TAG, "Starting MQTT ping task...");
@@ -177,7 +285,7 @@ void state_control_task(void *pvParameter)
             }
             */
 
-            MAIN_DEBUG_LOG("Software services initialized");
+            MAIN_DEBUG_LOG("Software services initialized. Free heap: %lu bytes", esp_get_free_heap_size());
             current_state = STATE_SYSTEM_READY;
             break;
 
@@ -196,17 +304,38 @@ void state_control_task(void *pvParameter)
                 current_state = STATE_USER_DETECTED;
             }
             break;
-        case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
+                case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
+            static int64_t user_detected_start_time = 0;
+            static bool user_detected_timeout_initialized = false;
+            const int64_t USER_DETECTED_TIMEOUT_US = ID_ENTRY_TIMEOUT_SEC * 1000 * 1000; // 10 seconds in microseconds
+            
+            // Initialize the start time when first entering this state
+            if (!user_detected_timeout_initialized) {
+                user_detected_start_time = esp_timer_get_time();
+                user_detected_timeout_initialized = true;
+                MAIN_DEBUG_LOG("User detection started - 10 second timeout");
+            }
+            
+            // Check if timeout has occurred
+            int64_t current_time = esp_timer_get_time();
+            if (current_time - user_detected_start_time > USER_DETECTED_TIMEOUT_US) {
+                MAIN_DEBUG_LOG("User detection timeout - returning to IDLE state");
+                user_detected_timeout_initialized = false; // Reset for next time
+                current_state = STATE_IDLE;
+                break;
+            }
+            
             char nfcUserID[ID_LEN] = {'\0'};
-
             bool nfcReadFlag = false;
-
             BaseType_t keypadNotify = ulTaskNotifyTake(pdTRUE, 0);
-
+            
             nfcReadFlag = read_user_id(nfcUserID, 50);
 
             if ((nfcReadFlag) || (keypadNotify > 0))
             {
+                // Reset the timeout flag since we're exiting this state
+                user_detected_timeout_initialized = false;
+                
                 if (nfcReadFlag)
                 {
                     MAIN_DEBUG_LOG("User ID entered by NFC Transceiver");
@@ -269,6 +398,7 @@ void state_control_task(void *pvParameter)
 
         case STATE_DATABASE_VALIDATION: // Wait until validation is complete
 #ifdef DATABASE_QUERY_ENABLED
+            start_time = esp_timer_get_time();
             if (!get_user_info(user_id))
             {
                 MAIN_ERROR_LOG("Invalid user detected");
@@ -288,7 +418,6 @@ void state_control_task(void *pvParameter)
             // If student, check-in/out
             else if (strcmp(user_info->role, "Student") == 0)
             {
-                start_time = esp_timer_get_time();
                 if (strcmp(user_info->check_in_status, "Checked In") == 0)
                 {
                     current_state = check_out_user(user_id) ? STATE_CHECK_OUT : STATE_VALIDATION_FAILURE;
@@ -340,7 +469,7 @@ void state_control_task(void *pvParameter)
             current_state = STATE_IDLE;
             break;
         case STATE_CHECK_OUT:
-            log_elapsed_time("check out authentication", start_time);
+            log_elapsed_time("check-out authentication", start_time);
             
             // Format user info for MQTT message
             if (user_info != NULL)
@@ -372,6 +501,7 @@ void state_control_task(void *pvParameter)
             }
             break;
         case STATE_VALIDATION_FAILURE:
+            log_elapsed_time("validation failure", start_time);
 #ifdef MAIN_DEBUG
             MAIN_DEBUG_LOG("ID %s not found in database. Try again.", user_id);
 #endif
@@ -411,8 +541,10 @@ void state_control_task(void *pvParameter)
             if (current_state == STATE_ADMIN_MODE)
                 prev_admin_state = current_admin_state;
         }
+        // log_elapsed_time("state control loop", state_control_loop_start_time);
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
+    // ESP_ERROR_CHECK(esp_task_wdt_delete(NULL));
     MAIN_DEBUG_LOG("State control task finished"); // Should not reach here unless task is deleted
 }
 
@@ -420,9 +552,11 @@ void app_main(void)
 {
     MAIN_DEBUG_LOG("App Main Start");
     ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
+    ESP_LOGI(TAG, "App main starting free heap size: %lu", esp_get_free_heap_size());
 
     // Initialize device info
     init_device_info();
+    ESP_LOGI(TAG, "Device info initialized. Free heap: %lu bytes", esp_get_free_heap_size());
 
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -432,22 +566,25 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+    ESP_LOGI(TAG, "NVS initialized. Free heap: %lu bytes", esp_get_free_heap_size());
 
     // Log initial heap size
     ESP_LOGI(TAG, "Initial free heap: %lu bytes", esp_get_free_heap_size());
 
     // GPIO config
-    gpio_config(&cypd3177_intr_config);
+    //gpio_config(&cypd3177_intr_config);
+    //ESP_LOGI(TAG, "GPIO configured. Free heap: %lu bytes", esp_get_free_heap_size());
 
     // Install the ISR service and attach handlers
     gpio_install_isr_service(0);
+    ESP_LOGI(TAG, "ISR service installed. Free heap: %lu bytes", esp_get_free_heap_size());
 
     // Initialize I2C bus
     i2c_master_init(&master_handle);
     i2c_master_add_device(&master_handle, &cypd3177_i2c_handle, &cypd3177_i2c_config);
     i2c_master_add_device(&master_handle, &pcf8574n_i2c_handle, &pcf8574n_i2c_config);
     i2c_master_add_device(&master_handle, &bq25798_i2c_handle, &bq25798_i2c_config);
-    ESP_LOGI(TAG, "I2C initialized successfully");
+    ESP_LOGI(TAG, "I2C initialized successfully. Free heap: %lu bytes", esp_get_free_heap_size());
 
     // Initialize BQ25798 charger
     ESP_LOGI(TAG, "Initializing BQ25798 charger...");
@@ -456,7 +593,7 @@ void app_main(void)
         ESP_LOGE(TAG, "Failed to initialize BQ25798 charger");
         return;
     }
-    ESP_LOGI(TAG, "BQ25798 charger initialized successfully");
+    ESP_LOGI(TAG, "BQ25798 charger initialized successfully. Free heap: %lu bytes", esp_get_free_heap_size());
     
     // Initialize power management
     ESP_LOGI(TAG, "Initializing power management...");
@@ -465,7 +602,7 @@ void app_main(void)
         ESP_LOGE(TAG, "Failed to initialize power management");
         return;
     }
-    ESP_LOGI(TAG, "Power management initialized successfully");
+    ESP_LOGI(TAG, "Power management initialized successfully. Free heap: %lu bytes", esp_get_free_heap_size());
     
     // Initialize kiosk Firebase client
     ESP_LOGI(TAG, "Initializing kiosk Firebase client...");
@@ -473,11 +610,12 @@ void app_main(void)
         ESP_LOGE(TAG, "Failed to initialize kiosk Firebase client");
         return;
     }
-    ESP_LOGI(TAG, "Kiosk Firebase client initialized successfully");
+    ESP_LOGI(TAG, "Kiosk Firebase client initialized successfully. Free heap: %lu bytes", esp_get_free_heap_size());
     
     // Initialize peripherals
     // Create semaphore for signaling Wi-Fi init completion
     wifi_init_semaphore = xSemaphoreCreateBinary();
+    ESP_LOGI(TAG, "WiFi init semaphore created. Free heap: %lu bytes", esp_get_free_heap_size());
 
     // Initialize hardware components that don't need WiFi
     MAIN_DEBUG_LOG("Starting hardware initialization. Free heap: %lu bytes", esp_get_free_heap_size());
@@ -495,6 +633,8 @@ void app_main(void)
     MAIN_DEBUG_LOG("Buzzer initialized. Free heap: %lu bytes", esp_get_free_heap_size());
 
     sensor_init();
+    MAIN_DEBUG_LOG("Sensor initialized. Free heap: %lu bytes", esp_get_free_heap_size());
+    
     // Log heap size before screen creation
     MAIN_DEBUG_LOG("Free heap before screen creation: %lu bytes", esp_get_free_heap_size());
 
@@ -505,14 +645,22 @@ void app_main(void)
 
 #ifdef MAIN_HEAP_DEBUG
     xTaskCreate(heap_monitor_task, "HeapMonitor", MONITOR_TASK_STACK_SIZE, NULL, 1, NULL);
+    ESP_LOGI(TAG, "Heap monitor task created. Free heap: %lu bytes", esp_get_free_heap_size());
 #endif
 
     // Create tasks with increased stack sizes and priorities
     ESP_LOGI(TAG, "Creating tasks...");
-    xTaskCreate(state_control_task, "state_control_task", 4096 * 2, NULL, 5, &state_control_task_handle);
-    xTaskCreate(keypad_handler, "keypad_task", 4096, NULL, 3, &keypad_task_handle);
+    xTaskCreate(state_control_task, "state_control_task", 8192, NULL, STATE_CONTROL_TASK_PRIORITY, &state_control_task_handle);
+    ESP_LOGI(TAG, "State control task created. Free heap: %lu bytes", esp_get_free_heap_size());
+    
+    xTaskCreate(keypad_handler, "keypad_task", 1024 * 2, NULL, 3, &keypad_task_handle);
+    ESP_LOGI(TAG, "Keypad task created. Free heap: %lu bytes", esp_get_free_heap_size());
+    
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, &lvgl_port_task_handle);
-    xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 4096 * 2, NULL, 4, &admin_mode_control_task_handle);
+    ESP_LOGI(TAG, "LVGL task created. Free heap: %lu bytes", esp_get_free_heap_size());
+    
+    xTaskCreate(admin_mode_control_task, "admin_mode_control_task", 8192, NULL, 4, &admin_mode_control_task_handle);
+    ESP_LOGI(TAG, "Admin mode control task created. Free heap: %lu bytes", esp_get_free_heap_size());
 
     ESP_LOGI(TAG, "Free heap after task creation: %lu bytes", esp_get_free_heap_size());
 
@@ -523,11 +671,6 @@ void app_main(void)
     check_task_creation("Admin mode control", admin_mode_control_task_handle);
 #endif
 
-    // Create display test task
-    // xTaskCreate(display_test_task, "display_test", 4096, NULL, 5, NULL);
-    
-    // Power management tasks are created in power_mgmt_init()
-    
     while (1)
     {
         vTaskDelay(1000 / portTICK_PERIOD_MS);

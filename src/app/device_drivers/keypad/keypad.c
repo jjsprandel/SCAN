@@ -170,6 +170,10 @@ void keypad_handler(void *params)
             prev_time = curr_time;
             break;
             }
+        case 'A':
+            esp_restart();
+            ESP_LOGI(TAG, "Reset");
+            break;
         case '\0':
             break;
         default:
