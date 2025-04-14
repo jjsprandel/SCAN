@@ -4,7 +4,9 @@
 #include "../database/include/kiosk_firebase.h"
 
 // State variables
-static state_t current_state = STATE_HARDWARE_INIT, prev_state = STATE_ERROR;
+// static state_t current_state = STATE_HARDWARE_INIT; 
+state_t current_state = STATE_HARDWARE_INIT; 
+static state_t prev_state = STATE_ERROR;
 static admin_state_t prev_admin_state = ADMIN_STATE_ERROR;
 
 // Task Handles
@@ -218,6 +220,7 @@ static void configure_led(void)
 // Function to control state transitions and task management
 void state_control_task(void *pvParameter)
 {
+    static int64_t user_detected_start_time = 0;
     while (1)
     {
         int64_t state_control_loop_start_time = esp_timer_get_time();
@@ -278,12 +281,10 @@ void state_control_task(void *pvParameter)
             mqtt_start_ping_task();
             ESP_LOGI(TAG, "MQTT ping task started. Free heap: %lu bytes", esp_get_free_heap_size());
 
-            /*
             if (ota_update_task_handle == NULL) {
                 MAIN_DEBUG_LOG("Creating OTA update task");
                 xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 4, NULL, 8, &ota_update_task_handle);
             }
-            */
 
             MAIN_DEBUG_LOG("Software services initialized. Free heap: %lu bytes", esp_get_free_heap_size());
             current_state = STATE_SYSTEM_READY;
@@ -301,26 +302,27 @@ void state_control_task(void *pvParameter)
                 MAIN_DEBUG_LOG("Proximity Detected");
                 clear_buffer();
                 xTaskNotify(state_control_task_handle, 0, eSetValueWithOverwrite);
+                user_detected_start_time = esp_timer_get_time();
+                MAIN_DEBUG_LOG("User detection started - 10 second timeout");
                 current_state = STATE_USER_DETECTED;
             }
             break;
-                case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
-            static int64_t user_detected_start_time = 0;
-            static bool user_detected_timeout_initialized = false;
+        case STATE_USER_DETECTED: // Wait until NFC data is read or keypad press is entered
             const int64_t USER_DETECTED_TIMEOUT_US = ID_ENTRY_TIMEOUT_SEC * 1000 * 1000; // 10 seconds in microseconds
-            
-            // Initialize the start time when first entering this state
-            if (!user_detected_timeout_initialized) {
-                user_detected_start_time = esp_timer_get_time();
-                user_detected_timeout_initialized = true;
-                MAIN_DEBUG_LOG("User detection started - 10 second timeout");
-            }
-            
+            static int last_keypad_buffer_length = 0;
+
             // Check if timeout has occurred
             int64_t current_time = esp_timer_get_time();
+
+            // Reset the timeout if a key on the keypad is pressed
+            if (last_keypad_buffer_length != keypad_buffer.occupied) {
+                user_detected_start_time = esp_timer_get_time();
+                MAIN_DEBUG_LOG("Keypad pressed - 10 second timeout reset");
+            }
+
             if (current_time - user_detected_start_time > USER_DETECTED_TIMEOUT_US) {
                 MAIN_DEBUG_LOG("User detection timeout - returning to IDLE state");
-                user_detected_timeout_initialized = false; // Reset for next time
+                // user_detected_timeout_initialized = false; // Reset for next time
                 current_state = STATE_IDLE;
                 break;
             }
@@ -334,7 +336,7 @@ void state_control_task(void *pvParameter)
             if ((nfcReadFlag) || (keypadNotify > 0))
             {
                 // Reset the timeout flag since we're exiting this state
-                user_detected_timeout_initialized = false;
+                // user_detected_timeout_initialized = false;
                 
                 if (nfcReadFlag)
                 {
@@ -387,6 +389,7 @@ void state_control_task(void *pvParameter)
                 snprintf(mqtt_message, sizeof(mqtt_message), "Validating %s", formatted_id);
                 mqtt_publish_status(mqtt_message);
             }
+            last_keypad_buffer_length = keypad_buffer.occupied;
             break;
             
         case STATE_KEYPAD_ENTRY_ERROR:
@@ -534,7 +537,7 @@ void state_control_task(void *pvParameter)
         }
         if ((current_state != prev_state) || ((current_state == STATE_ADMIN_MODE) && (current_admin_state != prev_admin_state)))
         {
-            // play_kiosk_buzzer(current_state, current_admin_state);
+            play_kiosk_buzzer(current_state, current_admin_state);
             display_screen(current_state, current_admin_state);
             prev_state = current_state;
 

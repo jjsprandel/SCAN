@@ -38,7 +38,7 @@
 #define EXAMPLE_LCD_PARAM_BITS 8
 #define TEST_DELAY_TIME_MS (3000)
 
-#define EXAMPLE_LVGL_DRAW_BUF_LINES 20 // number of display lines in each draw buffer
+#define EXAMPLE_LVGL_DRAW_BUF_LINES 20 // Changed from 20 to 10// number of display lines in each draw buffer
 #define EXAMPLE_LVGL_TICK_PERIOD_MS 2
 #define EXAMPLE_LVGL_TASK_MAX_DELAY_MS 500
 #define EXAMPLE_LVGL_TASK_MIN_DELAY_MS 1

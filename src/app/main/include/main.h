@@ -81,7 +81,7 @@ extern TaskHandle_t state_control_task_handle;
 extern TaskHandle_t admin_mode_control_task_handle;
 extern TaskHandle_t cypd3177_task_handle;
 extern admin_state_t current_admin_state;
-
+extern state_t current_state;
 extern int usb_connected;
 
 extern char user_id[ID_LEN + 1];
