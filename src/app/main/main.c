@@ -4,8 +4,7 @@
 #include "../database/include/kiosk_firebase.h"
 
 // State variables
-// static state_t current_state = STATE_HARDWARE_INIT; 
-state_t current_state = STATE_HARDWARE_INIT; 
+static state_t current_state = STATE_HARDWARE_INIT; 
 static state_t prev_state = STATE_ERROR;
 static admin_state_t prev_admin_state = ADMIN_STATE_ERROR;
 
