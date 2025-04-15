@@ -18,8 +18,8 @@
 #include "esp_timer.h"
 #include <time.h>
 #include "firebase_utils.h"
+#include "../main/include/global.h"
 
-#define KIOSK_LOCATION "UCF RWC"
 #define ID_LEN 10
 
 // #define FIREBASE_BASE_URL "https://scan-9ee0b-default-rtdb.firebaseio.com"
@@ -268,7 +268,7 @@ bool check_in_user(const char *user_id)
 
         // Add fields to the JSON object
         cJSON_AddStringToObject(activity_log_json, "action", "Check-In");
-        cJSON_AddStringToObject(activity_log_json, "location", KIOSK_LOCATION); // Replace with actual location
+        cJSON_AddStringToObject(activity_log_json, "location", device_info.kiosk_location); // Replace with actual location
         cJSON_AddStringToObject(activity_log_json, "timestamp", timestamp);     // Replace with actual timestamp
         cJSON_AddStringToObject(activity_log_json, "userId", sanitized_id);     // Use sanitized id
 
@@ -367,7 +367,7 @@ bool check_out_user(const char *user_id)
 
         // Add fields to the JSON object
         cJSON_AddStringToObject(activity_log_json, "action", "Check-Out");
-        cJSON_AddStringToObject(activity_log_json, "location", KIOSK_LOCATION); // Replace with actual location
+        cJSON_AddStringToObject(activity_log_json, "location", device_info.kiosk_location); // Replace with actual location
         cJSON_AddStringToObject(activity_log_json, "timestamp", timestamp);     // Replace with actual timestamp
         cJSON_AddStringToObject(activity_log_json, "userId", sanitized_id);
 
