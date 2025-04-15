@@ -85,7 +85,7 @@ void power_mgmt_task(void *pvParameters)
             //ESP_LOGI(TAG, "Battery voltage: %.2fV, Percentage: %d%%", device_info.battery_voltage_volts, device_info.battery_percentage);
 
             // Check charge state and is_charging flag
-            if (device_info.charge_state >= 1 && device_info.charge_state <= 4 && device_info.charge_current_amps > 0.0f && device_info.input_voltage_volts > 0.0f) {
+            if (device_info.charge_state >= 1 && device_info.charge_state <= 4 && device_info.charge_current_amps > 0.2f && device_info.input_voltage_volts > 0.0f) {
                 new_state = POWER_STATE_CHARGING;
 
                 // Enable high power charging when entering charging state
@@ -97,7 +97,7 @@ void power_mgmt_task(void *pvParameters)
                    
                 } */
             } else if (device_info.charge_state == 7 && device_info.charge_current_amps == 0) {
-                //device_info.battery_percentage = 100;
+                device_info.battery_percentage = 100;
                 new_state = POWER_STATE_FULLY_CHARGED;
             } else if (device_info.input_voltage_volts > 0.0f) {
                 new_state = POWER_STATE_POWERED;
@@ -109,7 +109,7 @@ void power_mgmt_task(void *pvParameters)
 
             // Update Firebase periodically (every 120 seconds) or on state changes
             update_counter++;
-            if (update_counter >= 60 || new_state != current_state) {  // 60 iterations * 2 second delay = 120 seconds
+            if (update_counter == 10 || new_state != current_state) {  // 60 iterations * 2 second delay = 120 seconds
                 
                 
                 if (!kiosk_firebase_update_power_info()) {

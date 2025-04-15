@@ -7,7 +7,7 @@
 #include "state_enum.h"
 #include "admin_mode.h"
 #include "string.h"
-#define UI_DEBUG 1
+//#define UI_DEBUG 1
 
 #define NUM_SCREENS (STATE_ERROR + ADMIN_STATE_ERROR + 2)
 // Function declarations
