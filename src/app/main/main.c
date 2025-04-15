@@ -279,7 +279,7 @@ void state_control_task(void *pvParameter)
             ESP_LOGI(TAG, "Starting MQTT ping task...");
             mqtt_start_ping_task();
             ESP_LOGI(TAG, "MQTT ping task started. Free heap: %lu bytes", esp_get_free_heap_size());
-
+            
             if (ota_update_task_handle == NULL) {
                 MAIN_DEBUG_LOG("Creating OTA update task");
                 xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 4, NULL, 8, &ota_update_task_handle);
