@@ -77,7 +77,7 @@ void blink_led_task(void *pvParameter)
                 break;
                 
             case STATE_USER_DETECTED:
-                led_strip_set_pixel(led_strip, 2, 0, 100, 0);
+                led_strip_set_pixel(led_strip, 2, 0, 0, 100);
                 break;
                 
             case STATE_DATABASE_VALIDATION:
