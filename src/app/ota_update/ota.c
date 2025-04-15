@@ -23,6 +23,8 @@
 static const char *TAG = "advanced_https_ota";
 extern const uint8_t github_server_cert_pem_start[] asm("_binary_github_cert_pem_start");
 extern const uint8_t github_server_cert_pem_end[] asm("_binary_github_cert_pem_end");
+extern const uint8_t google_server_cert_pem_start[] asm("_binary_google_cert_pem_start");
+extern const uint8_t google_server_cert_pem_end[] asm("_binary_google_cert_pem_end");
 
 #define OTA_URL_SIZE 256
 
@@ -124,9 +126,23 @@ void advanced_ota_example_task(void *pvParameter)
     ESP_LOGI(TAG, "Total allocated: %u bytes", (unsigned int)(heap_caps_get_total_size(MALLOC_CAP_DEFAULT) - heap_caps_get_free_size(MALLOC_CAP_DEFAULT)));
 
     esp_err_t ota_finish_err = ESP_OK;
+    
+    // Select the appropriate certificate based on the URL
+    const char *cert_pem = NULL;
+    if (strstr(update_url, "github.com") != NULL) {
+        ESP_LOGI(TAG, "Using GitHub certificate for OTA update");
+        cert_pem = (char *)github_server_cert_pem_start;
+    } else if (strstr(update_url, "google.com") != NULL || strstr(update_url, "googleapis.com") != NULL) {
+        ESP_LOGI(TAG, "Using Google certificate for OTA update");
+        cert_pem = (char *)google_server_cert_pem_start;
+    } else {
+        ESP_LOGW(TAG, "Unknown server, defaulting to GitHub certificate");
+        cert_pem = (char *)github_server_cert_pem_start;
+    }
+    
     esp_http_client_config_t config = {
         .url = update_url,
-        .cert_pem = (char *)github_server_cert_pem_start,
+        .cert_pem = cert_pem,
         .timeout_ms = 40000,  // Keep the increased timeout
         .keep_alive_enable = true,
         .buffer_size = 32 * 1024,  // Increased to 8KB for headers
