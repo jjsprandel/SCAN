@@ -63,7 +63,7 @@ static char* create_kiosk_power_json(void)
     snprintf(formatted_value, sizeof(formatted_value), "%.2f", device_info.input_voltage_volts);
     cJSON_AddStringToObject(root, "USB_PD_contract_v", formatted_value);
     
-    snprintf(formatted_value, sizeof(formatted_value), "%.2f", device_info.charge_current_amps);
+    snprintf(formatted_value, sizeof(formatted_value), "%.2f", device_info.input_current_amps);
     cJSON_AddStringToObject(root, "USB_PD_contract_i", formatted_value);
 
     // Convert JSON to string

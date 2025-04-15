@@ -470,7 +470,7 @@ void state_control_task(void *pvParameter)
             }
 
             MAIN_DEBUG_LOG("ID %s found in database. Checking in.", user_id);
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(4000)); // Display result for 5 seconds
             current_state = STATE_IDLE;
             break;
         case STATE_CHECK_OUT:
@@ -492,7 +492,7 @@ void state_control_task(void *pvParameter)
             }
             
             MAIN_DEBUG_LOG("ID %s found in database. Checking out.", user_id);
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(4000)); // Display result for 5 seconds
             current_state = STATE_IDLE;
             break;
         case STATE_ADMIN_MODE:
@@ -515,7 +515,7 @@ void state_control_task(void *pvParameter)
             snprintf(validation_failure_msg, sizeof(validation_failure_msg), "Validation Failed: %s", user_id);
             mqtt_publish_status(validation_failure_msg);
             
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(4000)); // Display result for 5 seconds
             current_state = STATE_USER_DETECTED;
             break;
         case STATE_ERROR:
