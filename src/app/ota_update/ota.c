@@ -182,6 +182,7 @@ void advanced_ota_example_task(void *pvParameter)
         // monitor the status of OTA upgrade by calling esp_https_ota_get_image_len_read, which gives length of image
         // data read so far.
         ESP_LOGI(TAG, "Image bytes read: %d", esp_https_ota_get_image_len_read(https_ota_handle));
+        vTaskDelay(20 / portTICK_PERIOD_MS);
     }
 
     if (esp_https_ota_is_complete_data_received(https_ota_handle) != true) {
@@ -238,6 +239,6 @@ void ota_update_fw_task(void *pvParameter)
     }
 #endif
 
-    xTaskCreate(&advanced_ota_example_task, "OTA TASK", 1024 * 8, update_url, 12, NULL);
+    xTaskCreate(&advanced_ota_example_task, "OTA TASK", 1024 * 8, update_url, 10, NULL);
     vTaskDelete(NULL);
 }
