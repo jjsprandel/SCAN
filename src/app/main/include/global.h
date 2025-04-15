@@ -16,6 +16,7 @@ typedef struct {
     float charge_current_amps;    // Battery charge current in amperes
     float battery_voltage_volts;  // Battery voltage in volts
     float input_voltage_volts;    // Input voltage in volts
+    float input_current_amps;     // Input current in amperes
     bool is_charging;             // Charge status (true if charging)
     uint8_t charge_state;         // BQ25798 charge state (0-7)
     uint8_t vbus_status;          // BQ25798 VBUS status

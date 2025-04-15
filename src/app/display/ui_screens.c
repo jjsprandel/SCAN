@@ -1,4 +1,5 @@
 #include "ui_screens.h"
+#include "../main/include/global.h"
 
 static char user_name_buffer[32] = "User";
 static char user_id_buffer[16] = "Unknown";
@@ -147,7 +148,7 @@ lv_obj_t *ui_screen_idle(void)
 
     lv_obj_t *info = lv_label_create(cont);
     lv_obj_set_style_text_font(info, UI_FONT_TINY, 0);
-    lv_label_set_text(info, "UCF Recreation Center");
+    lv_label_set_text(info, device_info.kiosk_location);
 
     return scr;
 }

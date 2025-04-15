@@ -106,7 +106,15 @@ void blink_led_task(void *pvParameter)
                 break;
                 
             case STATE_IDLE:
-                led_strip_clear(led_strip);
+                if (ota_update_task_handle != NULL) {
+                    // OTA update in progress - all LEDs white
+                    for (int i = 0; i < NUM_LEDS; i++) {
+                        led_strip_set_pixel(led_strip, i, 100, 100, 100);
+                    }
+                } else {
+                    // Normal idle state - all LEDs off
+                    led_strip_clear(led_strip);
+                }
                 break;
                 
             case STATE_ERROR:
@@ -279,11 +287,6 @@ void state_control_task(void *pvParameter)
             ESP_LOGI(TAG, "Starting MQTT ping task...");
             mqtt_start_ping_task();
             ESP_LOGI(TAG, "MQTT ping task started. Free heap: %lu bytes", esp_get_free_heap_size());
-
-            if (ota_update_task_handle == NULL) {
-                MAIN_DEBUG_LOG("Creating OTA update task");
-                xTaskCreate(ota_update_fw_task, "OTA UPDATE TASK", 1024 * 4, NULL, 8, &ota_update_task_handle);
-            }
 
             MAIN_DEBUG_LOG("Software services initialized. Free heap: %lu bytes", esp_get_free_heap_size());
             current_state = STATE_SYSTEM_READY;
@@ -467,7 +470,7 @@ void state_control_task(void *pvParameter)
             }
 
             MAIN_DEBUG_LOG("ID %s found in database. Checking in.", user_id);
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(4000)); // Display result for 5 seconds
             current_state = STATE_IDLE;
             break;
         case STATE_CHECK_OUT:
@@ -489,7 +492,7 @@ void state_control_task(void *pvParameter)
             }
             
             MAIN_DEBUG_LOG("ID %s found in database. Checking out.", user_id);
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(4000)); // Display result for 5 seconds
             current_state = STATE_IDLE;
             break;
         case STATE_ADMIN_MODE:
@@ -512,7 +515,7 @@ void state_control_task(void *pvParameter)
             snprintf(validation_failure_msg, sizeof(validation_failure_msg), "Validation Failed: %s", user_id);
             mqtt_publish_status(validation_failure_msg);
             
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Display result for 5 seconds
+            vTaskDelay(pdMS_TO_TICKS(4000)); // Display result for 5 seconds
             current_state = STATE_USER_DETECTED;
             break;
         case STATE_ERROR:

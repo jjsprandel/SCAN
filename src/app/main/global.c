@@ -2,6 +2,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_mac.h"
+#include "esp_app_desc.h"
 #include <string.h>
 
 static const char *TAG = "GLOBAL";
@@ -34,8 +35,14 @@ void init_device_info(void)
     device_info.kiosk_name[sizeof(device_info.kiosk_name) - 1] = '\0';
     device_info.kiosk_location[sizeof(device_info.kiosk_location) - 1] = '\0';
     
-    // Set firmware version
-    strncpy(device_info.firmware_version, "1.0.0", sizeof(device_info.firmware_version) - 1);
+    // Get firmware version from app description
+    const esp_app_desc_t *app_desc = esp_app_get_description();
+    if (app_desc != NULL) {
+        strncpy(device_info.firmware_version, app_desc->version, sizeof(device_info.firmware_version) - 1);
+    } else {
+        // Fallback to default version if app description can't be retrieved
+        strncpy(device_info.firmware_version, "Unknown", sizeof(device_info.firmware_version) - 1);
+    }
     device_info.firmware_version[sizeof(device_info.firmware_version) - 1] = '\0';
     
     // Initialize power information with default values

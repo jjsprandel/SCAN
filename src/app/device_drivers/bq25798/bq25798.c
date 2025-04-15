@@ -125,7 +125,7 @@ esp_err_t bq25798_init(void)
     }
     
     // 3. Set VREG to 14.0V (REG01-02)
-    ESP_LOGI(TAG, "Setting VREG to 14.2V");
+    ESP_LOGI(TAG, "Setting VREG to 14V");
     // 14.0V = 14000mV, convert to register value using step size of 3.84mV
     // Only bits 10-0 are used for VREG, bits 15-11 are reserved
     uint16_t vreg_reg = vreg_mv / BQ25798_VREG_STEP_mV;
@@ -388,6 +388,7 @@ void bq25798_monitor_task(void *pvParameters)
     uint16_t battery_voltage = 0;
     uint16_t charge_current = 0;
     uint16_t input_voltage = 0;
+    uint16_t input_current = 0;
     uint8_t charge_status = 0;
     
     ESP_LOGI(TAG, "BQ25798 monitor task started");
@@ -397,6 +398,7 @@ void bq25798_monitor_task(void *pvParameters)
         bq25798_get_battery_voltage(&battery_voltage);
         bq25798_get_charge_current(&charge_current);
         bq25798_get_input_voltage(&input_voltage);
+        bq25798_get_input_current(&input_current);
         bq25798_get_charge_status(&charge_status);
         
         // Take mutex before updating device_info
@@ -413,9 +415,11 @@ void bq25798_monitor_task(void *pvParameters)
             // If input voltage is zero (no cable connected), force charge current to zero
             if (input_voltage == 0) {
                 device_info.charge_current_amps = 0.0f;
+                device_info.input_current_amps = 0.0f;
                 ESP_LOGI(TAG, "No input voltage detected, setting charge current to zero");
             } else {
                 device_info.charge_current_amps = charge_current / 1000.0f;
+                device_info.input_current_amps = input_current / 1000.0f;
             }
             
             device_info.input_voltage_volts = input_voltage / 1000.0f;
