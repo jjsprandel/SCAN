@@ -8,12 +8,27 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "freertos/semphr.h"
+#include "esp_timer.h"
+#include <math.h>
 
 static const char *TAG = "POWER_MGMT";
 
 // Task handles
 static TaskHandle_t power_mgmt_task_handle = NULL;
 static TaskHandle_t bq25798_monitor_task_handle = NULL;
+
+// Battery state tracking
+static bool was_charging = false;
+static uint8_t last_battery_percentage = 0;
+static uint32_t last_percentage_update_time = 0;
+static const uint32_t MIN_UPDATE_INTERVAL_MS = 1000; // 1 second
+static const uint8_t MAX_PERCENTAGE_CHANGE = 2; // Max 2% change per update
+static const uint8_t FAST_CHARGE_PERCENTAGE_CHANGE = 5; // Max 5% change when charging fast
+static uint32_t last_voltage_mv = 0;
+static uint8_t stable_percentage = 0;
+static const uint16_t SIGNIFICANT_VOLTAGE_CHANGE = 100; // 100mV change is significant
+static bool first_percentage_update = true; // Flag to track first percentage update
+
 
 // External declaration of the mutex from bq25798.c
 extern SemaphoreHandle_t device_info_mutex;
@@ -66,26 +81,108 @@ void power_mgmt_task(void *pvParameters)
         // Get current power state based on device_info
         if (xSemaphoreTake(device_info_mutex, portMAX_DELAY) == pdTRUE) {
             
-            // Calculate battery percentage based on voltage
-            // Linear interpolation between min and max voltage
-            uint16_t battery_voltage_mv = (uint16_t)(device_info.battery_voltage_volts * 1000.0f);  // Convert V to mV
+            // Get current time for rate limiting
+            uint32_t current_time = esp_timer_get_time() / 1000; // Convert to milliseconds
             
-            if (battery_voltage_mv <= vsysmin_mv) {
-                device_info.battery_percentage = 0;
-            } else if (battery_voltage_mv >= vreg_mv) {
-                device_info.battery_percentage = 100;
-            } else {
-                // Use integer arithmetic with proper order of operations to avoid precision loss
-                // (battery_voltage_mv - vsysmin_mv) * 100 / (vreg_mv - vsysmin_mv)
+            // Determine if we're currently charging
+            bool is_charging = (device_info.charge_state >= 1 && device_info.charge_state <= 4 && 
+                               device_info.charge_current_amps > 0.2f && 
+                               device_info.input_voltage_volts > 0.0f);
+            
+            // Calculate battery percentage based on voltage with improved algorithm
+            uint16_t battery_voltage_mv = (uint16_t)(device_info.battery_voltage_volts * 1000.0f);  // Convert V to mV
+            uint8_t calculated_percentage;
+            
+            // Special case: fully charged
+            if (device_info.charge_state == 7 && device_info.charge_current_amps == 0) {
+                calculated_percentage = 100;
+            }
+            // Special case: voltage too low
+            else if (battery_voltage_mv <= vsysmin_mv) {
+                calculated_percentage = 0;
+            }
+            // Special case: voltage at or above max
+            else if (battery_voltage_mv >= vreg_mv) {
+                calculated_percentage = 100;
+            }
+            // Normal case: calculate percentage based on voltage
+            else {
+                // Calculate percentage using a non-linear curve to better match LiFePO4 behavior
+                // This helps prevent jumps when charging starts
+                
+                // First, calculate a base percentage using the voltage
                 uint16_t voltage_range = vreg_mv - vsysmin_mv;
                 uint16_t voltage_above_min = battery_voltage_mv - vsysmin_mv;
-                device_info.battery_percentage = (uint8_t)((voltage_above_min * 100) / voltage_range);
+                
+                // Use a non-linear curve (square root) to flatten the middle range
+                // This makes the percentage less sensitive to voltage changes in the middle range
+                float normalized_voltage = (float)voltage_above_min / (float)voltage_range;
+                float adjusted_percentage = sqrtf(normalized_voltage) * 100.0f;
+                
+                calculated_percentage = (uint8_t)adjusted_percentage;
+                
+                // Clamp to valid range
+                if (calculated_percentage > 100) calculated_percentage = 100;
+                // No need to check for < 0 since uint8_t is always >= 0
+            }
+            
+            // Apply smoothing to prevent jumps
+            // Only update if enough time has passed since last update
+            if (current_time - last_percentage_update_time >= MIN_UPDATE_INTERVAL_MS) {
+                // Detect charging state change
+                bool charging_state_changed = (is_charging != was_charging);
+                was_charging = is_charging;
+                
+                // If charging state just changed, use the last stable percentage
+                if (charging_state_changed) {
+                    // When charging starts, keep the last stable percentage for a while
+                    // This prevents the percentage from jumping up immediately
+                    if (is_charging) {
+                        calculated_percentage = stable_percentage;
+                    }
+                } else {
+                    // Check if voltage has increased significantly (charging)
+                    bool significant_voltage_increase = (battery_voltage_mv > last_voltage_mv + SIGNIFICANT_VOLTAGE_CHANGE);
+                    
+                    // Determine the maximum allowed change based on conditions
+                    uint8_t max_change = MAX_PERCENTAGE_CHANGE;
+                    if (is_charging && significant_voltage_increase) {
+                        max_change = FAST_CHARGE_PERCENTAGE_CHANGE;
+                    }
+                    
+                    // Skip percentage change limiting on first update
+                    if (!first_percentage_update) {
+                        // Normal operation - limit the rate of change
+                        if (calculated_percentage > last_battery_percentage + max_change) {
+                            calculated_percentage = last_battery_percentage + max_change;
+                        } else if (calculated_percentage < last_battery_percentage - MAX_PERCENTAGE_CHANGE) {
+                            calculated_percentage = last_battery_percentage - MAX_PERCENTAGE_CHANGE;
+                        }
+                    } else {
+                        // First update - set stable percentage directly
+                        stable_percentage = calculated_percentage;
+                        first_percentage_update = false;
+                    }
+                    
+                    // Update stable percentage if voltage hasn't changed much
+                    if (abs((int)battery_voltage_mv - (int)last_voltage_mv) < 50) {
+                        stable_percentage = calculated_percentage;
+                    }
+                }
+                
+                // Update tracking variables
+                last_battery_percentage = calculated_percentage;
+                last_percentage_update_time = current_time;
+                last_voltage_mv = battery_voltage_mv;
+                
+                // Update device info
+                device_info.battery_percentage = calculated_percentage;
             }
             
             //ESP_LOGI(TAG, "Battery voltage: %.2fV, Percentage: %d%%", device_info.battery_voltage_volts, device_info.battery_percentage);
 
             // Check charge state and is_charging flag
-            if (device_info.charge_state >= 1 && device_info.charge_state <= 4 && device_info.charge_current_amps > 0.2f && device_info.input_voltage_volts > 0.0f) {
+            if (is_charging) {
                 new_state = POWER_STATE_CHARGING;
 
                 // Enable high power charging when entering charging state
@@ -97,7 +194,6 @@ void power_mgmt_task(void *pvParameters)
                    
                 } */
             } else if (device_info.charge_state == 7 && device_info.charge_current_amps == 0) {
-                device_info.battery_percentage = 100;
                 new_state = POWER_STATE_FULLY_CHARGED;
             } else if (device_info.input_voltage_volts > 0.0f) {
                 new_state = POWER_STATE_POWERED;
@@ -116,12 +212,12 @@ void power_mgmt_task(void *pvParameters)
                     ESP_LOGE(TAG, "Failed to update power info in Firebase");
                 }
                 
-                if (update_counter >= 60) {
-                    update_counter = 0;
-                }
                 if (new_state != current_state) {
                     current_state = new_state;
                 }
+            }
+            if (update_counter >= 20) {
+                update_counter = 0;
             }
         }
 
