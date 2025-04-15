@@ -106,7 +106,15 @@ void blink_led_task(void *pvParameter)
                 break;
                 
             case STATE_IDLE:
-                led_strip_clear(led_strip);
+                if (ota_update_task_handle != NULL) {
+                    // OTA update in progress - all LEDs white
+                    for (int i = 0; i < NUM_LEDS; i++) {
+                        led_strip_set_pixel(led_strip, i, 100, 100, 100);
+                    }
+                } else {
+                    // Normal idle state - all LEDs off
+                    led_strip_clear(led_strip);
+                }
                 break;
                 
             case STATE_ERROR:

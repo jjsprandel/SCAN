@@ -102,7 +102,6 @@ void display_screen(state_t display_state, admin_state_t display_admin_state)
             #endif
         }
     }
-    ESP_LOGI(TAG, "End of display_screen. Free heap: %lu", esp_get_free_heap_size());
 }
 
 // void display_test_task(void *pvParameter)
